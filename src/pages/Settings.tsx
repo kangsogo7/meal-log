@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { db, setKV } from "../db";
-import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, testGemini } from "../gemini";
+import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini } from "../gemini";
 import { useSettings } from "../hooks";
 
 export default function SettingsPage() {
@@ -11,9 +11,8 @@ export default function SettingsPage() {
 
   const key = keyInput ?? settings.geminiKey;
   const cleaned = cleanKey(key);
-  // Gemini 키는 보통 "AIza"로 시작하는 39자
-  const keyWarning = cleaned && !/^AIza[A-Za-z0-9_-]{35}$/.test(cleaned)
-    ? `키 모양이 이상해요 (${cleaned.length}자). AI Studio에서 키 전체를 다시 복사해 주세요.`
+  const keyWarning = cleaned && !looksLikeKey(cleaned)
+    ? `키 모양이 이상해요 (${cleaned.length}자). 키는 "AQ." 또는 "AIza"로 시작해요. AI Studio에서 키 전체를 다시 복사해 주세요.`
     : "";
 
   const saveKey = async () => {
@@ -85,7 +84,7 @@ export default function SettingsPage() {
           <li>"API 키 만들기"를 눌러 키 복사</li>
           <li>아래에 붙여넣고 "연결 확인"</li>
         </ol>
-        <input type="password" autoComplete="off" value={key} onChange={(e) => setKeyInput(e.target.value)} placeholder="AIza..." />
+        <input type="password" autoComplete="off" value={key} onChange={(e) => setKeyInput(e.target.value)} placeholder="AQ.으로 시작하는 키" />
         <div className="btn-row">
           <button className="primary" onClick={test} disabled={!key.trim()}>연결 확인</button>
           <button onClick={saveKey}>저장만</button>

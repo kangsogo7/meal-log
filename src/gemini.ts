@@ -30,7 +30,10 @@ function googleMessage(body: string) {
 }
 
 /** 붙여넣을 때 섞여 들어온 줄바꿈·보이지 않는 문자 제거 (헤더에 넣으면 요청이 실패함) */
-export const cleanKey = (key: string) => key.replace(/[^A-Za-z0-9_-]/g, "");
+export const cleanKey = (key: string) => key.replace(/[^A-Za-z0-9._-]/g, "");
+
+/** 예전 키(AIza...) 또는 2026년 6월부터 발급되는 새 키(AQ....) 모양인지 */
+export const looksLikeKey = (key: string) => /^(AIza[A-Za-z0-9_-]{35}|AQ\.[A-Za-z0-9._-]{20,})$/.test(key);
 
 async function generateJson<T>(settings: Settings, parts: Part[], schema: object): Promise<T> {
   const apiKey = cleanKey(settings.geminiKey);
@@ -76,7 +79,7 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
   if (r.status !== 200) {
     const detail = googleMessage(r.text);
     if (r.status === 429) throw new GeminiError("오늘 Gemini 무료 사용 한도를 다 썼어요. 직접 입력하거나 나중에 다시 시도해 주세요.");
-    if (r.status === 400 && /API key|API_KEY/i.test(r.text)) throw new GeminiError("Gemini API 키가 올바르지 않아요. 설정에서 확인해 주세요.");
+    if (r.status === 401 || (r.status === 400 && /API key|API_KEY/i.test(r.text))) throw new GeminiError("Gemini API 키가 올바르지 않아요. 설정에서 확인해 주세요.");
     if (r.status === 403) throw new GeminiError("Gemini API 키 권한이 없어요. 설정에서 확인해 주세요.");
     if (r.status === 404) throw new GeminiError(`모델(${settings.geminiModel})을 찾을 수 없어요. 설정에서 모델을 바꿔 주세요.`);
     if (r.status >= 500) throw new GeminiError("구글 Gemini 서버가 지금 붐벼요. 잠시 후 다시 시도해 주세요.");
