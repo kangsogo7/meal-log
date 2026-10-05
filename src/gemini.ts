@@ -16,32 +16,72 @@ function toGeminiSchema(s: unknown): unknown {
   return s;
 }
 
+export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** 구글이 보낸 오류 설명 (화면에 같이 보여 주기 위해) */
+function googleMessage(body: string) {
+  try {
+    return (JSON.parse(body)?.error?.message as string | undefined)?.slice(0, 200) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 async function generateJson<T>(settings: Settings, parts: Part[], schema: object): Promise<T> {
   if (!settings.geminiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.geminiModel)}:generateContent`;
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": settings.geminiKey },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: { responseMimeType: "application/json", responseSchema: toGeminiSchema(schema), temperature: 0.2 },
-      }),
-    });
-  } catch {
-    throw new GeminiError("인터넷 연결을 확인해 주세요.");
+  const body = JSON.stringify({
+    contents: [{ role: "user", parts }],
+    generationConfig: { responseMimeType: "application/json", responseSchema: toGeminiSchema(schema), temperature: 0.2 },
+  });
+
+  // 서버가 붐비면(5xx) 같은 모델로 한 번 더, 그래도 안 되면 다른 모델로 시도
+  const models = [settings.geminiModel, ...GEMINI_MODELS.filter((m) => m !== settings.geminiModel).slice(0, 2)];
+  const call = async (model: string) => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": settings.geminiKey },
+        body,
+      });
+      return { status: res.status, text: await res.text() };
+    } catch {
+      throw new GeminiError("인터넷 연결을 확인해 주세요.");
+    }
+  };
+
+  let r = { status: 0, text: "" };
+  outer: for (const [i, model] of models.entries()) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      r = await call(model);
+      if (r.status < 500) {
+        // 대신 시도한 모델이 없으면(404) 다음 모델로, 그 외에는 결과 확정
+        if (i > 0 && r.status === 404) {
+          r.status = 503;
+          continue outer;
+        }
+        break outer;
+      }
+      await sleep(1500 * (attempt + 1));
+    }
   }
-  if (!res.ok) {
-    const body = await res.text();
-    if (res.status === 429) throw new GeminiError("오늘 Gemini 무료 사용 한도를 다 썼어요. 직접 입력하거나 나중에 다시 시도해 주세요.");
-    if (res.status === 400 && /API key|API_KEY/i.test(body)) throw new GeminiError("Gemini API 키가 올바르지 않아요. 설정에서 확인해 주세요.");
-    if (res.status === 403) throw new GeminiError("Gemini API 키 권한이 없어요. 설정에서 확인해 주세요.");
-    if (res.status === 404) throw new GeminiError(`모델(${settings.geminiModel})을 찾을 수 없어요. 설정에서 모델을 바꿔 주세요.`);
-    throw new GeminiError(`Gemini 오류 (${res.status})`);
+
+  if (r.status !== 200) {
+    const detail = googleMessage(r.text);
+    if (r.status === 429) throw new GeminiError("오늘 Gemini 무료 사용 한도를 다 썼어요. 직접 입력하거나 나중에 다시 시도해 주세요.");
+    if (r.status === 400 && /API key|API_KEY/i.test(r.text)) throw new GeminiError("Gemini API 키가 올바르지 않아요. 설정에서 확인해 주세요.");
+    if (r.status === 403) throw new GeminiError("Gemini API 키 권한이 없어요. 설정에서 확인해 주세요.");
+    if (r.status === 404) throw new GeminiError(`모델(${settings.geminiModel})을 찾을 수 없어요. 설정에서 모델을 바꿔 주세요.`);
+    if (r.status >= 500) throw new GeminiError("구글 Gemini 서버가 지금 붐벼요. 잠시 후 다시 시도해 주세요.");
+    throw new GeminiError(`Gemini 오류 (${r.status})${detail ? `: ${detail}` : ""}`);
   }
-  const data = await res.json();
-  const text: string | undefined = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("");
+  const data = JSON.parse(r.text);
+  const text: string | undefined = data?.candidates?.[0]?.content?.parts
+    ?.filter((p: { thought?: boolean }) => !p.thought)
+    .map((p: { text?: string }) => p.text ?? "")
+    .join("");
   if (!text) throw new GeminiError("Gemini가 답을 주지 않았어요. 다시 시도해 주세요.");
   try {
     return JSON.parse(text) as T;

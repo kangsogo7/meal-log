@@ -1,9 +1,7 @@
 import { useRef, useState } from "react";
 import { db, setKV } from "../db";
-import { GeminiError, testGemini } from "../gemini";
+import { GEMINI_MODELS as MODELS, GeminiError, testGemini } from "../gemini";
 import { useSettings } from "../hooks";
-
-const MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 
 export default function SettingsPage() {
   const settings = useSettings();
