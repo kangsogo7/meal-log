@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { db, setKV } from "../db";
-import { GEMINI_MODELS as MODELS, GeminiError, testGemini } from "../gemini";
+import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, testGemini } from "../gemini";
 import { useSettings } from "../hooks";
 
 export default function SettingsPage() {
@@ -10,9 +10,14 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const key = keyInput ?? settings.geminiKey;
+  const cleaned = cleanKey(key);
+  // Gemini 키는 보통 "AIza"로 시작하는 39자
+  const keyWarning = cleaned && !/^AIza[A-Za-z0-9_-]{35}$/.test(cleaned)
+    ? `키 모양이 이상해요 (${cleaned.length}자). AI Studio에서 키 전체를 다시 복사해 주세요.`
+    : "";
 
   const saveKey = async () => {
-    await setKV("settings", { ...settings, geminiKey: key.trim() });
+    await setKV("settings", { ...settings, geminiKey: cleaned });
     setKeyInput(null);
     setStatus("저장했어요.");
   };
@@ -20,8 +25,8 @@ export default function SettingsPage() {
   const test = async () => {
     setStatus("확인 중...");
     try {
-      await testGemini({ ...settings, geminiKey: key.trim() });
-      await setKV("settings", { ...settings, geminiKey: key.trim() });
+      await testGemini({ ...settings, geminiKey: cleaned });
+      await setKV("settings", { ...settings, geminiKey: cleaned });
       setKeyInput(null);
       setStatus("✅ 연결됐어요. 저장했어요.");
     } catch (e) {
@@ -85,6 +90,7 @@ export default function SettingsPage() {
           <button className="primary" onClick={test} disabled={!key.trim()}>연결 확인</button>
           <button onClick={saveKey}>저장만</button>
         </div>
+        {keyWarning && <p className="error">{keyWarning}</p>}
         {status && <p className="small">{status}</p>}
         <label>모델
           <select value={settings.geminiModel} onChange={(e) => setKV("settings", { ...settings, geminiModel: e.target.value })}>
@@ -115,10 +121,11 @@ export default function SettingsPage() {
       <section className="card">
         <h2>데이터 출처</h2>
         <p className="muted small">
-          식품의약품안전처 전국통합식품영양성분정보 표준데이터(원재료성식품, 음식) — 공공데이터포털.
+          식품의약품안전처 전국통합식품영양성분정보 표준데이터(원재료성식품, 음식, 가공식품) — 공공데이터포털.
           AI 추정값은 실제와 다를 수 있어요.
         </p>
       </section>
+      <p className="muted small version">앱 버전 {__APP_VERSION__}</p>
     </>
   );
 }

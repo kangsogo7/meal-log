@@ -29,8 +29,12 @@ function googleMessage(body: string) {
   }
 }
 
+/** 붙여넣을 때 섞여 들어온 줄바꿈·보이지 않는 문자 제거 (헤더에 넣으면 요청이 실패함) */
+export const cleanKey = (key: string) => key.replace(/[^A-Za-z0-9_-]/g, "");
+
 async function generateJson<T>(settings: Settings, parts: Part[], schema: object): Promise<T> {
-  if (!settings.geminiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
+  const apiKey = cleanKey(settings.geminiKey);
+  if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
   const body = JSON.stringify({
     contents: [{ role: "user", parts }],
     generationConfig: { responseMimeType: "application/json", responseSchema: toGeminiSchema(schema), temperature: 0.2 },
@@ -43,12 +47,13 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": settings.geminiKey },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body,
       });
       return { status: res.status, text: await res.text() };
-    } catch {
-      throw new GeminiError("인터넷 연결을 확인해 주세요.");
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : String(e);
+      throw new GeminiError(`구글 서버에 연결하지 못했어요. 와이파이/데이터를 바꿔 보거나, 광고 차단 앱이 있다면 꺼 보세요. (${reason})`);
     }
   };
 

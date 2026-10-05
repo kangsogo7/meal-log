@@ -5,8 +5,12 @@ import { VitePWA } from "vite-plugin-pwa";
 // GitHub Pages 저장소 이름과 같아야 합니다 (https://<아이디>.github.io/meal-log/)
 const BASE = "/meal-log/";
 
+// 설정 화면에 보여 줄 버전 (빌드 시각, 한국 시간)
+const VERSION = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 16).replace("T", " ");
+
 export default defineConfig(({ command }) => ({
   base: command === "build" ? BASE : "/",
+  define: { __APP_VERSION__: JSON.stringify(VERSION) },
   plugins: [
     react(),
     VitePWA({

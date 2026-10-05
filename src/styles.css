@@ -238,4 +238,6 @@ label.inline input { width: 110px; margin: 0; }
 .tabbar button.active { color: var(--accent); font-weight: 700; }
 .tab-icon { font-size: 1.25rem; }
 
+.version { text-align: center; margin: 8px 0 0; }
+
 .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 0.9rem; z-index: 30; }
