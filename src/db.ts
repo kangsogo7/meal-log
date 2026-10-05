@@ -1,0 +1,165 @@
+import Dexie, { type EntityTable } from "dexie";
+
+export type Meal = "breakfast" | "lunch" | "snack" | "dinner";
+export const MEALS: { key: Meal; label: string; icon: string }[] = [
+  { key: "breakfast", label: "아침", icon: "🌅" },
+  { key: "lunch", label: "점심", icon: "☀️" },
+  { key: "snack", label: "간식", icon: "🍪" },
+  { key: "dinner", label: "저녁", icon: "🌙" },
+];
+
+export interface Nutrients {
+  kcal: number;
+  carb: number;
+  protein: number;
+  fat: number;
+  sugar?: number;
+  sodium?: number;
+}
+
+export type ItemSource = "db" | "ai" | "manual" | "saved";
+
+/** 한 끼 기록 안의 음식/식재료 한 줄 */
+export interface Item {
+  name: string; // 표시 이름 (사용자 입력)
+  amountText: string; // "200g", "2개", "1인분"
+  grams: number | null;
+  source: ItemSource;
+  matchName?: string; // DB에서 매칭된 식품명
+  nutrients: Nutrients;
+}
+
+export interface Entry {
+  id?: number;
+  date: string; // YYYY-MM-DD
+  meal: Meal;
+  kind: "out" | "home" | "manual";
+  title: string;
+  place?: string; // 외식 가게 이름
+  items: Item[];
+  total: Nutrients;
+  memo?: string;
+  createdAt: number;
+}
+
+export interface BodyRecord {
+  id?: number;
+  date: string;
+  weight: number;
+  bodyFat?: number; // 체지방률 %
+  muscle?: number; // 골격근량 kg
+  bmr?: number; // 인바디 기초대사량
+  source: "manual" | "inbody";
+}
+
+/** 한 번 찾은 메뉴/식재료를 다시 쓰기 위한 저장소 */
+export interface SavedFood {
+  key: string;
+  kind: Entry["kind"];
+  title: string;
+  place?: string;
+  items: Item[];
+  total: Nutrients;
+  uses: number;
+  updatedAt: number;
+}
+
+export interface KV {
+  key: string;
+  value: unknown;
+}
+
+export const db = new Dexie("meal-log") as Dexie & {
+  entries: EntityTable<Entry, "id">;
+  body: EntityTable<BodyRecord, "id">;
+  saved: EntityTable<SavedFood, "key">;
+  kv: EntityTable<KV, "key">;
+};
+
+db.version(1).stores({
+  entries: "++id, date, createdAt",
+  body: "++id, date",
+  saved: "key, updatedAt",
+  kv: "key",
+});
+
+// ---------- 프로필 / 설정 ----------
+export type Sex = "male" | "female";
+export type Goal = "cut" | "maintain" | "bulk";
+export type Intensity = "light" | "moderate" | "hard";
+
+export interface Profile {
+  sex: Sex;
+  birthYear: number;
+  height: number;
+  activity: 1 | 2 | 3 | 4;
+  exerciseDays: number;
+  exerciseMinutes: number;
+  exerciseIntensity: Intensity;
+  goal: Goal;
+  override?: Nutrients | null; // 목표를 직접 지정한 경우
+}
+
+export interface Settings {
+  geminiKey: string;
+  geminiModel: string;
+}
+
+export const DEFAULT_SETTINGS: Settings = { geminiKey: "", geminiModel: "gemini-3.8-flash" };
+
+export async function getKV<T>(key: string, fallback: T): Promise<T> {
+  const row = await db.kv.get(key);
+  return row ? ({ ...fallback, ...(row.value as object) } as T) : fallback;
+}
+export async function setKV(key: string, value: unknown) {
+  await db.kv.put({ key, value });
+}
+
+// ---------- 공통 유틸 ----------
+export const ZERO: Nutrients = { kcal: 0, carb: 0, protein: 0, fat: 0, sugar: 0, sodium: 0 };
+
+export const r1 = (v: number) => Math.round(v * 10) / 10;
+
+export function sumNutrients(list: Nutrients[]): Nutrients {
+  const t = { ...ZERO } as Required<Nutrients>;
+  for (const n of list) {
+    t.kcal += n.kcal || 0;
+    t.carb += n.carb || 0;
+    t.protein += n.protein || 0;
+    t.fat += n.fat || 0;
+    t.sugar += n.sugar || 0;
+    t.sodium += n.sodium || 0;
+  }
+  return { kcal: Math.round(t.kcal), carb: r1(t.carb), protein: r1(t.protein), fat: r1(t.fat), sugar: r1(t.sugar), sodium: Math.round(t.sodium) };
+}
+
+export function scaleNutrients(n: Nutrients, k: number): Nutrients {
+  return {
+    kcal: n.kcal * k,
+    carb: n.carb * k,
+    protein: n.protein * k,
+    fat: n.fat * k,
+    sugar: (n.sugar ?? 0) * k,
+    sodium: (n.sodium ?? 0) * k,
+  };
+}
+
+export function todayStr() {
+  return toDateStr(new Date());
+}
+export function toDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+export function addDays(date: string, n: number) {
+  const [y, m, d] = date.split("-").map(Number);
+  return toDateStr(new Date(y, m - 1, d + n));
+}
+export function formatDate(date: string) {
+  const [y, m, d] = date.split("-").map(Number);
+  const w = "일월화수목금토"[new Date(y, m - 1, d).getDay()];
+  return `${m}월 ${d}일 (${w})`;
+}
+
+/** 저장된 메뉴를 찾기 위한 키 (공백/대소문자 무시) */
+export const savedKey = (kind: string, place: string | undefined, title: string) =>
+  `${kind}|${(place ?? "").replace(/\s+/g, "").toLowerCase()}|${title.replace(/\s+/g, "").toLowerCase()}`;
