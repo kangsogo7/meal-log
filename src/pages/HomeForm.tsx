@@ -133,7 +133,7 @@ export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
                     <option value={MANUAL}>직접 입력</option>
                   </select>
                   <label className="inline grams">
-                    <NumInput value={r.grams === null ? null : Math.round(r.grams)} onChange={(g) => update(i, { grams: g })} placeholder="g" />
+                    <NumInput value={r.grams} onChange={(g) => update(i, { grams: g })} placeholder="g" />
                     <em>g</em>
                   </label>
                 </div>

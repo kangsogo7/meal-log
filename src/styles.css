@@ -238,6 +238,9 @@ label.inline input { width: 110px; margin: 0; }
 .tabbar button.active { color: var(--accent); font-weight: 700; }
 .tab-icon { font-size: 1.25rem; }
 
+.nfield > span { display: block; color: var(--muted); }
+.nfield input { margin-top: 4px; }
+.kcal-auto { display: block; margin-top: 4px; padding: 10px 4px; font-weight: 700; color: var(--text); font-size: 16px; }
 .ngrid.three { grid-template-columns: repeat(3, 1fr); }
 .ex-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.9rem; }
 .ex-table th { text-align: left; font-weight: 600; padding: 4px 6px 4px 0; }

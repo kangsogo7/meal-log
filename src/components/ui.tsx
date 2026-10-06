@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Nutrients } from "../db";
+import { kcalFromMacros } from "../nutrition";
 
 export function Sheet({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
   useEffect(() => {
@@ -20,20 +21,36 @@ export function Sheet({ title, onClose, children, footer }: { title: string; onC
   );
 }
 
-/** 숫자 입력 (빈칸 허용) */
+/**
+ * 숫자 입력 (빈칸 허용).
+ * 입력 중인 글자는 따로 들고 있어서, 칸을 비워도 부모가 0으로 저장한 값이 "0"으로 되살아나지 않음.
+ * 칸을 누르면 전체 선택돼서 바로 새 숫자를 칠 수 있음.
+ */
 export function NumInput({
   value, onChange, placeholder, step = "any", className,
 }: { value: number | null | undefined; onChange: (v: number | null) => void; placeholder?: string; step?: string; className?: string }) {
+  const show = (v: number | null | undefined) => (v == null ? "" : String(Math.round(v * 10) / 10));
+  const [text, setText] = useState(show(value));
+  // 바깥에서 값이 바뀐 경우(양 조절 등)에만 화면 글자를 맞춤
+  useEffect(() => {
+    if (Math.abs(Number(text || 0) - (value ?? 0)) > 0.05) setText(show(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
   return (
     <input
       className={className}
-      type="number"
-      inputMode="decimal"
-      step={step}
-      min={0}
+      type="text"
+      inputMode={step === "1" ? "numeric" : "decimal"}
       placeholder={placeholder}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+      value={text}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => {
+        // 숫자와 소수점 하나만 허용, 앞에 붙은 0 제거 ("065" → "65", "0.5"는 유지)
+        let t = e.target.value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1").replace(/^0+(?=\d)/, "");
+        if (t.startsWith(".")) t = "0" + t;
+        setText(t);
+        onChange(t === "" ? null : Number(t));
+      }}
     />
   );
 }
@@ -65,23 +82,29 @@ export function Progress({ label, value, target, unit, className }: { label: str
   );
 }
 
-/** 칼로리, 탄단지 4칸 편집 */
+/** 탄단지 편집. 칼로리는 탄단지를 고치면 자동으로 다시 계산(4/4/9) */
 export function NutrientEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) => void }) {
-  const field = (key: keyof Nutrients, label: string, unit: string) => (
+  const field = (key: "carb" | "protein" | "fat", label: string) => (
     <label className="nfield">
-      <span>{label}</span>
-      <div className="with-unit">
-        <NumInput value={n[key] === undefined ? null : Math.round((n[key] as number) * 10) / 10} onChange={(v) => onChange({ ...n, [key]: v ?? 0 })} />
-        <em>{unit}</em>
-      </div>
+      <span>{label} (g)</span>
+      <NumInput
+        value={n[key]}
+        onChange={(v) => {
+          const next = { ...n, [key]: v ?? 0 };
+          onChange({ ...next, kcal: kcalFromMacros(next.carb, next.protein, next.fat) });
+        }}
+      />
     </label>
   );
   return (
     <div className="ngrid">
-      {field("kcal", "칼로리", "kcal")}
-      {field("carb", "탄수화물", "g")}
-      {field("protein", "단백질", "g")}
-      {field("fat", "지방", "g")}
+      <div className="nfield">
+        <span>칼로리</span>
+        <output className="kcal-auto">{Math.round(n.kcal).toLocaleString()}</output>
+      </div>
+      {field("carb", "탄수화물")}
+      {field("protein", "단백질")}
+      {field("fat", "지방")}
     </div>
   );
 }
