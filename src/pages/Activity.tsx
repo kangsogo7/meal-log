@@ -181,20 +181,15 @@ function ShortcutCard({ lastSync }: { lastSync?: number }) {
       <details className="shortcut-guide">
         <summary>단축어 만드는 방법</summary>
         <ol className="small steps">
-          <li>단축어 앱 → <b>+</b> → 이름 "식단 기록 건강"</li>
-          <li><b>건강 샘플 찾기</b>: 유형 <b>걸음</b>, 시작일 <b>오늘</b> → 다음에 <b>통계 계산</b>(합계)</li>
-          <li><b>건강 샘플 찾기</b>: 유형 <b>활동 에너지</b>, 시작일 <b>오늘</b> → <b>통계 계산</b>(합계)</li>
-          <li><b>건강 샘플 찾기</b>: 유형 <b>운동</b>(Workouts), 시작일 <b>오늘</b> → <b>각 항목을 반복</b> 안에 <b>텍스트</b> "운동: [유형], [지속 시간], [에너지]"</li>
-          <li>(선택) <b>체중</b>, <b>체지방률</b>: 가장 최근 1개</li>
-          <li><b>텍스트</b>에 아래처럼 적고 각 값을 변수로 넣기 → <b>클립보드에 복사</b></li>
+          <li>단축어 앱 → <b>+</b> → 동작 <b>건강 샘플 찾기</b>: 유형 <b>걸음</b> · 시작일 <b>오늘임</b> · 그룹화 <b>일</b></li>
+          <li>동작 <b>건강 샘플 찾기</b> 하나 더: 유형 <b>활동 에너지</b> · 시작일 <b>오늘임</b> · 그룹화 <b>일</b></li>
+          <li>동작 <b>텍스트</b>: <code>걸음: </code> 쓰고 → 키보드 위 <b>변수 선택</b> → 1번 동작 결과 누르기. 줄을 바꿔 <code>활동칼로리: </code> 쓰고 → 2번 동작 결과 넣기</li>
+          <li>동작 <b>클립보드에 복사</b></li>
         </ol>
-        <pre className="shortcut-sample">{`날짜: [현재 날짜 yyyy-MM-dd]
-걸음: [걸음 합계]
-활동칼로리: [활동 에너지 합계]
-체중: [체중]
-체지방: [체지방률]
-[반복 결과]`}</pre>
-        <p className="muted small">단축어를 실행한 뒤 이 앱에서 "단축어 데이터 붙여넣기"를 누르면 돼요. 단축어 이름을 Siri에게 말해도 실행돼요.</p>
+        <p className="muted small">텍스트는 이렇게 보이면 돼요 (파란 칸이 변수). 날짜는 안 넣어도 오늘로 들어가요.</p>
+        <pre className="shortcut-sample">{`걸음: [건강 샘플]
+활동칼로리: [건강 샘플]`}</pre>
+        <p className="muted small">단축어를 실행한 뒤 여기서 "단축어 데이터 붙여넣기"를 누르세요.</p>
       </details>
     </section>
   );
