@@ -66,7 +66,16 @@ export interface SavedFood {
   total: Nutrients;
   uses: number;
   updatedAt: number;
-  fav?: boolean; // 즐겨찾기
+  /** @deprecated v3부터 groupId 사용 */
+  fav?: boolean;
+  groupId?: number; // 즐겨찾기 그룹. 없으면 "최근"에만 보임
+}
+
+/** 즐겨찾기 그룹 */
+export interface FavGroup {
+  id?: number;
+  name: string;
+  order: number;
 }
 
 /** 자주 먹는 식단 묶음. 한 번에 여러 개를 기록 */
@@ -88,6 +97,7 @@ export const db = new Dexie("meal-log") as Dexie & {
   body: EntityTable<BodyRecord, "id">;
   saved: EntityTable<SavedFood, "key">;
   sets: EntityTable<MealSet, "id">;
+  groups: EntityTable<FavGroup, "id">;
   kv: EntityTable<KV, "key">;
 };
 
@@ -98,6 +108,21 @@ db.version(1).stores({
   kv: "key",
 });
 db.version(2).stores({ sets: "++id, updatedAt" });
+// v3: 즐겨찾기 그룹. 예전 ⭐(fav)는 "기본" 그룹으로 옮김
+db.version(3)
+  .stores({ groups: "++id, order" })
+  .upgrade(async (tx) => {
+    const id = await tx.table("groups").add({ name: "기본", order: 0 });
+    await tx.table("saved").toCollection().modify((s: SavedFood) => {
+      if (s.fav) s.groupId = id as number;
+      delete s.fav;
+    });
+  });
+
+// 새로 설치한 경우에도 "기본" 그룹이 항상 있게
+db.on("ready", async () => {
+  if ((await db.groups.count()) === 0) await db.groups.add({ name: "기본", order: 0 });
+});
 
 // ---------- 프로필 / 설정 ----------
 export type Sex = "male" | "female";

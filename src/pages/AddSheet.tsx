@@ -5,6 +5,7 @@ import { NutrientLine, Sheet, SwipeRow, Toast } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
+import { createGroup, deleteGroup, FavStar, renameGroup } from "../favorites";
 
 type Mode = "out" | "home" | "food" | "fav" | "manual";
 const TABS: { key: Mode; label: string }[] = [
@@ -27,7 +28,7 @@ export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: strin
   await db.entries.add({ date, meal, kind: d.kind, title: d.title, place: d.place, items: d.items, total, memo, createdAt: Date.now() });
   const key = savedKey(d.kind, d.place, d.title);
   const prev = await db.saved.get(key);
-  await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: d.items, total, uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), fav: prev?.fav });
+  await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: d.items, total, uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
 }
 
 export default function AddSheet({ date, meal: initialMeal, onClose }: { date: string; meal: Meal; onClose: () => void }) {
@@ -102,35 +103,27 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
   );
 }
 
-/** ⭐ 즐겨찾기 + 최근 먹은 것. 누르면 바로 기록, 왼쪽으로 밀면 삭제 */
+/** 식사 세트 + 즐겨찾기 그룹 + 최근 먹은 것. 누르면 바로 기록, 왼쪽으로 밀면 삭제 */
 function Favorites({ onPick, onPickSet }: { onPick: (s: SavedFood) => void; onPickSet: (s: MealSet) => void }) {
   const [q, setQ] = useState("");
-  const saved = useLiveQuery(() => db.saved.orderBy("updatedAt").reverse().limit(300).toArray(), [], []);
+  const groups = useLiveQuery(() => db.groups.orderBy("order").toArray(), [], []);
+  const favs = useLiveQuery(() => db.saved.filter((s) => s.groupId != null).toArray(), [], []);
+  const latest = useLiveQuery(() => db.saved.orderBy("updatedAt").reverse().limit(300).toArray(), [], []);
   const sets = useLiveQuery(() => db.sets.orderBy("updatedAt").reverse().toArray(), [], []);
   const match = (s: SavedFood) => !q || `${s.place ?? ""} ${s.title}`.includes(q.trim());
   const shownSets = sets.filter((s) => !q || `${s.name} ${s.entries.map((e) => e.title).join(" ")}`.includes(q.trim()));
-  const favs = saved.filter((s) => s.fav && match(s));
-  const recent = saved.filter((s) => !s.fav && match(s)).slice(0, 40);
+  // 최근: 실제로 먹은 적 있고 즐겨찾기 그룹에 없는 것
+  const recent = latest.filter((s) => s.groupId == null && s.uses > 0 && match(s)).slice(0, 40);
 
   const row = (s: SavedFood) => (
     <li key={s.key}>
       <SwipeRow onTap={() => onPick(s)} onDelete={() => db.saved.delete(s.key)}>
         <div className="fav-row">
           <div>
-            <div><span className={`tag ${s.kind}`}>{KIND_LABEL[s.kind]}</span>{s.place ? `${s.place} · ` : ""}{s.title}</div>
+            <div><span className="tag">{KIND_LABEL[s.kind]}</span>{s.place ? `${s.place} · ` : ""}{s.title}</div>
             <NutrientLine n={s.total as Nutrients} />
           </div>
-          <button
-            className="star"
-            aria-label={s.fav ? "즐겨찾기 해제" : "즐겨찾기"}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              db.saved.update(s.key, { fav: !s.fav });
-            }}
-          >
-            {s.fav ? "★" : "☆"}
-          </button>
+          <FavStar getDraft={() => s} />
         </div>
       </SwipeRow>
     </li>
@@ -155,19 +148,29 @@ function Favorites({ onPick, onPickSet }: { onPick: (s: SavedFood) => void; onPi
           </ul>
         </>
       )}
-      {favs.length > 0 && (
-        <>
-          <h3 className="list-title">즐겨찾기</h3>
-          <ul className="pick-list">{favs.map(row)}</ul>
-        </>
-      )}
+      {groups.map((g, gi) => {
+        const items = favs.filter((s) => s.groupId === g.id && match(s));
+        if (q && items.length === 0) return null;
+        return (
+          <section key={g.id} className="fav-group">
+            <div className="group-head">
+              <h3 className="list-title">{g.name}</h3>
+              <div className="group-actions">
+                <button className="link small" onClick={() => renameGroup(g.id!, g.name)}>이름 변경</button>
+                {gi > 0 && <button className="link small danger-link" onClick={() => deleteGroup(g.id!, g.name)}>삭제</button>}
+              </div>
+            </div>
+            {items.length === 0 ? <p className="muted small">☆를 눌러 추가</p> : <ul className="pick-list">{items.map(row)}</ul>}
+          </section>
+        );
+      })}
+      <button className="link small new-group" onClick={() => createGroup()}>+ 새 그룹</button>
       {recent.length > 0 && (
         <>
           <h3 className="list-title">최근</h3>
           <ul className="pick-list">{recent.map(row)}</ul>
         </>
       )}
-      {saved.length === 0 && shownSets.length === 0 && <p className="muted small empty">아직 기록한 메뉴가 없어요</p>}
     </div>
   );
 }

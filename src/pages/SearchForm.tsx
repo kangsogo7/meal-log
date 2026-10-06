@@ -6,6 +6,7 @@ import { estimateMenu, GeminiError } from "../gemini";
 import { useSettings } from "../hooks";
 import { NumInput, NutrientEditor, NutrientLine, Stepper } from "../components/ui";
 import type { Draft } from "./AddSheet";
+import { FavStar, type FavDraft } from "../favorites";
 
 interface Choice {
   id: string;
@@ -138,19 +139,22 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
     }
   };
 
-  const pickFood = (f: Food, i: number) => {
+  const pickFood = (f: Food, i: number) => setChoice(foodChoice(f, i));
+
+  const foodChoice = (f: Food, i: number): Choice => {
     const grams = listGrams(f);
-    // 저장 이름: 외식은 입력한 메뉴명, 식품은 DB 제품명
-    const { place, title } = placeAndTitle();
-    setChoice({
+    // 저장 이름은 DB 이름 (같은 검색의 여러 결과가 서로 다른 메뉴로 저장되게).
+    // 상호는 DB 업체명, 없으면 외식은 입력한 상호
+    const { place } = placeAndTitle();
+    return {
       id: `db${i}`,
       label: foodLabel(f),
-      title: kind === "out" ? title : f.name.replace(/_/g, " "),
-      place: kind === "out" ? place ?? (f.kind === 1 ? f.brand || undefined : undefined) : f.brand || undefined,
+      title: f.name.replace(/_/g, " "),
+      place: f.brand || (kind === "out" ? place : undefined),
       source: "db", matchName: f.name, per100: f.per100, baseGrams: grams, grams,
       nutrients: scaleNutrients(f.per100, grams / 100),
       note: f.partial ? "식약처 DB에 탄수화물·지방 값이 없는 메뉴예요. 알고 있으면 직접 고쳐 주세요." : undefined,
-    });
+    };
   };
 
   const setGrams = (g: number | null) => {
@@ -160,19 +164,23 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
     else setChoice({ ...choice, grams: g });
   };
 
-  const save = () => {
-    if (!choice) return;
-    const title = choice.title || query.trim();
-    onSave({
+  /** 저장·즐겨찾기에 쓰는 내용 */
+  const toDraft = (c: Choice): Draft => {
+    const title = c.title || query.trim();
+    return {
       kind,
       title,
-      place: choice.place,
+      place: c.place,
       items: [{
         name: title,
-        amountText: choice.grams ? `${Math.round(choice.grams)}g` : "",
-        grams: choice.grams, source: choice.source, matchName: choice.matchName, nutrients: choice.nutrients,
+        amountText: c.grams ? `${Math.round(c.grams)}g` : "",
+        grams: c.grams, source: c.source, matchName: c.matchName, nutrients: c.nutrients,
       }],
-    });
+    };
+  };
+
+  const save = () => {
+    if (choice) onSave(toDraft(choice));
   };
 
   const q = query.trim();
@@ -191,8 +199,8 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
 
       {q && (
         <div className="results">
-          {savedHit && <ResultButton label={savedHit.label} n={savedHit.nutrients} selected={choice?.id === "saved"} onClick={() => setChoice(savedHit)} />}
-          {aiChoice && <ResultButton label={aiChoice.label} n={aiChoice.nutrients} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} />}
+          {savedHit && <ResultButton label={savedHit.label} n={savedHit.nutrients} selected={choice?.id === "saved"} onClick={() => setChoice(savedHit)} fav={() => toDraft(savedHit)} />}
+          {aiChoice && <ResultButton label={aiChoice.label} n={aiChoice.nutrients} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
           {results.map((f, i) => (
             <ResultButton
               key={`${f.name}|${f.brand}|${i}`}
@@ -201,6 +209,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
               suffix={`${listGrams(f)}g`}
               selected={choice?.id === `db${i}`}
               onClick={() => pickFood(f, i)}
+              fav={() => toDraft(foodChoice(f, i))}
             />
           ))}
           {!busy && results.length === 0 && !aiChoice && <p className="muted small">{copy.empty}</p>}
@@ -214,7 +223,10 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
 
       {choice && (
         <div className="card inset detail" ref={detailRef}>
-          <p className="small"><b>{choice.label}</b></p>
+          <div className="detail-head">
+            <p className="small"><b>{choice.label}</b></p>
+            <FavStar getDraft={() => toDraft(choice)} />
+          </div>
           {choice.note && <p className="muted small">{choice.note}</p>}
           <div className="amount-row">
             <label className="inline">먹은 양
@@ -245,13 +257,18 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
   );
 }
 
-function ResultButton({ label, n, note, suffix, selected, onClick }: { label: string; n: Nutrients; note?: string; suffix?: string; selected: boolean; onClick: () => void }) {
+function ResultButton({ label, n, note, suffix, selected, onClick, fav }: {
+  label: string; n: Nutrients; note?: string; suffix?: string; selected: boolean; onClick: () => void; fav?: () => FavDraft | null;
+}) {
   return (
-    <button className={`result ${selected ? "selected" : ""}`} onClick={onClick}>
-      <div>{label}</div>
-      <NutrientLine n={n} />
-      {suffix && <span className="muted small"> ({suffix})</span>}
-      {note && <div className="muted small">{note}</div>}
-    </button>
+    <div className="result-row">
+      <button className={`result ${selected ? "selected" : ""}`} onClick={onClick}>
+        <div>{label}</div>
+        <NutrientLine n={n} />
+        {suffix && <span className="muted small"> ({suffix})</span>}
+        {note && <div className="muted small">{note}</div>}
+      </button>
+      {fav && <FavStar getDraft={fav} className="result-star" />}
+    </div>
   );
 }

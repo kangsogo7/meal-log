@@ -43,8 +43,9 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
     generationConfig: { responseMimeType: "application/json", responseSchema: toGeminiSchema(schema), temperature: 0.2 },
   });
 
-  // 서버가 붐비면(5xx) 같은 모델로 한 번 더, 그래도 안 되면 다른 모델로 시도
-  const models = [settings.geminiModel, ...GEMINI_MODELS.filter((m) => m !== settings.geminiModel).slice(0, 2)];
+  // 무료 한도는 모델마다 따로라서, 한도 초과(429)면 바로 다음 모델로.
+  // 서버가 붐비면(5xx) 처음 모델은 한 번 더 기다렸다가, 그래도 안 되면 다음 모델로.
+  const models = [settings.geminiModel, ...GEMINI_MODELS.filter((m) => m !== settings.geminiModel)];
   const call = async (model: string) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     try {
@@ -61,24 +62,26 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
   };
 
   let r = { status: 0, text: "" };
+  let quotaHit = false;
   outer: for (const [i, model] of models.entries()) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const tries = i === 0 ? 2 : 1;
+    for (let attempt = 0; attempt < tries; attempt++) {
       r = await call(model);
-      if (r.status < 500) {
-        // 대신 시도한 모델이 없으면(404) 다음 모델로, 그 외에는 결과 확정
-        if (i > 0 && r.status === 404) {
-          r.status = 503;
-          continue outer;
-        }
-        break outer;
+      if (r.status === 200) break outer;
+      if (r.status === 429) {
+        quotaHit = true;
+        continue outer;
       }
+      if (i > 0 && r.status === 404) continue outer; // 대신 쓰려던 모델이 없음
+      if (r.status < 500) break outer; // 키 오류 등은 다른 모델로 바꿔도 같음
       await sleep(1500 * (attempt + 1));
     }
   }
 
   if (r.status !== 200) {
     const detail = googleMessage(r.text);
-    if (r.status === 429) throw new GeminiError("오늘 Gemini 무료 사용 한도를 다 썼어요. 직접 입력하거나 나중에 다시 시도해 주세요.");
+    if (quotaHit && (r.status === 429 || r.status >= 500 || r.status === 404))
+      throw new GeminiError("오늘 Gemini 무료 사용 한도를 모든 모델에서 다 썼어요. 직접 입력하거나 내일 다시 시도해 주세요.");
     if (r.status === 401 || (r.status === 400 && /API key|API_KEY/i.test(r.text))) throw new GeminiError("Gemini API 키가 올바르지 않아요. 설정에서 확인해 주세요.");
     if (r.status === 403) throw new GeminiError("Gemini API 키 권한이 없어요. 설정에서 확인해 주세요.");
     if (r.status === 404) throw new GeminiError(`모델(${settings.geminiModel})을 찾을 수 없어요. 설정에서 모델을 바꿔 주세요.`);

@@ -6,6 +6,7 @@ import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
 import { NumInput, NutrientEditor, NutrientLine } from "../components/ui";
 import type { Draft } from "./AddSheet";
+import { FavStar } from "../favorites";
 
 const AI = -1;
 const MANUAL = -2;
@@ -147,6 +148,7 @@ export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
           <div className="card inset total">
             <span>합계</span>
             <NutrientLine n={total} />
+            <FavStar getDraft={() => (missingGrams ? null : { kind: "home", title: dish.trim() || items.map((i) => i.name).join(", "), items })} />
           </div>
           {missingGrams && <p className="error">g 입력 필요: {missing.join(", ")}</p>}
           <button className="primary block" onClick={save} disabled={missingGrams}>저장</button>

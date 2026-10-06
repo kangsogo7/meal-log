@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { db, MEALS, r1, scaleNutrients, sumNutrients, type Entry } from "../db";
+import { db, KIND_LABEL, MEALS, r1, scaleNutrients, sumNutrients, type Entry, type EntryKind } from "../db";
 import { NutrientEditor, NutrientLine, Sheet } from "../components/ui";
 
 export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
@@ -43,9 +43,16 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
             <button key={m.key} className={e.meal === m.key ? "on" : ""} onClick={() => setE({ ...e, meal: m.key })}>{m.label}</button>
           ))}
         </div>
-        {e.kind === "out" && (
-          <label>가게 이름
-            <input value={e.place ?? ""} onChange={(ev) => setE({ ...e, place: ev.target.value })} />
+        <div className="seg">
+          {(Object.keys(KIND_LABEL) as EntryKind[]).map((k) => (
+            <button key={k} className={e.kind === k ? "on" : ""} onClick={() => setE({ ...e, kind: k })}>
+              {k === "manual" ? "직접 입력" : KIND_LABEL[k]}
+            </button>
+          ))}
+        </div>
+        {(e.kind === "out" || e.kind === "food") && (
+          <label>{e.kind === "out" ? "가게 이름" : "제조사"}
+            <input value={e.place ?? ""} onChange={(ev) => setE({ ...e, place: ev.target.value })} placeholder="선택" />
           </label>
         )}
         <label>이름

@@ -2,10 +2,16 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
 
+let openSheets = 0;
+
 export function Sheet({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+  // 창이 겹쳐 열려도 마지막 창이 닫힐 때까지 뒤 화면 스크롤 잠금
   useEffect(() => {
+    openSheets++;
     document.body.classList.add("no-scroll");
-    return () => document.body.classList.remove("no-scroll");
+    return () => {
+      if (--openSheets === 0) document.body.classList.remove("no-scroll");
+    };
   }, []);
   return (
     <div className="sheet-backdrop" onClick={onClose}>

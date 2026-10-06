@@ -50,6 +50,7 @@ export default function SettingsPage() {
       body: await db.body.toArray(),
       saved: await db.saved.toArray(),
       sets: await db.sets.toArray(),
+      groups: await db.groups.toArray(),
       // API 키는 백업 파일에 넣지 않음
       kv: (await db.kv.toArray()).filter((r) => r.key !== "settings"),
     };
@@ -66,12 +67,20 @@ export default function SettingsPage() {
       const data = JSON.parse(await file.text());
       if (data.app !== "meal-log" || !Array.isArray(data.entries)) throw new Error();
       if (!confirm(`식단 ${data.entries.length}개, 체중 ${data.body?.length ?? 0}개를 가져올게요.\n지금 기록은 모두 바뀌어요. 계속할까요?`)) return;
-      await db.transaction("rw", [db.entries, db.body, db.saved, db.sets, db.kv], async () => {
+      await db.transaction("rw", [db.entries, db.body, db.saved, db.sets, db.groups, db.kv], async () => {
         await Promise.all([db.entries.clear(), db.body.clear(), db.saved.clear(), db.sets.clear()]);
         await db.entries.bulkAdd(data.entries);
         await db.body.bulkAdd(data.body ?? []);
         await db.saved.bulkPut(data.saved ?? []);
         await db.sets.bulkAdd(data.sets ?? []);
+        // 그룹: 백업에 있으면 그대로, 예전 백업이면 "기본" 그룹 유지하고 ⭐를 거기로
+        if (data.groups?.length) {
+          await db.groups.clear();
+          await db.groups.bulkAdd(data.groups);
+        } else {
+          const def = await db.groups.orderBy("order").first();
+          if (def) await db.saved.toCollection().modify((s) => { if (s.fav) { s.groupId = def.id; delete s.fav; } });
+        }
         await db.kv.bulkPut((data.kv ?? []).filter((r: { key: string }) => r.key !== "settings"));
       });
       alert("가져왔어요.");
