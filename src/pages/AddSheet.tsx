@@ -145,6 +145,7 @@ function Favorites({ onPick, onPickSet }: { onPick: (s: SavedFood) => void; onPi
           </ul>
         </>
       )}
+      <button className="link small new-group" onClick={() => createGroup()}>+ 새 그룹</button>
       {groups.map((g, gi) => {
         const items = favs.filter((s) => s.groupId === g.id && match(s));
         if (q && items.length === 0) return null;
@@ -161,7 +162,6 @@ function Favorites({ onPick, onPickSet }: { onPick: (s: SavedFood) => void; onPi
           </section>
         );
       })}
-      <button className="link small new-group" onClick={() => createGroup()}>+ 새 그룹</button>
     </div>
   );
 }
