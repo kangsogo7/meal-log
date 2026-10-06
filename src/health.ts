@@ -41,6 +41,7 @@ async function mergeDays(days: Map<string, Partial<DayActivity>>, source: DayAct
       date,
       steps: d.steps ?? prev?.steps,
       activeKcal: d.activeKcal ?? prev?.activeKcal,
+      exerciseMin: d.exerciseMin ?? prev?.exerciseMin,
       workouts: d.workouts ?? prev?.workouts ?? [],
       source,
       syncedAt: Date.now(),
@@ -81,7 +82,9 @@ export async function syncFromHealth(days = 14): Promise<{ days: number; workout
         : `건강 앱을 쓸 수 없어요. (${avail.reason ?? "알 수 없는 이유"})`,
     );
   }
-  await Health.requestAuthorization({ read: ["steps", "calories", "workouts", "weight", "bodyFat"] });
+  const isIos = Capacitor.getPlatform() === "ios";
+  // "운동하기 시간"은 아이폰에만 있음 (안드로이드는 운동 기록 합계로 표시)
+  await Health.requestAuthorization({ read: ["steps", "calories", "workouts", "weight", "bodyFat", ...(isIos ? (["exerciseTime"] as const) : [])] });
 
   const from = new Date(`${addDays(todayStr(), -(days - 1))}T00:00:00`);
   const range = { startDate: from.toISOString(), endDate: new Date().toISOString() };
@@ -106,6 +109,16 @@ export async function syncFromHealth(days = 14): Promise<{ days: number; workout
 
   const kcal = await tryRead(() => Health.queryAggregated({ ...range, dataType: "calories", bucket: "day", aggregation: "sum" }));
   kcal?.samples.forEach((s) => (day(s.startDate).activeKcal = Math.round(s.value)));
+
+  if (isIos) {
+    const ex = await tryRead(() => Health.readSamples({ ...range, dataType: "exerciseTime", limit: 5000 }));
+    const perDay = new Map<string, number>();
+    ex?.samples.forEach((s) => {
+      const d = toDateStr(new Date(s.startDate));
+      perDay.set(d, (perDay.get(d) ?? 0) + s.value);
+    });
+    perDay.forEach((m, d) => (day(new Date(`${d}T12:00:00`).toISOString()).exerciseMin = Math.round(m)));
+  }
 
   const wo = await tryRead(() => Health.queryWorkouts({ ...range, limit: 200, ascending: true }));
   let workoutCount = 0;
@@ -223,6 +236,9 @@ export function parseShortcutText(text: string) {
       known++;
     } else if (/^(활동칼로리|활동에너지|activekcal|activeenergy|active)$/.test(key)) {
       cur().activeKcal = Math.round(num(v) ?? 0);
+      known++;
+    } else if (/^(운동시간|운동하기시간|운동하기|exercisetime|exerciseminutes)$/.test(key)) {
+      cur().exerciseMin = Math.round(minutesOf(v) ?? 0);
       known++;
     } else if (/^(체중|몸무게|weight)$/.test(key)) {
       const w = num(v);

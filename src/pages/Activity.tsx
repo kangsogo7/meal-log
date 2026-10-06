@@ -24,7 +24,8 @@ export default function Activity() {
   const day: DayActivity | undefined = week.find((d) => d.date === date);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const byDate = (d: string) => week.find((w) => w.date === d);
-  const workoutMin = day?.workouts.reduce((s, w) => s + w.minutes, 0) ?? 0;
+  // 운동 시간: 아이폰 "운동하기 시간"이 있으면 그것, 없으면 운동 기록 합계
+  const workoutMin = day?.exerciseMin ?? day?.workouts.reduce((s, w) => s + w.minutes, 0) ?? 0;
 
   return (
     <>
@@ -183,12 +184,14 @@ function ShortcutCard({ lastSync }: { lastSync?: number }) {
         <ol className="small steps">
           <li>단축어 앱 → <b>+</b> → 동작 <b>건강 샘플 찾기</b>: 유형 <b>걸음</b> · 시작일 <b>오늘임</b> · 그룹화 <b>일</b></li>
           <li>동작 <b>건강 샘플 찾기</b> 하나 더: 유형 <b>활동 에너지</b> · 시작일 <b>오늘임</b> · 그룹화 <b>일</b></li>
-          <li>동작 <b>텍스트</b>: <code>걸음: </code> 쓰고 → 키보드 위 <b>변수 선택</b> → 1번 동작 결과 누르기. 줄을 바꿔 <code>활동칼로리: </code> 쓰고 → 2번 동작 결과 넣기</li>
+          <li>동작 <b>건강 샘플 찾기</b> 하나 더: 유형 <b>운동하기 시간</b> · 시작일 <b>오늘임</b> · 그룹화 <b>일</b></li>
+          <li>동작 <b>텍스트</b>: <code>걸음: </code> 쓰고 → 키보드 위 <b>변수 선택</b> → 1번 동작 결과 누르기. 줄을 바꿔 <code>활동칼로리: </code> 뒤에 2번, <code>운동시간: </code> 뒤에 3번 결과 넣기</li>
           <li>동작 <b>클립보드에 복사</b></li>
         </ol>
         <p className="muted small">텍스트는 이렇게 보이면 돼요 (파란 칸이 변수). 날짜는 안 넣어도 오늘로 들어가요.</p>
         <pre className="shortcut-sample">{`걸음: [건강 샘플]
-활동칼로리: [건강 샘플]`}</pre>
+활동칼로리: [건강 샘플]
+운동시간: [건강 샘플]`}</pre>
         <p className="muted small">단축어를 실행한 뒤 여기서 "단축어 데이터 붙여넣기"를 누르세요.</p>
       </details>
     </section>

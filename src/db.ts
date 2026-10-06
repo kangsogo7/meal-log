@@ -102,6 +102,7 @@ export interface DayActivity {
   date: string; // YYYY-MM-DD
   steps?: number;
   activeKcal?: number;
+  exerciseMin?: number; // 아이폰 "운동하기 시간" (운동 기록과 별개로 집계되는 하루 운동 분)
   workouts: Workout[];
   source: "healthconnect" | "healthkit" | "shortcut";
   syncedAt: number;
