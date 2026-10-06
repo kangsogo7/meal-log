@@ -85,8 +85,12 @@ export const BackIcon = () => (
  * 칸을 누르면 전체 선택돼서 바로 새 숫자를 칠 수 있음.
  */
 export function NumInput({
-  value, onChange, placeholder, step = "any", className,
-}: { value: number | null | undefined; onChange: (v: number | null) => void; placeholder?: string; step?: string; className?: string }) {
+  value, onChange, placeholder, step = "any", className, decimals,
+}: {
+  value: number | null | undefined; onChange: (v: number | null) => void; placeholder?: string; step?: string; className?: string;
+  /** 소수점 아래 최대 자릿수 (예: 1 → 150.5까지) */
+  decimals?: number;
+}) {
   const show = (v: number | null | undefined) => (v == null ? "" : String(Math.round(v * 10) / 10));
   const [text, setText] = useState(show(value));
   // 바깥에서 값이 바뀐 경우(양 조절 등)에만 화면 글자를 맞춤
@@ -105,6 +109,8 @@ export function NumInput({
       onChange={(e) => {
         // 숫자와 소수점 하나만 허용, 앞에 붙은 0 제거 ("065" → "65", "0.5"는 유지)
         let t = e.target.value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1").replace(/^0+(?=\d)/, "");
+        if (decimals === 0) t = t.replace(/\..*$/, "");
+        else if (decimals != null) t = t.replace(new RegExp(`(\\.\\d{${decimals}})\\d+$`), "$1");
         if (t.startsWith(".")) t = "0" + t;
         setText(t);
         onChange(t === "" ? null : Number(t));
@@ -177,7 +183,7 @@ export function Stepper({ value, onChange }: { value: number; onChange: (k: numb
   // 직접 g을 고쳐서 1.3배처럼 애매한 값이면 가까운 0.5 단위로 이동
   const up = Math.floor(value * 2 + 1e-6) / 2 + 0.5;
   const down = Math.max(0.5, Math.ceil(value * 2 - 1e-6) / 2 - 0.5);
-  const label = Number.isInteger(value * 2) ? value.toFixed(1) : value.toFixed(2).replace(/0$/, "");
+  const label = (Math.round(value * 10) / 10).toFixed(1); // 소수점 첫째 자리까지
   return (
     <div className="stepper">
       <button onClick={() => onChange(down)} disabled={value <= 0.5} aria-label="0.5배 줄이기">−</button>

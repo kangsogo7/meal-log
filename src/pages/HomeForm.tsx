@@ -134,7 +134,7 @@ export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
                     <option value={MANUAL}>직접 입력</option>
                   </select>
                   <label className="inline grams">
-                    <NumInput value={r.grams} onChange={(g) => update(i, { grams: g })} placeholder="g" className={r.choice >= 0 && !r.grams ? "missing" : ""} />
+                    <NumInput value={r.grams} onChange={(g) => update(i, { grams: g })} placeholder="g" decimals={1} className={r.choice >= 0 && !r.grams ? "missing" : ""} />
                     <em>g</em>
                   </label>
                 </div>

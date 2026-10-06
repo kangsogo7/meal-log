@@ -230,7 +230,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
           {choice.note && <p className="muted small">{choice.note}</p>}
           <div className="amount-row">
             <label className="inline">먹은 양
-              <NumInput value={choice.grams} onChange={setGrams} placeholder="g" />
+              <NumInput value={choice.grams} onChange={setGrams} placeholder="g" decimals={1} />
               <span className="muted">g</span>
             </label>
             {choice.baseGrams ? (
