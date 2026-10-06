@@ -16,7 +16,7 @@ export const EXERCISES: Record<ExerciseKind, { label: string; hint: string; met:
 };
 
 export const GOALS: Record<Goal, { label: string; kcal: number; proteinPerKg: number; desc: string }> = {
-  cut: { label: "감량", kcal: 0.8, proteinPerKg: 2.0, desc: "소모량의 80% (체지방 감량)" },
+  cut: { label: "컷팅", kcal: 0.8, proteinPerKg: 2.2, desc: "소모량의 80% (체지방 감량)" },
   maintain: { label: "유지", kcal: 1.0, proteinPerKg: 1.6, desc: "소모량 그대로" },
   leanbulk: { label: "린매스업", kcal: 1.05, proteinPerKg: 2.0, desc: "소모량보다 5% 많이 (지방은 적게 늘리며 근육 증가)" },
   bulk: { label: "벌크업", kcal: 1.1, proteinPerKg: 1.8, desc: "소모량보다 10% 많이" },
