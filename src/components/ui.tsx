@@ -1,20 +1,31 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
 
-let openSheets = 0;
+let openLayers = 0;
 
-export function Sheet({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
-  // 창이 겹쳐 열려도 마지막 창이 닫힐 때까지 뒤 화면 스크롤 잠금
+/**
+ * 창(시트·전체 화면)을 body 바로 아래에 그림.
+ * 다른 창 안에서 열어도 그 창의 스크롤 영역에 갇히지 않고(아이폰), 나중에 연 창이 항상 위에 옴.
+ * 마지막 창이 닫힐 때까지 뒤 화면 스크롤 잠금.
+ */
+function useLayer() {
+  const [z] = useState(() => 20 + openLayers * 10);
   useEffect(() => {
-    openSheets++;
+    openLayers++;
     document.body.classList.add("no-scroll");
     return () => {
-      if (--openSheets === 0) document.body.classList.remove("no-scroll");
+      if (--openLayers === 0) document.body.classList.remove("no-scroll");
     };
   }, []);
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
+  return z;
+}
+
+export function Sheet({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+  const z = useLayer();
+  return createPortal(
+    <div className="sheet-backdrop" style={{ zIndex: z }} onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
         <header className="sheet-head">
           <h2>{title}</h2>
@@ -23,21 +34,16 @@ export function Sheet({ title, onClose, children, footer }: { title: string; onC
         <div className="sheet-body">{children}</div>
         {footer && <footer className="sheet-foot">{footer}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 /** 화면 전체를 덮는 페이지 (음식 편집, 내 폴더 등) */
 export function Screen({ title, left, right, footer, children }: { title: ReactNode; left: ReactNode; right?: ReactNode; footer?: ReactNode; children: ReactNode }) {
-  useEffect(() => {
-    openSheets++;
-    document.body.classList.add("no-scroll");
-    return () => {
-      if (--openSheets === 0) document.body.classList.remove("no-scroll");
-    };
-  }, []);
-  return (
-    <div className="screen-page" role="dialog" aria-label={typeof title === "string" ? title : undefined}>
+  const z = useLayer();
+  return createPortal(
+    <div className="screen-page" style={{ zIndex: z }} role="dialog" aria-label={typeof title === "string" ? title : undefined}>
       <header className="screen-head">
         <div>{left}</div>
         <h2>{title}</h2>
@@ -45,7 +51,8 @@ export function Screen({ title, left, right, footer, children }: { title: ReactN
       </header>
       <div className="screen-body">{children}</div>
       {footer && <footer className="screen-foot">{footer}</footer>}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
