@@ -11,8 +11,12 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
   };
 
   const save = async () => {
-    await db.entries.put(e);
-    onClose();
+    try {
+      await db.entries.put(e);
+      onClose();
+    } catch (err) {
+      alert(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
   const remove = async () => {
     if (!confirm("이 기록을 삭제할까요?")) return;

@@ -181,15 +181,26 @@ export async function estimateMenu(
   menu: string,
   amount: string,
   references: string[],
+  kind: "out" | "food" = "out",
 ): Promise<MenuEstimate> {
-  const prompt = `너는 한국 외식 메뉴 영양 정보를 잘 아는 영양사야.
+  const refs = references.length ? `참고 (식약처 DB, 100g 기준):\n${references.join("\n")}\n` : "";
+  const prompt =
+    kind === "out"
+      ? `너는 한국 외식 메뉴 영양 정보를 잘 아는 영양사야.
 가게: ${place || "(모름)"}
 메뉴: ${menu}
 먹은 양: ${amount || "1인분"}
-${references.length ? `참고 (식약처 DB, 100g 기준):\n${references.join("\n")}\n` : ""}
+${refs}
 이 가게의 이 메뉴를 "먹은 양"만큼 먹었을 때의 영양성분을 추정해.
 프랜차이즈라면 공식 영양 정보를 최대한 기억해서 쓰고, 모르면 비슷한 메뉴의 일반적인 값으로 추정해.
-note에는 근거나 가정(예: "공식 영양정보 기준", "일반적인 1인분 400g 가정")을 한국어로 짧게 적어.`;
+note에는 근거나 가정(예: "공식 영양정보 기준", "일반적인 1인분 400g 가정")을 한국어로 짧게 적어.`
+      : `너는 한국에서 파는 식품(편의점·마트 제품, 과일, 유제품 등)의 영양 정보를 잘 아는 영양사야.
+식품: ${[place, menu].filter(Boolean).join(" ")}
+먹은 양: ${amount || "1개 (1회 제공량)"}
+${refs}
+이 식품을 "먹은 양"만큼 먹었을 때의 영양성분을 추정해.
+시판 제품이라면 포장지 영양정보를 최대한 기억해서 쓰고, 모르면 비슷한 제품의 일반적인 값으로 추정해.
+note에는 근거나 가정(예: "제품 영양정보 기준 1봉지 120g", "중간 크기 1개 기준")을 한국어로 짧게 적어.`;
 
   const schema = {
     type: "object",

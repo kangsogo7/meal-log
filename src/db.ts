@@ -29,13 +29,17 @@ export interface Item {
   nutrients: Nutrients;
 }
 
+/** out=외식, home=조리(집에서 요리), food=식품(바로 먹는 제품·과일 등), manual=직접 입력 */
+export type EntryKind = "out" | "home" | "food" | "manual";
+export const KIND_LABEL: Record<EntryKind, string> = { out: "외식", home: "조리", food: "식품", manual: "직접" };
+
 export interface Entry {
   id?: number;
   date: string; // YYYY-MM-DD
   meal: Meal;
-  kind: "out" | "home" | "manual";
+  kind: EntryKind;
   title: string;
-  place?: string; // 외식 가게 이름
+  place?: string; // 외식 가게 이름 / 식품 제조사
   items: Item[];
   total: Nutrients;
   memo?: string;
@@ -62,6 +66,7 @@ export interface SavedFood {
   total: Nutrients;
   uses: number;
   updatedAt: number;
+  fav?: boolean; // 즐겨찾기
 }
 
 export interface KV {

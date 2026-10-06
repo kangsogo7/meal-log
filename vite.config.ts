@@ -35,7 +35,7 @@ export default defineConfig(({ command }) => ({
         // 식약처 DB(약 2MB)는 처음 쓸 때 받아서 캐시해 두고 오프라인에서도 사용
         runtimeCaching: [
           {
-            urlPattern: /food-db\.json$/,
+            urlPattern: /(food-db|products)\.json$/,
             handler: "StaleWhileRevalidate",
             options: { cacheName: "food-db" },
           },

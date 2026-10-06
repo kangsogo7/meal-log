@@ -96,7 +96,8 @@ export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
     nutrients: rowNutrients(r),
   }));
   const total = sumNutrients(items.map((i) => i.nutrients));
-  const missingGrams = (rows ?? []).some((r) => r.choice >= 0 && !r.grams);
+  const missing = (rows ?? []).filter((r) => r.choice >= 0 && !r.grams).map((r) => r.line.name);
+  const missingGrams = missing.length > 0;
 
   const save = () => {
     const title = dish.trim() || items.map((i) => i.name).join(", ");
@@ -149,6 +150,7 @@ export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
             <span>합계</span>
             <NutrientLine n={total} />
           </div>
+          {missingGrams && <p className="error">g을 입력해야 저장할 수 있어요: {missing.join(", ")}</p>}
           <button className="primary block" onClick={save} disabled={missingGrams}>저장</button>
         </>
       )}

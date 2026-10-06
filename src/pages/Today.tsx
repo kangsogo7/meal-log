@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { addDays, db, formatDate, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
-import { useTargets } from "../hooks";
+import { addDays, db, formatDate, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
+import { useProfile, useTargets } from "../hooks";
 import { NutrientLine, Progress } from "../components/ui";
 import { WeekChart } from "../components/charts";
-import { SODIUM_LIMIT } from "../nutrition";
+import { evaluateMeal, GOALS, GRADE_EMOJI, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet from "./AddSheet";
 import EntrySheet from "./EntrySheet";
 
@@ -12,7 +12,9 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
   const [date, setDate] = useState(todayStr());
   const [adding, setAdding] = useState<Meal | null>(null);
   const [editing, setEditing] = useState<Entry | null>(null);
+  const [openEval, setOpenEval] = useState<Meal | null>(null);
   const { target } = useTargets();
+  const profile = useProfile();
 
   const weekStart = addDays(date, -6);
   const weekEntries = useLiveQuery(() => db.entries.where("date").between(weekStart, date, true, true).toArray(), [weekStart, date], []);
@@ -57,6 +59,8 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
       {MEALS.map((m) => {
         const list = entries.filter((e) => e.meal === m.key);
         const sub = sumNutrients(list.map((e) => e.total));
+        const ev = target && profile && list.length > 0 ? evaluateMeal(m.key, sub, target, profile.goal) : null;
+        const open = openEval === m.key;
         return (
           <section className="card meal" key={m.key}>
             <div className="meal-head">
@@ -64,14 +68,31 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
                 {m.icon} {m.label}
                 {list.length > 0 && <span className="muted meal-kcal">{sub.kcal} kcal</span>}
               </h2>
-              <button className="chip primary" onClick={() => setAdding(m.key)}>+ 기록</button>
+              <div className="meal-actions">
+                {ev && (
+                  <button className="grade" onClick={() => setOpenEval(open ? null : m.key)} aria-label="끼니 평가 보기">
+                    {GRADE_EMOJI[ev.grade]}
+                  </button>
+                )}
+                <button className="chip primary" onClick={() => setAdding(m.key)}>+ 기록</button>
+              </div>
             </div>
+            {ev && open && (
+              <div className="eval">
+                <p className="small">
+                  <b>{GOALS[profile!.goal].label}</b> 목표 기준, 이 끼니 몫(하루의 {Math.round(MEAL_SHARE[m.key] * 100)}%)과 비교했어요.
+                </p>
+                <ul className="small">
+                  {ev.reasons.map((r) => <li key={r.text}>{GRADE_EMOJI[r.grade]} {r.text}</li>)}
+                </ul>
+              </div>
+            )}
             {list.length > 0 && (
               <ul className="entries">
                 {list.map((e) => (
                   <li key={e.id} onClick={() => setEditing(e)}>
                     <div className="entry-title">
-                      <span className={`tag ${e.kind}`}>{e.kind === "out" ? "외식" : e.kind === "home" ? "집밥" : "직접"}</span>
+                      <span className={`tag ${e.kind}`}>{KIND_LABEL[e.kind]}</span>
                       {e.place ? `${e.place} · ` : ""}{e.title}
                     </div>
                     <NutrientLine n={e.total} />

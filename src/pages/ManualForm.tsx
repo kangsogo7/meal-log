@@ -17,7 +17,7 @@ export default function ManualForm({ onSave }: { onSave: (d: Draft) => void }) {
         <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="예: 1스쿱" />
       </label>
       <NutrientEditor n={n} onChange={setN} />
-      <p className="muted small">제품 포장지의 영양정보를 보고 입력하세요.</p>
+      <p className="muted small">제품 포장지의 영양정보를 보고 입력하세요.{!title.trim() && " 음식 이름을 넣어야 저장할 수 있어요."}</p>
       <button
         className="primary block"
         disabled={!title.trim()}

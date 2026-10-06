@@ -261,6 +261,24 @@ label.inline input { width: 110px; margin: 0; }
 .ex-table input { padding: 8px 28px 8px 10px; }
 .ex-table .with-unit em { display: block; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); font-size: 0.85rem; }
 
+.manual-link { text-align: right; margin: -4px 0 8px; }
+.search-input { font-size: 17px; padding: 12px 14px; margin-bottom: 4px; }
+.detail { scroll-margin-bottom: 16px; }
+.amount-row { display: flex; flex-direction: column; gap: 6px; }
+.amount-row label.inline input { width: 90px; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.list-title { font-size: 0.9rem; margin: 14px 0 4px; }
+.fav-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.star { border: none; background: none; font-size: 1.4rem; color: #f5b301; padding: 4px 6px; min-height: 0; }
+.tag.food { background: #e0ecff; color: #1d4ed8; }
+@media (prefers-color-scheme: dark) { .tag.food { background: #172a4d; color: #93c5fd; } }
+.meal-actions { display: flex; align-items: center; gap: 6px; }
+.grade { border: none; background: var(--inset); font-size: 1.3rem; padding: 2px 8px; min-height: 34px; border-radius: 999px; }
+.eval { background: var(--inset); border-radius: 12px; padding: 8px 12px; margin-top: 10px; }
+.eval p { margin: 0 0 4px; }
+.eval ul { list-style: none; padding: 0; margin: 0; }
+.eval li { padding: 2px 0; }
+
 .version { text-align: center; margin: 8px 0 0; }
 
 .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 0.9rem; z-index: 30; }

@@ -3,10 +3,11 @@ import type { Nutrients } from "./db";
 
 export interface Food {
   name: string;
-  kind: 0 | 1; // 0=식재료(원재료성), 1=음식
-  brand: string;
+  kind: 0 | 1 | 2; // 0=식재료(원재료성), 1=음식, 2=시판 제품
+  brand: string; // 외식 업체명 또는 제조사
   per100: Nutrients;
   serving: number; // 1회 제공량(g), 모르면 0
+  pkg?: number; // 제품 포장 중량(g)
   group: string;
   /** 지방/탄수화물 값이 비어 있는 프랜차이즈 데이터 */
   partial: boolean;
@@ -53,6 +54,75 @@ export function loadFoodDb(): Promise<Food[]> {
   return loading;
 }
 
+// ---------- 시판 제품 (식품 탭, 처음 쓸 때만 받음) ----------
+let products: Food[] | null = null;
+let productsLoading: Promise<Food[]> | null = null;
+
+export function loadProductDb(): Promise<Food[]> {
+  if (products) return Promise.resolve(products);
+  productsLoading ??= fetch(`${import.meta.env.BASE_URL}products.json`)
+    .then((r) => {
+      if (!r.ok) throw new Error("식약처 제품 DB를 불러오지 못했어요");
+      return r.json();
+    })
+    .then((data: { products: (string | number)[][] }) => {
+      const seen = new Set<string>();
+      const list: Food[] = [];
+      for (const r of data.products) {
+        const [name, maker, kcal, carb, protein, fat, sugar, sodium, serving, pkg] = r as [
+          string, string, number, number, number, number, number, number, number, number,
+        ];
+        const dup = `${name}|${maker}`;
+        if (!kcal || seen.has(dup)) continue;
+        seen.add(dup);
+        list.push({
+          name, kind: 2, brand: maker, serving, pkg, group: "",
+          per100: { kcal, carb, protein, fat, sugar, sodium },
+          partial: false,
+          norm: norm(name),
+        });
+      }
+      products = list;
+      return list;
+    })
+    .catch((e) => {
+      productsLoading = null;
+      throw e;
+    });
+  return productsLoading;
+}
+
+/** 제품 1개를 먹었을 때 기본 g: 한 번에 먹는 포장이면 포장 전체, 아니면 1회 제공량 */
+export const defaultGrams = (f: Food) => (f.pkg && f.pkg <= 500 ? f.pkg : f.serving || 100);
+
+// ---------- 상호/브랜드 분리 ----------
+const brandIndex = new WeakMap<Food[], Map<string, string>>();
+
+/** "교촌치킨 허니콤보" → { brand: "교촌치킨", rest: "허니콤보" }. DB에 있는 업체명일 때만 분리 */
+export function splitBrand(list: Food[], query: string): { brand?: string; rest: string } {
+  let index = brandIndex.get(list);
+  if (!index) {
+    index = new Map();
+    for (const f of list) if (f.brand) index.set(norm(f.brand), f.brand);
+    brandIndex.set(list, index);
+  }
+  const tokens = query.trim().split(/\s+/);
+  for (let i = Math.min(3, tokens.length - 1); i >= 1; i--) {
+    const cand = norm(tokens.slice(0, i).join(""));
+    if (cand.length < 2) continue;
+    const exact = index.get(cand);
+    if (exact) return { brand: exact, rest: tokens.slice(i).join(" ") };
+  }
+  // "삼광 두유"처럼 업체명 앞부분만 쓴 경우 (가장 짧은 업체명으로)
+  if (tokens.length > 1 && norm(tokens[0]).length >= 2) {
+    const head = norm(tokens[0]);
+    let best: string | undefined;
+    for (const [k, v] of index) if (k.startsWith(head) && (!best || k.length < norm(best).length)) best = v;
+    if (best) return { brand: best, rest: tokens.slice(1).join(" ") };
+  }
+  return { rest: query.trim() };
+}
+
 // 사람들이 흔히 쓰는 이름 → DB 표기
 const SYNONYMS: [RegExp, string][] = [
   [/계란/g, "달걀"],
@@ -94,7 +164,7 @@ export function searchFoods(list: Food[], query: string, opts: SearchOptions = {
   for (const f of list) {
     const fb = norm(f.brand);
     if (brand && !(fb && (fb.includes(brand) || brand.includes(fb)))) continue;
-    const hay = f.norm + "|" + norm(f.group);
+    const hay = f.norm + "|" + norm(f.group) + "|" + fb;
     let hit = 0;
     for (const t of tokens) if (hay.includes(t)) hit++;
     if (hit === 0) continue;
@@ -125,3 +195,6 @@ export function hasBrand(list: Food[], brand: string) {
 
 export const foodLabel = (f: Food) =>
   (f.brand ? `[${f.brand}] ` : "") + f.name.replace(/_/g, " ") + (f.group.startsWith("가공식품") ? " (시판 제품 평균)" : "");
+
+/** 결과 목록 기본 g: 제품은 포장/1회량, 음식은 1인분, 모르면 100g */
+export const listGrams = (f: Food) => (f.kind === 2 ? defaultGrams(f) : f.serving || 100);

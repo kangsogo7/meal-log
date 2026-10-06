@@ -72,12 +72,27 @@ for (const { pk, kind } of DATASETS) {
 
 // 가공식품(5만 개, 대부분 특정 제품)은 너무 커서 대표식품명별 중앙값만 넣음
 // 예: 두부, 치즈, 우유, 햄, 어묵 같은 일반 식재료를 찾을 수 있게
-console.log("데이터 받는 중: 15100066 (가공식품 → 대표식품별 평균)");
+console.log("데이터 받는 중: 15100066 (가공식품 → 대표식품별 평균 + 제품 목록)");
 const groups = new Map();
+const products = [];
+// "(주)농심 안성공장" → "농심"
+const maker = (s) =>
+  String(s ?? "")
+    .replace(/\(주\)|㈜|\(유\)|주식회사|농업회사법인|영농조합법인|유한회사|\s*[가-힣A-Za-z0-9]*공장$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 for (const r of await fetchDataset("15100066")) {
   const name = (r.FOOD_LV4_NM ?? "").trim();
-  if (!name || !Number(r.ENERC)) continue;
+  if (!Number(r.ENERC)) continue;
   const k = 100 / (qty(r.NUT_CON_SRTR_QUA) || 100);
+  // 식품 탭용 개별 제품: 1회 섭취량(깔끔한 숫자일 때만)과 포장 중량
+  const serv = /^\s*[\d.]+\s*(g|ml|mL)?\s*(\(g\))?\s*$/.test(r.SERV_SIZE ?? "") ? qty(r.SERV_SIZE) : 0;
+  products.push([
+    r.FOOD_NM.trim(), maker(r.MFR_NM || r.DIST_NM || r.IMPT_NM),
+    n(r.ENERC * k), n(r.CHOCDF * k), n(r.PROT * k), n(r.FATCE * k), n(r.SUGAR * k), n(r.NAT * k),
+    serv || 0, qty(r.FOOD_SIZE) || 0,
+  ]);
+  if (!name) continue;
   const g = groups.get(name) ?? [];
   g.push([r.ENERC, r.CHOCDF, r.PROT, r.FATCE, r.SUGAR, r.NAT].map((v) => (Number(v) || 0) * k));
   groups.set(name, g);
@@ -101,3 +116,14 @@ const out = {
 };
 await writeFile("public/food-db.json", JSON.stringify(out));
 console.log(`완료: ${foods.length}개 → public/food-db.json`);
+
+await writeFile(
+  "public/products.json",
+  JSON.stringify({
+    source: out.source,
+    builtAt: out.builtAt,
+    fields: ["name", "maker", "kcal", "carb", "protein", "fat", "sugar", "sodium", "serving", "package"],
+    products,
+  }),
+);
+console.log(`완료: 제품 ${products.length}개 → public/products.json`);
