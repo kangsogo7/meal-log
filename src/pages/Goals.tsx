@@ -48,11 +48,21 @@ export default function Goals() {
             <summary>어떻게 계산했나요?</summary>
             <ul className="small">
               <li>기초대사량 <b>{calc.bmr} kcal</b> · {calc.bmrMethod}{latest?.bmr ? ` (인바디 측정값: ${latest.bmr} kcal)` : ""}</li>
-              <li>
-                운동 소모량 일주일 {calc.exerciseDetail.map((e) => `${e.label} ${e.perWeek}`).join(" + ")} kcal
-                → 하루 평균 <b>{calc.exerciseKcal} kcal</b>
-              </li>
-              <li>기초대사량 × 평소 활동량 + 운동 = 하루 소모량 <b>{calc.tdee} kcal</b></li>
+              {calc.actual ? (
+                <li>
+                  오늘 건강 앱 활동 칼로리 <b>{calc.actual.activeKcal} kcal</b>
+                  {calc.actual.usedEstimate ? " (아직 하루가 덜 지나서 운동 횟수 기준 추정치 사용)" : ""}
+                  → 기초대사량 × 1.1 + 활동 = 하루 소모량 <b>{calc.tdee} kcal</b>
+                </li>
+              ) : (
+                <>
+                  <li>
+                    운동 소모량 일주일 {calc.exerciseDetail.map((e) => `${e.label} ${e.perWeek}`).join(" + ")} kcal
+                    → 하루 평균 <b>{calc.exerciseKcal} kcal</b>
+                  </li>
+                  <li>기초대사량 × 평소 활동량 + 운동 = 하루 소모량 <b>{calc.tdee} kcal</b></li>
+                </>
+              )}
               <li>목표 "{GOALS[profile.goal].label}": {GOALS[profile.goal].desc} (× {GOALS[profile.goal].kcal})</li>
               <li>단백질은 체중 1kg당 {GOALS[profile.goal].proteinPerKg}g, 지방은 칼로리의 25%, 나머지는 탄수화물</li>
               {calc.notes.map((n) => <li key={n}>{n}</li>)}
@@ -121,6 +131,13 @@ export default function Goals() {
             {ACTIVITY.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
         </label>
+        <label className="switch">
+          <input type="checkbox" checked={!!profile.useActualActivity} onChange={(e) => set({ useActualActivity: e.target.checked })} />
+          건강 앱의 실제 활동 칼로리로 목표 계산
+        </label>
+        {profile.useActualActivity && (
+          <p className="muted small">활동 화면에 그날 데이터가 있으면 그 값으로, 없으면 아래 운동 기준으로 계산해요.</p>
+        )}
         <p className="label">운동</p>
         <table className="ex-table">
           <thead>

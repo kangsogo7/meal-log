@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { addDays, db, formatDate, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
+import { addDays, db, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useProfile, useTargets } from "../hooks";
-import { NutrientLine, Progress } from "../components/ui";
+import { DateNav, NutrientLine, Progress } from "../components/ui";
 import { WeekChart } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_EMOJI, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet from "./AddSheet";
@@ -31,7 +31,7 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
   const [adding, setAdding] = useState<Meal | null>(null);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [openEval, setOpenEval] = useState<Meal | null>(null);
-  const { target } = useTargets();
+  const { target } = useTargets(date);
   const profile = useProfile();
 
   const weekStart = addDays(date, -6);
@@ -41,20 +41,9 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const weekKcal = days.map((d) => sumNutrients(weekEntries.filter((e) => e.date === d).map((e) => e.total)).kcal);
-  const isToday = date === todayStr();
-
   return (
     <>
-      <header className="page-head date-nav">
-        <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
-        <span aria-hidden />
-        <label className="date-label">
-          {formatDate(date)}
-          <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
-        </label>
-        <button className={`chip today-slot ${isToday ? "" : "show"}`} onClick={() => setDate(todayStr())} tabIndex={isToday ? -1 : 0}>오늘</button>
-        <button className="ghost" onClick={() => setDate(addDays(date, 1))} aria-label="다음 날">▶</button>
-      </header>
+      <DateNav date={date} onChange={setDate} />
 
       <section className="card">
         <Progress label="칼로리" value={total.kcal} target={target?.kcal} unit="kcal" className="big" />

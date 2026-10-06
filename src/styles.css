@@ -411,6 +411,21 @@ button.big { min-height: 54px; border-radius: 999px; font-size: 1rem; margin: 0;
 .emoji-preview { font-size: 1.5rem; display: grid; place-items: center; width: 40px; flex: none; }
 .group-row .folder-emoji { font-size: 1.2rem; width: 24px; }
 
+/* ---------- 활동 ---------- */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+.stat { background: var(--inset); border-radius: 12px; padding: 12px 4px; display: flex; flex-direction: column; gap: 2px; }
+.stat b { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.stat em { font-style: normal; font-size: 0.75rem; color: var(--muted); }
+.workout-list { list-style: none; padding: 0; margin: 0; }
+.workout-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 0.92rem; }
+.workout-list li:first-child { border-top: none; }
+.settings-link { display: block; margin-top: 10px; }
+.btn-link { display: block; text-align: center; text-decoration: none; padding: 12px; border-radius: 12px; font-weight: 600; margin-top: 8px; }
+.btn-link.primary { background: var(--accent); color: var(--accent-ink); }
+.paste-box { margin-top: 10px; }
+.shortcut-guide { margin-top: 12px; }
+.shortcut-sample { background: var(--inset); border-radius: 10px; padding: 10px 12px; font-size: 0.8rem; white-space: pre-wrap; overflow-x: auto; }
+
 input.missing { border-color: var(--over); }
 .empty { text-align: center; margin: 24px 0; }
 

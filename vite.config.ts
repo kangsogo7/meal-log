@@ -8,12 +8,14 @@ const BASE = "/meal-log/";
 // 설정 화면에 보여 줄 버전 (빌드 시각, 한국 시간)
 const VERSION = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 16).replace("T", " ");
 
-export default defineConfig(({ command }) => ({
-  base: command === "build" ? BASE : "/",
+// `vite build --mode native`: 안드로이드·아이폰 앱용 (앱 안에서 / 경로로 열리고 서비스 워커 불필요)
+export default defineConfig(({ command, mode }) => ({
+  base: command === "build" && mode !== "native" ? BASE : "/",
   define: { __APP_VERSION__: JSON.stringify(VERSION) },
   plugins: [
     react(),
     VitePWA({
+      disable: mode === "native",
       registerType: "autoUpdate",
       includeAssets: ["icons/apple-touch-icon.png"],
       manifest: {

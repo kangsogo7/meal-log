@@ -51,6 +51,7 @@ export default function SettingsPage() {
       saved: await db.saved.toArray(),
       sets: await db.sets.toArray(),
       groups: await db.groups.toArray(),
+      activity: await db.activity.toArray(),
       // API 키는 백업 파일에 넣지 않음
       kv: (await db.kv.toArray()).filter((r) => r.key !== "settings"),
     };
@@ -67,8 +68,12 @@ export default function SettingsPage() {
       const data = JSON.parse(await file.text());
       if (data.app !== "meal-log" || !Array.isArray(data.entries)) throw new Error();
       if (!confirm(`식단 ${data.entries.length}개, 체중 ${data.body?.length ?? 0}개를 가져올게요.\n지금 기록은 모두 바뀌어요. 계속할까요?`)) return;
-      await db.transaction("rw", [db.entries, db.body, db.saved, db.sets, db.groups, db.kv], async () => {
+      await db.transaction("rw", [db.entries, db.body, db.saved, db.sets, db.groups, db.activity, db.kv], async () => {
         await Promise.all([db.entries.clear(), db.body.clear(), db.saved.clear(), db.sets.clear()]);
+        if (data.activity) {
+          await db.activity.clear();
+          await db.activity.bulkPut(data.activity);
+        }
         await db.entries.bulkAdd(data.entries);
         await db.body.bulkAdd(data.body ?? []);
         await db.saved.bulkPut(data.saved ?? []);

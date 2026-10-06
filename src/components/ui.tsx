@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import type { Nutrients } from "../db";
+import { addDays, formatDate, todayStr, type Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
 
 let openLayers = 0;
@@ -53,6 +53,23 @@ export function Screen({ title, left, right, footer, children }: { title: ReactN
       {footer && <footer className="screen-foot">{footer}</footer>}
     </div>,
     document.body,
+  );
+}
+
+/** ◀ 날짜 오늘 ▶ (글자 길이와 상관없이 화살표 위치 고정) */
+export function DateNav({ date, onChange }: { date: string; onChange: (d: string) => void }) {
+  const isToday = date === todayStr();
+  return (
+    <header className="page-head date-nav">
+      <button className="ghost" onClick={() => onChange(addDays(date, -1))} aria-label="이전 날">◀</button>
+      <span aria-hidden />
+      <label className="date-label">
+        {formatDate(date)}
+        <input type="date" value={date} onChange={(e) => e.target.value && onChange(e.target.value)} />
+      </label>
+      <button className={`chip today-slot ${isToday ? "" : "show"}`} onClick={() => onChange(todayStr())} tabIndex={isToday ? -1 : 0}>오늘</button>
+      <button className="ghost" onClick={() => onChange(addDays(date, 1))} aria-label="다음 날">▶</button>
+    </header>
   );
 }
 

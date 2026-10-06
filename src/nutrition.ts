@@ -114,10 +114,16 @@ export interface TargetResult {
   tdee: number;
   exerciseKcal: number;
   exerciseDetail: { label: string; perWeek: number }[];
+  /** 실제 활동 칼로리를 썼으면 그 값. usedEstimate = 오늘이라 아직 적어서 추정치를 씀 */
+  actual?: { activeKcal: number; usedEstimate: boolean };
   notes: string[];
 }
 
-export function calcTargets(p: Profile, body: BodyRecord | undefined): TargetResult | null {
+/**
+ * @param actual 그날 건강 앱의 활동 칼로리. 주면 운동 횟수 추정 대신 실제 값으로 소모량 계산.
+ *   오늘은 아직 하루가 안 끝났으니 추정치보다 적으면 추정치를 씀
+ */
+export function calcTargets(p: Profile, body: BodyRecord | undefined, actual?: { activeKcal: number; isToday: boolean }): TargetResult | null {
   if (!body?.weight || !p.height || !p.birthYear) return null;
   const w = body.weight;
   const age = new Date().getFullYear() - p.birthYear;
@@ -141,7 +147,16 @@ export function calcTargets(p: Profile, body: BodyRecord | undefined): TargetRes
     return { label: EXERCISES[k].label, perWeek: Math.round((days || 0) * ((minutes || 0) / 60) * (EXERCISES[k].met - 1) * w) };
   });
   const exerciseKcal = exerciseDetail.reduce((s, e) => s + e.perWeek, 0) / 7;
-  const tdee = bmr * factor + exerciseKcal;
+  let tdee = bmr * factor + exerciseKcal;
+  let actualUsed: TargetResult["actual"];
+  if (actual) {
+    // 건강 앱의 활동 칼로리 = 기초대사량 외에 움직여서 쓴 칼로리. 소화에 쓰는 몫(기초대사량의 약 10%)을 더함
+    // 활동량 계수(1.2~)에 이미 소화 몫 0.1이 들어 있으므로 빼서 맞춤 → 추정치를 쓰면 기존 계산과 같은 값
+    const estimatedActive = bmr * (factor - 1.1) + exerciseKcal;
+    const active = actual.isToday ? Math.max(actual.activeKcal, estimatedActive) : actual.activeKcal;
+    tdee = bmr * 1.1 + active;
+    actualUsed = { activeKcal: Math.round(actual.activeKcal), usedEstimate: active !== actual.activeKcal };
+  }
 
   const goal = GOALS[p.goal];
   let kcal = tdee * goal.kcal;
@@ -165,6 +180,7 @@ export function calcTargets(p: Profile, body: BodyRecord | undefined): TargetRes
     tdee: Math.round(tdee),
     exerciseKcal: Math.round(exerciseKcal),
     exerciseDetail,
+    actual: actualUsed,
     notes,
   };
 }

@@ -26,6 +26,22 @@ npm run dev
 npm run build:food-db
 ```
 
+## 안드로이드·아이폰 앱 (건강 데이터)
+
+웹 코드를 Capacitor로 감싼 앱. 활동 화면에서 Health Connect(삼성헬스) / HealthKit의
+걸음 수·활동 칼로리·운동 기록·체중·체지방을 읽어 옴.
+
+- 안드로이드: `main`에 push하면 `.github/workflows/android.yml`이 서명된 APK를 만들어
+  [releases/android](https://github.com/kangsogo7/meal-log/releases/tag/android)에 올림.
+  서명 키는 저장소 Secrets(`ANDROID_KEYSTORE_*`)에 있고 원본은 개발 PC 홈 폴더에 보관.
+- 아이폰: `.github/workflows/ios.yml`이 macOS에서 서명 없이 빌드만 확인.
+  Apple 개발자 계정이 생기면 서명·TestFlight 단계 추가 (파일 안 주석 참고).
+- 아이폰 웹앱에서는 단축어로 건강 데이터를 복사해 붙여넣기.
+
+```bash
+npm run cap:sync   # 웹 빌드(native 모드) + 안드로이드/iOS 프로젝트에 복사
+```
+
 ## 배포
 
 `main` 브랜치에 push하면 GitHub Actions가 빌드해서 GitHub Pages에 올립니다.

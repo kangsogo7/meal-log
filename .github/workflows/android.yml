@@ -1,0 +1,57 @@
+name: Android app
+
+# main에 올릴 때마다 서명된 APK를 만들어서
+# https://github.com/kangsogo7/meal-log/releases/download/android/meal-log.apk 에 올림
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["README.md", "ios/**", ".github/workflows/ios.yml", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run build:native
+      - run: npx cap sync android
+
+      - name: 서명 키 준비
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: APK 빌드
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: 다운로드 링크에 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk meal-log.apk
+          gh release view android > /dev/null 2>&1 || \
+            gh release create android --title "안드로이드 앱" --latest=false \
+              --notes "식단 기록 안드로이드 앱 (Health Connect 연동). meal-log.apk를 받아 설치하세요."
+          gh release upload android meal-log.apk --clobber

@@ -25,7 +25,7 @@ function chunk(type, data) {
   return Buffer.concat([len, td, crc]);
 }
 
-function draw(size) {
+function draw(size, iconScale = 1) {
   const px = Buffer.alloc(size * (size * 3 + 1));
   const c = size / 2;
   for (let y = 0; y < size; y++) {
@@ -34,7 +34,9 @@ function draw(size) {
       // 2x2 슈퍼샘플링으로 가장자리 부드럽게
       let acc = [0, 0, 0];
       for (const [ox, oy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) {
-        const col = colorAt((x + ox - c) / size, (y + oy - c) / size);
+        // iconScale < 1: 가운데에 작은 아이콘 (스플래시 화면용)
+        const u = (x + ox - c) / (size * iconScale), v = (y + oy - c) / (size * iconScale);
+        const col = Math.abs(u) > 0.5 || Math.abs(v) > 0.5 ? GREEN : colorAt(u, v);
         acc = acc.map((v, i) => v + col[i] / 4);
       }
       const o = y * (size * 3 + 1) + 1 + x * 3;
@@ -74,4 +76,9 @@ mkdirSync("public/icons", { recursive: true });
 for (const [name, size] of [["icon-192", 192], ["icon-512", 512], ["apple-touch-icon", 180]]) {
   writeFileSync(`public/icons/${name}.png`, draw(size));
 }
+// 안드로이드·아이폰 앱 아이콘 원본 (npx @capacitor/assets generate 가 읽음)
+mkdirSync("assets", { recursive: true });
+writeFileSync("assets/icon-only.png", draw(1024));
+writeFileSync("assets/splash.png", draw(2732, 0.22));
+writeFileSync("assets/splash-dark.png", draw(2732, 0.22));
 console.log("아이콘 생성 완료");

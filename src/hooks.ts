@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, DEFAULT_SETTINGS, getKV, type Nutrients, type Profile, type Settings } from "./db";
+import { db, DEFAULT_SETTINGS, getKV, todayStr, type Nutrients, type Profile, type Settings } from "./db";
 import { calcTargets, DEFAULT_PROFILE, type TargetResult } from "./nutrition";
 
 export function useSettings(): Settings {
@@ -19,12 +19,17 @@ export function useLatestBody() {
   return useLiveQuery(() => db.body.orderBy("date").last(), []);
 }
 
-/** 화면에 쓸 목표값: 직접 지정한 값이 있으면 그것, 없으면 계산값 */
-export function useTargets(): { target: Nutrients | null; calc: TargetResult | null; hasProfile: boolean } {
+/**
+ * 화면에 쓸 목표값: 직접 지정한 값이 있으면 그것, 없으면 계산값.
+ * date를 주고 "실제 활동 칼로리 반영"이 켜져 있으면 그날 건강 앱 활동 칼로리로 계산
+ */
+export function useTargets(date: string = todayStr()): { target: Nutrients | null; calc: TargetResult | null; hasProfile: boolean } {
   const profile = useProfile();
   const saved = useProfileSaved();
   const body = useLatestBody();
-  const calc = profile && saved ? calcTargets(profile, body) : null;
+  const day = useLiveQuery(() => db.activity.get(date), [date]);
+  const actual = profile?.useActualActivity && day?.activeKcal != null ? { activeKcal: day.activeKcal, isToday: date === todayStr() } : undefined;
+  const calc = profile && saved ? calcTargets(profile, body, actual) : null;
   const target = (saved && profile?.override) || calc?.target || null;
   return { target, calc, hasProfile: !!saved && !!body };
 }

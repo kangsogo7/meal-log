@@ -1,0 +1,35 @@
+name: iOS app
+
+# 지금은 서명 없이 빌드만 확인 (Mac 없이 GitHub의 macOS에서 빌드).
+# Apple 개발자 계정(유료)을 만들면 여기에 서명·TestFlight 업로드 단계를 추가:
+#   1) Apple Developer에서 App ID io.github.kangsogo7.meallog 등록 + HealthKit 켜기
+#   2) 배포 인증서(.p12)와 프로비저닝 프로필, App Store Connect API 키를 저장소 Secrets에 저장
+#   3) 아래 xcodebuild를 서명된 archive → exportArchive → TestFlight 업로드로 교체
+on:
+  push:
+    branches: [main]
+    paths: ["ios/**", "src/**", "package*.json", "capacitor.config.ts", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: ios
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:native
+      - run: npx cap sync ios
+
+      - name: 빌드 확인 (서명 없음)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination "generic/platform=iOS" \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build

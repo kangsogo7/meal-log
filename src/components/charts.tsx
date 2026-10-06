@@ -1,9 +1,9 @@
 import { useState } from "react";
 
-/** 최근 7일 칼로리 막대 + 목표선. 막대를 누르면 그 날짜로 이동 */
+/** 최근 7일 막대 + 목표선. 막대를 누르면 그 날짜로 이동 */
 export function WeekChart({
-  days, values, goal, selected, onSelect,
-}: { days: string[]; values: number[]; goal: number | null; selected: string; onSelect: (d: string) => void }) {
+  days, values, goal, selected, onSelect, label = "최근 7일 섭취 칼로리", unit = "kcal",
+}: { days: string[]; values: number[]; goal: number | null; selected: string; onSelect: (d: string) => void; label?: string; unit?: string }) {
   const W = 340, H = 150, top = 18, bottom = 24, gap = 10;
   const plotH = H - top - bottom;
   const max = Math.max(goal ? goal * 1.2 : 0, ...values, 1);
@@ -11,7 +11,7 @@ export function WeekChart({
   const y = (v: number) => top + plotH - (v / max) * plotH;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="최근 7일 섭취 칼로리">
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label={label}>
       <line x1={0} x2={W} y1={top + plotH} y2={top + plotH} className="axis" />
       {days.map((d, i) => {
         const v = values[i];
@@ -22,7 +22,7 @@ export function WeekChart({
         const sel = d === selected;
         return (
           <g key={d} onClick={() => onSelect(d)} className="bar-g">
-            <title>{`${m}/${day}: ${v} kcal`}</title>
+            <title>{`${m}/${day}: ${v.toLocaleString()} ${unit}`}</title>
             <rect x={x} y={top} width={bw} height={plotH + bottom} fill="transparent" />
             <path
               d={roundedTop(x + bw * 0.15, top + plotH - h, bw * 0.7, h, Math.min(4, h))}
@@ -30,7 +30,7 @@ export function WeekChart({
               opacity={sel ? 1 : 0.55}
             />
             {sel && v > 0 && (
-              <text x={x + bw / 2} y={top + plotH - h - 5} textAnchor="middle" className="val">{v}</text>
+              <text x={x + bw / 2} y={top + plotH - h - 5} textAnchor="middle" className="val">{v.toLocaleString()}</text>
             )}
             <text x={x + bw / 2} y={H - 6} textAnchor="middle" className={sel ? "tick sel" : "tick"}>{`${m}/${day}`}</text>
           </g>

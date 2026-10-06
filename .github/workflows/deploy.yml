@@ -3,6 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    paths-ignore: ["android/**", "ios/**", ".github/workflows/android.yml", ".github/workflows/ios.yml"]
   workflow_dispatch:
 
 permissions:

@@ -53,7 +53,7 @@ export interface BodyRecord {
   bodyFat?: number; // 체지방률 %
   muscle?: number; // 골격근량 kg
   bmr?: number; // 인바디 기초대사량
-  source: "manual" | "inbody";
+  source: "manual" | "inbody" | "health"; // health = 건강 앱에서 가져옴
 }
 
 /** 한 번 찾은 메뉴/식재료를 다시 쓰기 위한 저장소 */
@@ -91,6 +91,22 @@ export interface MealSet {
   updatedAt: number;
 }
 
+/** 건강 앱(Health Connect·HealthKit·아이폰 단축어)에서 가져온 하루 활동 */
+export interface Workout {
+  type: string; // 운동 종류 (한국어로 바꾼 이름)
+  start?: string; // ISO 시각
+  minutes: number;
+  kcal?: number;
+}
+export interface DayActivity {
+  date: string; // YYYY-MM-DD
+  steps?: number;
+  activeKcal?: number;
+  workouts: Workout[];
+  source: "healthconnect" | "healthkit" | "shortcut";
+  syncedAt: number;
+}
+
 export interface KV {
   key: string;
   value: unknown;
@@ -102,6 +118,7 @@ export const db = new Dexie("meal-log") as Dexie & {
   saved: EntityTable<SavedFood, "key">;
   sets: EntityTable<MealSet, "id">;
   groups: EntityTable<FavGroup, "id">;
+  activity: EntityTable<DayActivity, "date">;
   kv: EntityTable<KV, "key">;
 };
 
@@ -122,6 +139,7 @@ db.version(3)
       delete s.fav;
     });
   });
+db.version(4).stores({ activity: "date" });
 
 // 새로 설치한 경우에도 "기본" 그룹이 항상 있게
 db.on("ready", async () => {
@@ -144,6 +162,7 @@ export interface Profile {
   exercise: Record<ExerciseKind, { days: number; minutes: number }>;
   goal: Goal;
   override?: Nutrients | null; // 목표를 직접 지정한 경우
+  useActualActivity?: boolean; // 건강 앱의 실제 활동 칼로리로 그날 목표 계산
 }
 
 export interface Settings {
