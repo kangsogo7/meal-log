@@ -3,6 +3,10 @@ name: Android install test
 # 올려 둔 APK를 에뮬레이터에 실제로 설치해 보고 오류 메시지를 확인 (수동 실행)
 on:
   workflow_dispatch:
+    inputs:
+      api-level:
+        description: "안드로이드 API 레벨 (34 = 안드로이드 14, 36 = 안드로이드 16)"
+        default: "36"
 
 jobs:
   install:
@@ -15,8 +19,7 @@ jobs:
         run: |
           AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
           "$AAPT" dump badging meal-log.apk | head -20 || true
-          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
-          "$APKSIGNER" verify -v meal-log.apk || true
+          "$AAPT" dump xmltree meal-log.apk --file AndroidManifest.xml | grep -iE "activity|alias|permission|targetActivity|exported" | head -80 || true
 
       - name: KVM 사용 설정
         run: |
@@ -27,10 +30,11 @@ jobs:
       - name: 에뮬레이터에 설치
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ inputs.api-level }}
           target: google_apis
           arch: x86_64
           script: |
-            adb install -r meal-log.apk || true
+            adb shell getprop ro.build.version.release
+            adb install -r meal-log.apk 2>&1 || true
             adb shell pm list packages | grep meallog || echo "NOT INSTALLED"
-            adb logcat -d | grep -iE "PackageManager|install|meallog" | tail -40 || true
+            adb logcat -d | grep -iE "PackageManager|PackageInstaller|INSTALL_|meallog|Failure" | grep -v "Instant App" | tail -60 || true
