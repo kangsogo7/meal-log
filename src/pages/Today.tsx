@@ -4,6 +4,7 @@ import { addDays, db, formatDate, MEALS, sumNutrients, todayStr, type Entry, typ
 import { useTargets } from "../hooks";
 import { NutrientLine, Progress } from "../components/ui";
 import { WeekChart } from "../components/charts";
+import { SODIUM_LIMIT } from "../nutrition";
 import AddSheet from "./AddSheet";
 import EntrySheet from "./EntrySheet";
 
@@ -41,6 +42,7 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
           <Progress label="단백질" value={total.protein} target={target?.protein} unit="g" className="protein" />
           <Progress label="지방" value={total.fat} target={target?.fat} unit="g" className="fat" />
         </div>
+        <Progress label="나트륨 (권장 상한)" value={total.sodium ?? 0} target={target?.sodium ?? SODIUM_LIMIT} unit="mg" className="sodium" />
         {target ? (
           <p className="muted small remain">
             {total.kcal <= target.kcal

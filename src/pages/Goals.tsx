@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Nutrients, type Profile } from "../db";
-import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros } from "../nutrition";
+import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT } from "../nutrition";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
 import { NumInput, Sheet } from "../components/ui";
@@ -25,12 +25,15 @@ export default function Goals() {
       <section className="card">
         <h2>하루 목표 영양성분</h2>
         {target ? (
-          <div className="target-grid">
-            <div><span className="muted small">칼로리</span><b>{target.kcal.toLocaleString()}</b><em>kcal</em></div>
-            <div className="carb"><span className="muted small">탄수화물</span><b>{target.carb}</b><em>g</em></div>
-            <div className="protein"><span className="muted small">단백질</span><b>{target.protein}</b><em>g</em></div>
-            <div className="fat"><span className="muted small">지방</span><b>{target.fat}</b><em>g</em></div>
-          </div>
+          <>
+            <div className="target-grid">
+              <div><span className="muted small">칼로리</span><b>{target.kcal.toLocaleString()}</b><em>kcal</em></div>
+              <div className="carb"><span className="muted small">탄수화물</span><b>{target.carb}</b><em>g</em></div>
+              <div className="protein"><span className="muted small">단백질</span><b>{target.protein}</b><em>g</em></div>
+              <div className="fat"><span className="muted small">지방</span><b>{target.fat}</b><em>g</em></div>
+            </div>
+            <p className="muted small">나트륨은 하루 <b>{(target.sodium ?? SODIUM_LIMIT).toLocaleString()}mg</b> 이하로 (WHO 권고 상한 2,000mg)</p>
+          </>
         ) : !saved ? (
           <>
             <p className="muted small">아래 "내 정보"를 내 값으로 고친 뒤 눌러 주세요.{!latest && " 체중도 기록해야 해요."}</p>
@@ -169,6 +172,10 @@ function MacroEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) =
         {field("carb", "탄수화물")}
         {field("protein", "단백질")}
         {field("fat", "지방")}
+        <label className="nfield">
+          <span>나트륨 상한 (mg)</span>
+          <NumInput value={n.sodium ?? SODIUM_LIMIT} onChange={(v) => onChange({ ...n, sodium: v ?? 0 })} step="1" />
+        </label>
       </div>
       <p className="muted small">
         칼로리는 자동 계산: 탄 {n.carb}×4 + 단 {n.protein}×4 + 지 {n.fat}×9 = <b>{kcalFromMacros(n.carb, n.protein, n.fat).toLocaleString()} kcal</b>

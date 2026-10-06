@@ -117,6 +117,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .progress-row.protein .progress > div:not(.over) { background: var(--protein); }
 .progress-row.fat .progress > div:not(.over) { background: var(--fat); }
 .macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.progress-row.sodium .progress { height: 6px; }
+.progress-row.sodium .progress > div:not(.over) { background: var(--muted); }
 .macro-grid .progress-label { flex-direction: column; }
 .remain { margin: 4px 0 0; }
 
@@ -193,7 +195,16 @@ label.inline input { width: 110px; margin: 0; }
 .result.saved::before { content: "🕘 "; }
 
 .pick-list { list-style: none; padding: 0; margin: 8px 0 0; }
-.pick-list button { display: block; width: 100%; text-align: left; margin-bottom: 6px; background: var(--inset); }
+.pick-list li { margin-bottom: 6px; }
+.swipe-row { position: relative; overflow: hidden; border-radius: 12px; }
+.swipe-delete {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 84px;
+  border: none; border-radius: 0; background: var(--over); color: #fff; font-weight: 700;
+}
+.swipe-content {
+  position: relative; background: var(--inset); border: 1px solid var(--border); border-radius: 12px;
+  padding: 9px 14px; cursor: pointer; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
 
 .ing-list { list-style: none; padding: 0; margin: 10px 0 0; }
 .ing-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }

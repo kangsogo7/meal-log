@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal, type Nutrients, type SavedFood } from "../db";
-import { NutrientLine, Sheet, Toast } from "../components/ui";
+import { NutrientLine, Sheet, SwipeRow, Toast } from "../components/ui";
 import OutForm from "./OutForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
@@ -77,14 +77,18 @@ function Recent({ onPick }: { onPick: (s: SavedFood) => void }) {
   return (
     <div>
       <input placeholder="이전에 먹은 메뉴 검색" value={q} onChange={(e) => setQ(e.target.value)} />
-      {list.length === 0 && <p className="muted small">한 번 기록한 메뉴가 여기에 모여요. 누르면 바로 기록돼요.</p>}
+      {list.length === 0 ? (
+        <p className="muted small">한 번 기록한 메뉴가 여기에 모여요. 누르면 바로 기록돼요.</p>
+      ) : (
+        <p className="muted small">누르면 바로 기록돼요. 왼쪽으로 밀면 목록에서 지울 수 있어요.</p>
+      )}
       <ul className="pick-list">
         {list.map((s) => (
           <li key={s.key}>
-            <button onClick={() => onPick(s)}>
+            <SwipeRow onTap={() => onPick(s)} onDelete={() => db.saved.delete(s.key)}>
               <div>{s.place ? `${s.place} · ` : ""}{s.title}</div>
               <NutrientLine n={s.total as Nutrients} />
-            </button>
+            </SwipeRow>
           </li>
         ))}
       </ul>

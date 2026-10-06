@@ -37,6 +37,9 @@ export const DEFAULT_PROFILE: Profile = {
   override: null,
 };
 
+/** 하루 나트륨 권장 상한 (WHO 권고 2,000mg) */
+export const SODIUM_LIMIT = 2000;
+
 /** 탄단지로 칼로리 계산 (탄수화물·단백질 4kcal/g, 지방 9kcal/g) */
 export const kcalFromMacros = (carb: number, protein: number, fat: number) => Math.round(carb * 4 + protein * 4 + fat * 9);
 
@@ -92,7 +95,7 @@ export function calcTargets(p: Profile, body: BodyRecord | undefined): TargetRes
   const carb = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
 
   return {
-    target: { kcal, carb, protein, fat },
+    target: { kcal, carb, protein, fat, sodium: SODIUM_LIMIT },
     bmr: Math.round(bmr),
     bmrMethod,
     tdee: Math.round(tdee),

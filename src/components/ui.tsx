@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
 
@@ -59,6 +59,7 @@ export function NutrientLine({ n }: { n: Nutrients }) {
   return (
     <span className="nline">
       <b>{Math.round(n.kcal)} kcal</b> · 탄 {fmt(n.carb)} · 단 {fmt(n.protein)} · 지 {fmt(n.fat)}
+      {n.sodium ? ` · 나 ${Math.round(n.sodium).toLocaleString()}mg` : ""}
     </span>
   );
 }
@@ -82,7 +83,7 @@ export function Progress({ label, value, target, unit, className }: { label: str
   );
 }
 
-/** 탄단지 편집. 칼로리는 탄단지를 고치면 자동으로 다시 계산(4/4/9) */
+/** 탄단지·나트륨 편집. 칼로리는 탄단지를 고치면 자동으로 다시 계산(4/4/9) */
 export function NutrientEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) => void }) {
   const field = (key: "carb" | "protein" | "fat", label: string) => (
     <label className="nfield">
@@ -97,7 +98,7 @@ export function NutrientEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nu
     </label>
   );
   return (
-    <div className="ngrid">
+    <div className="ngrid three">
       <div className="nfield">
         <span>칼로리</span>
         <output className="kcal-auto">{Math.round(n.kcal).toLocaleString()}</output>
@@ -105,6 +106,60 @@ export function NutrientEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nu
       {field("carb", "탄수화물")}
       {field("protein", "단백질")}
       {field("fat", "지방")}
+      <label className="nfield">
+        <span>나트륨 (mg)</span>
+        <NumInput value={n.sodium ?? 0} onChange={(v) => onChange({ ...n, sodium: v ?? 0 })} step="1" />
+      </label>
+    </div>
+  );
+}
+
+/** 왼쪽으로 밀면 삭제 버튼이 나오는 줄 */
+export function SwipeRow({ children, onTap, onDelete }: { children: ReactNode; onTap: () => void; onDelete: () => void }) {
+  const OPEN = -84;
+  const [x, setX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const start = useRef<{ px: number; py: number; x: number; horizontal: boolean | null } | null>(null);
+  const moved = useRef(false);
+
+  return (
+    <div className="swipe-row">
+      <button className="swipe-delete" onClick={onDelete} tabIndex={x === OPEN ? 0 : -1}>삭제</button>
+      <div
+        className="swipe-content"
+        style={{ transform: `translateX(${x}px)`, transition: dragging ? "none" : "transform 0.2s" }}
+        onPointerDown={(e) => {
+          start.current = { px: e.clientX, py: e.clientY, x, horizontal: null };
+          moved.current = false;
+        }}
+        onPointerMove={(e) => {
+          const s = start.current;
+          if (!s) return;
+          const dx = e.clientX - s.px, dy = e.clientY - s.py;
+          if (s.horizontal === null && Math.abs(dx) + Math.abs(dy) > 6) s.horizontal = Math.abs(dx) > Math.abs(dy);
+          if (!s.horizontal) return;
+          moved.current = true;
+          setDragging(true);
+          setX(Math.max(OPEN - 20, Math.min(0, s.x + dx)));
+        }}
+        onPointerUp={() => {
+          if (start.current?.horizontal) setX((v) => (v < OPEN / 2 ? OPEN : 0));
+          start.current = null;
+          setDragging(false);
+        }}
+        onPointerCancel={() => {
+          start.current = null;
+          setDragging(false);
+          setX((v) => (v < OPEN / 2 ? OPEN : 0));
+        }}
+        onClick={() => {
+          if (moved.current) return;
+          if (x !== 0) setX(0);
+          else onTap();
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
