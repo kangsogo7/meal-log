@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, KIND_LABEL, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal, type Nutrients, type SavedFood } from "../db";
+import { db, KIND_LABEL, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal, type MealSet, type Nutrients, type SavedFood } from "../db";
 import { NutrientLine, Sheet, SwipeRow, Toast } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
@@ -75,6 +75,15 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
           {mode === "food" && <SearchForm key="food" kind="food" onSave={onSave} />}
           {mode === "fav" && (
             <Favorites
+              onPickSet={async (set) => {
+                try {
+                  for (const e of set.entries) await saveEntry(date, meal, e);
+                  setToast(`"${set.name}" ${set.entries.length}개 기록했어요`);
+                  setTimeout(onClose, 700);
+                } catch (e) {
+                  alert(`저장하지 못했어요: ${e instanceof Error ? e.message : String(e)}`);
+                }
+              }}
               onPick={async (s) => {
                 try {
                   await saveEntry(date, meal, { kind: s.kind, title: s.title, place: s.place, items: s.items });
@@ -94,10 +103,12 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
 }
 
 /** ⭐ 즐겨찾기 + 최근 먹은 것. 누르면 바로 기록, 왼쪽으로 밀면 삭제 */
-function Favorites({ onPick }: { onPick: (s: SavedFood) => void }) {
+function Favorites({ onPick, onPickSet }: { onPick: (s: SavedFood) => void; onPickSet: (s: MealSet) => void }) {
   const [q, setQ] = useState("");
   const saved = useLiveQuery(() => db.saved.orderBy("updatedAt").reverse().limit(300).toArray(), [], []);
+  const sets = useLiveQuery(() => db.sets.orderBy("updatedAt").reverse().toArray(), [], []);
   const match = (s: SavedFood) => !q || `${s.place ?? ""} ${s.title}`.includes(q.trim());
+  const shownSets = sets.filter((s) => !q || `${s.name} ${s.entries.map((e) => e.title).join(" ")}`.includes(q.trim()));
   const favs = saved.filter((s) => s.fav && match(s));
   const recent = saved.filter((s) => !s.fav && match(s)).slice(0, 40);
 
@@ -132,6 +143,22 @@ function Favorites({ onPick }: { onPick: (s: SavedFood) => void }) {
         <p className="muted small">한 번 기록한 메뉴가 여기에 모여요. ☆를 누르면 즐겨찾기에 추가돼요.</p>
       ) : (
         <p className="muted small">누르면 바로 기록돼요. ☆로 즐겨찾기, 왼쪽으로 밀면 삭제.</p>
+      )}
+      <h3 className="list-title">🍱 식사 세트</h3>
+      {shownSets.length === 0 ? (
+        <p className="muted small">식단 화면에서 끼니 아래 "식사 세트로 저장"을 누르면, 그 끼니 전체를 여기서 한 번에 기록할 수 있어요.</p>
+      ) : (
+        <ul className="pick-list">
+          {shownSets.map((s) => (
+            <li key={s.id}>
+              <SwipeRow onTap={() => onPickSet(s)} onDelete={() => db.sets.delete(s.id!)}>
+                <div><b>{s.name}</b> <span className="muted small">{s.entries.length}개</span></div>
+                <div className="muted small set-items">{s.entries.map((e) => (e.place ? `${e.place} ${e.title}` : e.title)).join(", ")}</div>
+                <NutrientLine n={s.total} />
+              </SwipeRow>
+            </li>
+          ))}
+        </ul>
       )}
       {favs.length > 0 && (
         <>

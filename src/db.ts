@@ -69,6 +69,15 @@ export interface SavedFood {
   fav?: boolean; // 즐겨찾기
 }
 
+/** 자주 먹는 식단 묶음. 한 번에 여러 개를 기록 */
+export interface MealSet {
+  id?: number;
+  name: string;
+  entries: { kind: EntryKind; title: string; place?: string; items: Item[] }[];
+  total: Nutrients;
+  updatedAt: number;
+}
+
 export interface KV {
   key: string;
   value: unknown;
@@ -78,6 +87,7 @@ export const db = new Dexie("meal-log") as Dexie & {
   entries: EntityTable<Entry, "id">;
   body: EntityTable<BodyRecord, "id">;
   saved: EntityTable<SavedFood, "key">;
+  sets: EntityTable<MealSet, "id">;
   kv: EntityTable<KV, "key">;
 };
 
@@ -87,6 +97,7 @@ db.version(1).stores({
   saved: "key, updatedAt",
   kv: "key",
 });
+db.version(2).stores({ sets: "++id, updatedAt" });
 
 // ---------- 프로필 / 설정 ----------
 export type Sex = "male" | "female";

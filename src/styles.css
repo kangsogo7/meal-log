@@ -13,11 +13,16 @@
   --protein: #2563eb;
   --fat: #db2777;
   --track: #eceef1;
+  --tag-out-bg: #fde7d3;
+  --tag-out-ink: #9a4b07;
+  --tag-food-bg: #e0ecff;
+  --tag-food-ink: #1d4ed8;
   color-scheme: light;
 }
 
+/* 다크 모드: 설정이 "시스템"이면 휴대폰 설정을 따르고, "다크"면 항상 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0f1216;
     --card: #191d23;
     --inset: #20252c;
@@ -32,8 +37,33 @@
     --protein: #60a5fa;
     --fat: #f472b6;
     --track: #2a3038;
+    --tag-out-bg: #43280f;
+    --tag-out-ink: #fbbf77;
+    --tag-food-bg: #172a4d;
+    --tag-food-ink: #93c5fd;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216;
+  --card: #191d23;
+  --inset: #20252c;
+  --text: #e7eaee;
+  --muted: #9aa3ae;
+  --border: #2b313a;
+  --accent: #22c55e;
+  --accent-ink: #06240f;
+  --accent-soft: #143a22;
+  --over: #f87171;
+  --carb: #f59e0b;
+  --protein: #60a5fa;
+  --fat: #f472b6;
+  --track: #2a3038;
+  --tag-out-bg: #43280f;
+  --tag-out-ink: #fbbf77;
+  --tag-food-bg: #172a4d;
+  --tag-food-ink: #93c5fd;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -99,7 +129,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .card.inset { background: var(--inset); border-radius: 14px; padding: 12px; margin: 8px 0; }
 
 .page-head { display: flex; align-items: center; gap: 6px; padding: 10px 0 12px; }
-.date-nav .date-label { position: relative; flex: 1; text-align: center; font-weight: 700; font-size: 1.05rem; }
+/* 날짜 글자 길이나 "오늘" 버튼 유무와 상관없이 화살표 위치 고정 */
+.date-nav { display: grid; grid-template-columns: 50px 36px 1fr 36px 50px; gap: 0; align-items: center; }
+.date-nav button.ghost { padding: 8px 0; }
+@media (max-width: 370px) { .date-nav .date-label { font-size: 0.9rem; } }
+.date-nav .today-slot { padding: 5px 0; }
+.date-nav .today-slot { visibility: hidden; }
+.date-nav .today-slot.show { visibility: visible; }
+.date-nav .date-label { position: relative; text-align: center; font-weight: 700; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .date-nav .date-label input { position: absolute; inset: 0; opacity: 0; }
 
 /* 진행 막대 */
@@ -132,9 +169,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .nline { font-size: 0.85rem; color: var(--muted); }
 .nline b { color: var(--text); font-weight: 600; }
 .tag { display: inline-block; font-size: 0.72rem; padding: 1px 7px; border-radius: 6px; margin-right: 6px; vertical-align: 1px; background: var(--track); color: var(--muted); font-weight: 600; }
-.tag.out { background: #fde7d3; color: #9a4b07; }
+.tag.out { background: var(--tag-out-bg); color: var(--tag-out-ink); }
 .tag.home { background: var(--accent-soft); color: var(--accent); }
-@media (prefers-color-scheme: dark) { .tag.out { background: #43280f; color: #fbbf77; } }
 
 /* 차트 */
 .chart { width: 100%; height: auto; display: block; }
@@ -270,14 +306,16 @@ label.inline input { width: 110px; margin: 0; }
 .list-title { font-size: 0.9rem; margin: 14px 0 4px; }
 .fav-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .star { border: none; background: none; font-size: 1.4rem; color: #f5b301; padding: 4px 6px; min-height: 0; }
-.tag.food { background: #e0ecff; color: #1d4ed8; }
-@media (prefers-color-scheme: dark) { .tag.food { background: #172a4d; color: #93c5fd; } }
+.tag.food { background: var(--tag-food-bg); color: var(--tag-food-ink); }
 .meal-actions { display: flex; align-items: center; gap: 6px; }
 .grade { border: none; background: var(--inset); font-size: 1.3rem; padding: 2px 8px; min-height: 34px; border-radius: 999px; }
 .eval { background: var(--inset); border-radius: 12px; padding: 8px 12px; margin-top: 10px; }
 .eval p { margin: 0 0 4px; }
 .eval ul { list-style: none; padding: 0; margin: 0; }
 .eval li { padding: 2px 0; }
+
+.set-save { display: block; margin-top: 8px; }
+.set-items { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .version { text-align: center; margin: 8px 0 0; }
 

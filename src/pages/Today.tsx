@@ -8,6 +8,23 @@ import { evaluateMeal, GOALS, GRADE_EMOJI, MEAL_SHARE, SODIUM_LIMIT } from "../n
 import AddSheet from "./AddSheet";
 import EntrySheet from "./EntrySheet";
 
+/** 끼니의 기록들을 식사 세트로 저장 (즐겨찾기 탭에서 한 번에 기록) */
+async function saveAsSet(mealLabel: string, list: Entry[]) {
+  const name = prompt("식사 세트 이름", `${mealLabel} 세트`)?.trim();
+  if (!name) return;
+  try {
+    await db.sets.add({
+      name,
+      entries: list.map((e) => ({ kind: e.kind, title: e.title, place: e.place, items: e.items })),
+      total: sumNutrients(list.map((e) => e.total)),
+      updatedAt: Date.now(),
+    });
+    alert(`"${name}" 세트를 저장했어요. 기록할 때 즐겨찾기 탭에서 한 번에 넣을 수 있어요.`);
+  } catch (err) {
+    alert(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
   const [date, setDate] = useState(todayStr());
   const [adding, setAdding] = useState<Meal | null>(null);
@@ -28,13 +45,14 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
   return (
     <>
       <header className="page-head date-nav">
+        <span aria-hidden />
         <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
         <label className="date-label">
           {isToday ? "오늘 · " : ""}{formatDate(date)}
           <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
         </label>
         <button className="ghost" onClick={() => setDate(addDays(date, 1))} aria-label="다음 날">▶</button>
-        {!isToday && <button className="chip" onClick={() => setDate(todayStr())}>오늘</button>}
+        <button className={`chip today-slot ${isToday ? "" : "show"}`} onClick={() => setDate(todayStr())} tabIndex={isToday ? -1 : 0}>오늘</button>
       </header>
 
       <section className="card">
@@ -99,6 +117,9 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
                   </li>
                 ))}
               </ul>
+            )}
+            {list.length > 0 && (
+              <button className="link small set-save" onClick={() => saveAsSet(m.label, list)}>🍱 이 끼니를 식사 세트로 저장</button>
             )}
           </section>
         );

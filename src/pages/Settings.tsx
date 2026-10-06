@@ -2,12 +2,20 @@ import { useRef, useState } from "react";
 import { db, setKV } from "../db";
 import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini } from "../gemini";
 import { useSettings } from "../hooks";
+import { getTheme, setTheme, type Theme } from "../theme";
+
+const THEMES: { key: Theme; label: string }[] = [
+  { key: "system", label: "시스템" },
+  { key: "light", label: "☀️ 라이트" },
+  { key: "dark", label: "🌙 다크" },
+];
 
 export default function SettingsPage() {
   const settings = useSettings();
   const [keyInput, setKeyInput] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [theme, setThemeState] = useState<Theme>(getTheme());
 
   const key = keyInput ?? settings.geminiKey;
   const cleaned = cleanKey(key);
@@ -41,6 +49,7 @@ export default function SettingsPage() {
       entries: await db.entries.toArray(),
       body: await db.body.toArray(),
       saved: await db.saved.toArray(),
+      sets: await db.sets.toArray(),
       // API 키는 백업 파일에 넣지 않음
       kv: (await db.kv.toArray()).filter((r) => r.key !== "settings"),
     };
@@ -57,11 +66,12 @@ export default function SettingsPage() {
       const data = JSON.parse(await file.text());
       if (data.app !== "meal-log" || !Array.isArray(data.entries)) throw new Error();
       if (!confirm(`식단 ${data.entries.length}개, 체중 ${data.body?.length ?? 0}개를 가져올게요.\n지금 기록은 모두 바뀌어요. 계속할까요?`)) return;
-      await db.transaction("rw", [db.entries, db.body, db.saved, db.kv], async () => {
-        await Promise.all([db.entries.clear(), db.body.clear(), db.saved.clear()]);
+      await db.transaction("rw", [db.entries, db.body, db.saved, db.sets, db.kv], async () => {
+        await Promise.all([db.entries.clear(), db.body.clear(), db.saved.clear(), db.sets.clear()]);
         await db.entries.bulkAdd(data.entries);
         await db.body.bulkAdd(data.body ?? []);
         await db.saved.bulkPut(data.saved ?? []);
+        await db.sets.bulkAdd(data.sets ?? []);
         await db.kv.bulkPut((data.kv ?? []).filter((r: { key: string }) => r.key !== "settings"));
       });
       alert("가져왔어요.");
@@ -73,6 +83,18 @@ export default function SettingsPage() {
   return (
     <>
       <header className="page-head"><h1>설정</h1></header>
+
+      <section className="card">
+        <h2>화면 테마</h2>
+        <div className="seg">
+          {THEMES.map((t) => (
+            <button key={t.key} className={theme === t.key ? "on" : ""} onClick={() => { setTheme(t.key); setThemeState(t.key); }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <p className="muted small">"시스템"은 휴대폰의 라이트/다크 설정을 따라가요.</p>
+      </section>
 
       <section className="card form">
         <h2>Gemini API 키</h2>

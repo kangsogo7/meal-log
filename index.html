@@ -9,6 +9,13 @@
     <meta name="apple-mobile-web-app-title" content="식단" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>식단 기록</title>
+    <script>
+      // 첫 화면이 깜빡이지 않게 저장된 테마를 먼저 적용
+      try {
+        var t = localStorage.getItem("meal-log-theme");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
