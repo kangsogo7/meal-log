@@ -4,7 +4,8 @@ import { db, savedKey, scaleNutrients, type ItemSource, type Nutrients } from ".
 import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBrand, type Food } from "../foodDb";
 import { estimateMenu, GeminiError } from "../gemini";
 import { useSettings } from "../hooks";
-import { NumInput, NutrientEditor, NutrientLine, Stepper } from "../components/ui";
+import { NutrientEditor, NutrientLine } from "../components/ui";
+import { AmountEditor, itemsGrams, makePortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar, type FavDraft } from "../favorites";
 
@@ -15,13 +16,8 @@ interface Choice {
   place?: string; // 저장할 상호/제조사
   source: ItemSource;
   matchName?: string;
-  per100?: Nutrients; // DB 값이면 g으로 다시 계산
-  baseGrams: number | null; // ×1 기준 양
-  grams: number | null;
-  nutrients: Nutrients;
+  portion: Portion; // 먹은 양 (공통 양 조절)
   note?: string;
-  k?: number; // 중량을 모를 때의 배수
-  base?: Nutrients; // 중량을 모를 때 ×1 영양성분
 }
 
 const COPY = {
@@ -87,7 +83,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
           prev
             ? {
                 id: "saved", label: `이전 기록 · ${prev.place ? prev.place + " " : ""}${prev.title}`, title: prev.title, place: prev.place,
-                source: "saved", baseGrams: prev.items[0]?.grams ?? null, grams: prev.items[0]?.grams ?? null, nutrients: prev.total,
+                source: "saved", portion: makePortion(prev.total, itemsGrams(prev.items)),
               }
             : null,
         );
@@ -128,7 +124,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
       const est = await estimateMenu(settings, place ?? "", title, copy.amount, refs, kind);
       const c: Choice = {
         id: "ai", label: `AI 추정 · ${est.name}`, title, place, source: "ai",
-        baseGrams: est.grams || null, grams: est.grams || null, nutrients: est.nutrients, note: est.note,
+        portion: makePortion(est.nutrients, est.grams), note: est.note,
       };
       setAiChoice(c);
       setChoice(c);
@@ -151,30 +147,24 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
       label: foodLabel(f),
       title: f.name.replace(/_/g, " "),
       place: f.brand || (kind === "out" ? place : undefined),
-      source: "db", matchName: f.name, per100: f.per100, baseGrams: grams, grams,
-      nutrients: scaleNutrients(f.per100, grams / 100),
+      source: "db", matchName: f.name,
+      portion: makePortion(scaleNutrients(f.per100, grams / 100), grams),
       note: f.partial ? "식약처 DB에 탄수화물·지방 값이 없는 메뉴예요. 알고 있으면 직접 고쳐 주세요." : undefined,
     };
-  };
-
-  const setGrams = (g: number | null) => {
-    if (!choice) return;
-    if (choice.per100) setChoice({ ...choice, grams: g, nutrients: scaleNutrients(choice.per100, (g ?? 0) / 100) });
-    else if (choice.grams && g) setChoice({ ...choice, grams: g, nutrients: scaleNutrients(choice.nutrients, g / choice.grams) });
-    else setChoice({ ...choice, grams: g });
   };
 
   /** 저장·즐겨찾기에 쓰는 내용 */
   const toDraft = (c: Choice): Draft => {
     const title = c.title || query.trim();
+    const grams = portionGrams(c.portion);
     return {
       kind,
       title,
       place: c.place,
       items: [{
         name: title,
-        amountText: c.grams ? `${Math.round(c.grams)}g` : "",
-        grams: c.grams, source: c.source, matchName: c.matchName, nutrients: c.nutrients,
+        amountText: grams ? `${grams}g` : "",
+        grams, source: c.source, matchName: c.matchName, nutrients: portionNutrients(c.portion),
       }],
     };
   };
@@ -199,8 +189,8 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
 
       {q && (
         <div className="results">
-          {savedHit && <ResultButton label={savedHit.label} n={savedHit.nutrients} selected={choice?.id === "saved"} onClick={() => setChoice(savedHit)} fav={() => toDraft(savedHit)} />}
-          {aiChoice && <ResultButton label={aiChoice.label} n={aiChoice.nutrients} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
+          {savedHit && <ResultButton label={savedHit.label} n={portionNutrients(savedHit.portion)} selected={choice?.id === "saved"} onClick={() => setChoice(savedHit)} fav={() => toDraft(savedHit)} />}
+          {aiChoice && <ResultButton label={aiChoice.label} n={portionNutrients(aiChoice.portion)} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
           {results.map((f, i) => (
             <ResultButton
               key={`${f.name}|${f.brand}|${i}`}
@@ -228,28 +218,8 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
             <FavStar getDraft={() => toDraft(choice)} />
           </div>
           {choice.note && <p className="muted small">{choice.note}</p>}
-          <div className="amount-row">
-            <label className="inline">먹은 양
-              <NumInput value={choice.grams} onChange={setGrams} placeholder="g" decimals={1} />
-              <span className="muted">g</span>
-            </label>
-            {choice.baseGrams ? (
-              <Stepper
-                value={(choice.grams ?? 0) / choice.baseGrams}
-                onChange={(k) => setGrams(Math.round(choice.baseGrams! * k * 10) / 10)}
-              />
-            ) : (
-              // 중량을 모르는 값(일부 AI·이전 기록)은 영양성분을 그대로 배수
-              <Stepper
-                value={choice.k ?? 1}
-                onChange={(k) => {
-                  const base = choice.base ?? choice.nutrients; // ×1일 때 값
-                  setChoice({ ...choice, k, base, nutrients: scaleNutrients(base, k) });
-                }}
-              />
-            )}
-          </div>
-          <NutrientEditor n={choice.nutrients} onChange={(n) => setChoice({ ...choice, nutrients: n, per100: undefined, k: undefined, base: undefined })} />
+          <AmountEditor portion={choice.portion} onChange={(portion) => setChoice({ ...choice, portion })} />
+          <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, portion: withNutrients(choice.portion, n) })} />
           <button className="primary block" onClick={save}>저장</button>
         </div>
       )}

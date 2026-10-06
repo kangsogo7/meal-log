@@ -1,23 +1,21 @@
 import { useState } from "react";
-import { db, KIND_LABEL, MEALS, r1, scaleNutrients, sumNutrients, type Entry, type EntryKind } from "../db";
-import { NutrientEditor, NutrientLine, Sheet, Stepper } from "../components/ui";
+import { db, KIND_LABEL, MEALS, sumNutrients, type Entry, type EntryKind } from "../db";
+import { NutrientEditor, NutrientLine, Sheet } from "../components/ui";
+import { AmountEditor, itemsGrams, makePortion, portionNutrients, scaleItems, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
 
 export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const [e, setE] = useState<Entry>(entry);
-  // 양 조절은 처음 기록한 양(×1) 기준 배수
-  const [k, setK] = useState(1);
-  const [base, setBase] = useState({ items: entry.items, total: entry.total });
-
-  const scale = (next: number) => {
-    const items = base.items.map((i) => ({ ...i, grams: i.grams ? r1(i.grams * next) : i.grams, nutrients: scaleNutrients(i.nutrients, next) }));
-    setK(next);
-    setE({ ...e, items, total: sumNutrients([scaleNutrients(base.total, next)]) });
-  };
+  // 양 조절: 처음 기록한 양을 ×1로 두고 공통 양 조절(portion)로 계산
+  const [portion, setPortion] = useState<Portion>(() => makePortion(entry.total, itemsGrams(entry.items)));
+  const items = scaleItems(entry.items, portion.k);
+  const total = sumNutrients([portionNutrients(portion)]);
+  // 지금 화면 값 그대로의 기록 (재료가 하나면 영양성분을 직접 고친 값도 그 재료에 반영)
+  const current: Entry = { ...e, items: items.length === 1 ? [{ ...items[0], nutrients: total }] : items, total };
 
   const save = async () => {
     try {
-      await db.entries.put(e);
+      await db.entries.put(current);
       onClose();
     } catch (err) {
       alert(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`);
@@ -63,28 +61,18 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
         <label>이름
           <div className="input-with-star">
             <input value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} />
-            <FavStar getDraft={() => entryDraft(e)} />
+            <FavStar getDraft={() => entryDraft(current)} />
           </div>
         </label>
 
-        <div className="scale-row">
-          <span className="muted small">양 조절</span>
-          <Stepper value={k} onChange={scale} />
-        </div>
+        <AmountEditor portion={portion} onChange={setPortion} />
+        <NutrientEditor n={total} onChange={(n) => setPortion(withNutrients(portion, n))} />
 
-        <NutrientEditor
-          n={e.total}
-          onChange={(total) => {
-            setE({ ...e, total });
-            setBase({ ...base, total: scaleNutrients(total, 1 / k) }); // 고친 값을 현재 배수 기준으로
-          }}
-        />
-
-        {e.items.length > 1 && (
+        {items.length > 1 && (
           <>
             <p className="muted small">식재료</p>
             <ul className="mini-list">
-              {e.items.map((i, idx) => (
+              {items.map((i, idx) => (
                 <li key={idx}>
                   <span>{i.name} {i.grams ? `${Math.round(i.grams)}g` : i.amountText}</span>
                   <NutrientLine n={i.nutrients} />

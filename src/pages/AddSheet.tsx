@@ -37,6 +37,8 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
   // 즐겨찾기·세트에서 담은 것 (탭을 오가도 유지)
   const [cart, setCart] = useState<CartItem[]>([]);
   const toggle = (c: CartItem) => setCart((p) => (p.some((x) => x.id === c.id) ? p.filter((x) => x.id !== c.id) : [...p, c]));
+  // 담기 또는 담은 것의 양 변경
+  const put = (c: CartItem) => setCart((p) => (p.some((x) => x.id === c.id) ? p.map((x) => (x.id === c.id ? c : x)) : [...p, c]));
   const count = cart.reduce((n, c) => n + c.drafts.length, 0);
 
   const onSave = async (d: Draft) => {
@@ -92,7 +94,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
           {mode === "out" && <SearchForm key="out" kind="out" onSave={onSave} />}
           {mode === "home" && <HomeForm onSave={onSave} />}
           {mode === "food" && <SearchForm key="food" kind="food" onSave={onSave} />}
-          {mode === "fav" && <FavoritesTab cart={cart} toggle={toggle} />}
+          {mode === "fav" && <FavoritesTab cart={cart} toggle={toggle} put={put} />}
           {mode === "sets" && <SetsTab cart={cart} toggle={toggle} />}
           {showCart && (
             <div className="cart-bar">

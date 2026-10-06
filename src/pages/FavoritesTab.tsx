@@ -2,17 +2,28 @@
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, KIND_LABEL, type FavGroup, type MealSet, type SavedFood } from "../db";
-import { BackIcon, flash, Screen } from "../components/ui";
+import { BackIcon, flash, NutrientLine, Screen } from "../components/ui";
 import { applyFolderEdits, FolderPicker, NewFolderForm } from "../favorites";
+import { AmountEditor, itemsGrams, makePortion, portionGrams, portionNutrients, scaleItems, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 
 /** 담은 것: 즐겨찾기 음식 하나 또는 식사 세트 하나(여러 음식) */
 export interface CartItem {
   id: string;
   drafts: Draft[];
+  portion?: Portion; // 즐겨찾기 음식: 고른 양
 }
 
-const savedDraft = (s: SavedFood): Draft => ({ kind: s.kind, title: s.title, place: s.place, items: s.items });
+const basePortion = (s: SavedFood) => makePortion(s.total, itemsGrams(s.items));
+
+/** 즐겨찾기 음식을 고른 양만큼의 기록 내용으로 */
+function savedDraft(s: SavedFood, p: Portion): Draft {
+  const items =
+    s.items.length === 1
+      ? [{ ...s.items[0], grams: portionGrams(p) ?? s.items[0].grams, amountText: portionGrams(p) ? `${portionGrams(p)}g` : s.items[0].amountText, nutrients: portionNutrients(p) }]
+      : scaleItems(s.items, p.k);
+  return { kind: s.kind, title: s.title, place: s.place, items };
+}
 
 /** "교촌치킨 · 150g" 같은 한 줄 설명 */
 function servingLine(s: { place?: string; items: SavedFood["items"] }) {
@@ -34,12 +45,14 @@ function AddToggle({ on, onClick, label }: { on: boolean; onClick: () => void; l
 // ---------------------------------------------------------------------------
 // 즐겨찾기 탭
 // ---------------------------------------------------------------------------
-export function FavoritesTab({ cart, toggle }: { cart: CartItem[]; toggle: (c: CartItem) => void }) {
+export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: (c: CartItem) => void; put: (c: CartItem) => void }) {
   const groups = useLiveQuery(() => db.groups.orderBy("order").toArray(), [], []);
   const favs = useLiveQuery(() => db.saved.filter((s) => s.groupId != null).toArray(), [], []);
   const [current, setCurrent] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [folders, setFolders] = useState(false);
+  // 카드를 눌러 연 음식과 그 양 (담기 전에 조절)
+  const [open, setOpen] = useState<{ key: string; portion: Portion } | null>(null);
 
   // 선택한 폴더가 없거나 지워졌으면 첫 폴더
   const groupId = groups.some((g) => g.id === current) ? current! : groups[0]?.id;
@@ -76,23 +89,39 @@ export function FavoritesTab({ cart, toggle }: { cart: CartItem[]; toggle: (c: C
         <ul className="food-cards">
           {items.map((s) => {
             const id = `fav:${s.key}`;
-            const on = cart.some((c) => c.id === id);
+            const inCart = cart.find((c) => c.id === id);
+            const isOpen = open?.key === s.key;
+            // 카드에 보이는 양: 열어서 조절 중이면 그 값, 담았으면 담은 양, 아니면 기본 양
+            const portion = isOpen ? open!.portion : inCart?.portion ?? basePortion(s);
+            const grams = portionGrams(portion);
             const { place, amount } = servingLine(s);
-            const toggleThis = () => toggle({ id, drafts: [savedDraft(s)] });
+            const add = (p: Portion) => put({ id, drafts: [savedDraft(s, p)], portion: p });
             return (
-              <li key={s.key} className={`food-card ${on ? "picked" : ""}`} onClick={toggleThis}>
-                <div className="fc-main">
-                  <div className="fc-tags">
-                    {usesBadge(s.uses) && <span className={`badge ${s.uses >= 10 ? "strong" : ""}`}>{usesBadge(s.uses)}</span>}
-                    <span className="badge">{KIND_LABEL[s.kind]}</span>
+              <li key={s.key} className={`food-card ${inCart ? "picked" : ""} ${isOpen ? "open" : ""}`}>
+                <div className="fc-row" onClick={() => setOpen(isOpen ? null : { key: s.key, portion })}>
+                  <div className="fc-main">
+                    <div className="fc-tags">
+                      {usesBadge(s.uses) && <span className={`badge ${s.uses >= 10 ? "strong" : ""}`}>{usesBadge(s.uses)}</span>}
+                      <span className="badge">{KIND_LABEL[s.kind]}</span>
+                      {portion.k !== 1 && <span className="badge strong">×{(Math.round(portion.k * 10) / 10).toFixed(1)}</span>}
+                    </div>
+                    <div className="fc-name">{s.title}</div>
+                    <div className="fc-sub">
+                      <span className="fc-serving">{place && <b>{place} </b>}<span className="muted">{s.items.length > 1 || !grams ? amount : `${grams}g`}</span></span>
+                      <span className="muted fc-kcal">{Math.round(portionNutrients(portion).kcal)}kcal</span>
+                    </div>
                   </div>
-                  <div className="fc-name">{s.title}</div>
-                  <div className="fc-sub">
-                    <span className="fc-serving">{place && <b>{place} </b>}<span className="muted">{amount}</span></span>
-                    <span className="muted fc-kcal">{s.total.kcal}kcal</span>
-                  </div>
+                  <AddToggle on={!!inCart} onClick={() => (inCart ? toggle(inCart) : add(portion))} label={inCart ? "담기 취소" : "담기"} />
                 </div>
-                <AddToggle on={on} onClick={toggleThis} label={on ? "담기 취소" : "담기"} />
+                {isOpen && (
+                  <div className="fc-amount" onClick={(e) => e.stopPropagation()}>
+                    <AmountEditor portion={open!.portion} onChange={(p) => setOpen({ key: s.key, portion: p })} />
+                    <NutrientLine n={portionNutrients(open!.portion)} />
+                    <button className="primary block" onClick={() => { add(open!.portion); setOpen(null); }}>
+                      {inCart ? "이 양으로 변경" : "이 양으로 담기"}
+                    </button>
+                  </div>
+                )}
               </li>
             );
           })}
