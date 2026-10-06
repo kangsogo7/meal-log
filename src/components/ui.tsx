@@ -183,11 +183,19 @@ export function Stepper({ value, onChange }: { value: number; onChange: (k: numb
   // 직접 g을 고쳐서 1.3배처럼 애매한 값이면 가까운 0.5 단위로 이동
   const up = Math.floor(value * 2 + 1e-6) / 2 + 0.5;
   const down = Math.max(0.5, Math.ceil(value * 2 - 1e-6) / 2 - 0.5);
-  const label = (Math.round(value * 10) / 10).toFixed(1); // 소수점 첫째 자리까지
   return (
     <div className="stepper">
       <button onClick={() => onChange(down)} disabled={value <= 0.5} aria-label="0.5배 줄이기">−</button>
-      <span>×{label}</span>
+      {/* 배수 직접 입력 (소수점 첫째 자리까지) */}
+      <label className="stepper-value">
+        ×
+        <NumInput
+          value={Math.round(value * 10) / 10}
+          onChange={(v) => v != null && v > 0 && onChange(v)}
+          decimals={1}
+          className="stepper-input"
+        />
+      </label>
       <button onClick={() => onChange(up)} aria-label="0.5배 늘리기">+</button>
     </div>
   );

@@ -313,7 +313,9 @@ label.inline input { width: 110px; margin: 0; }
 
 .stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; align-self: flex-start; }
 .stepper button { border: none; border-radius: 0; background: var(--card); width: 48px; min-height: 40px; font-size: 1.2rem; padding: 0; }
-.stepper span { min-width: 64px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stepper-value { display: flex !important; align-items: center; justify-content: center; gap: 0; margin: 0 !important; min-width: 72px; font-weight: 700; color: var(--text) !important; font-size: 1rem !important; }
+.stepper-input { width: 46px; padding: 8px 2px; margin: 0 !important; border: none; background: transparent; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stepper-input:focus { outline: none; background: var(--inset); border-radius: 8px; }
 
 .entry-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .result-row { position: relative; }
