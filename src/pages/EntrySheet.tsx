@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { db, KIND_LABEL, MEALS, r1, scaleNutrients, sumNutrients, type Entry, type EntryKind } from "../db";
-import { NutrientEditor, NutrientLine, Sheet } from "../components/ui";
+import { NutrientEditor, NutrientLine, Sheet, Stepper } from "../components/ui";
+import { entryDraft, FavStar } from "../favorites";
 
 export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const [e, setE] = useState<Entry>(entry);
+  // 양 조절은 처음 기록한 양(×1) 기준 배수
+  const [k, setK] = useState(1);
+  const [base, setBase] = useState({ items: entry.items, total: entry.total });
 
-  const scale = (k: number) => {
-    const items = e.items.map((i) => ({ ...i, grams: i.grams ? r1(i.grams * k) : i.grams, nutrients: scaleNutrients(i.nutrients, k) }));
-    setE({ ...e, items, total: sumNutrients([scaleNutrients(e.total, k)]) });
+  const scale = (next: number) => {
+    const items = base.items.map((i) => ({ ...i, grams: i.grams ? r1(i.grams * next) : i.grams, nutrients: scaleNutrients(i.nutrients, next) }));
+    setK(next);
+    setE({ ...e, items, total: sumNutrients([scaleNutrients(base.total, next)]) });
   };
 
   const save = async () => {
@@ -56,17 +61,24 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
           </label>
         )}
         <label>이름
-          <input value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} />
+          <div className="input-with-star">
+            <input value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} />
+            <FavStar getDraft={() => entryDraft(e)} />
+          </div>
         </label>
 
         <div className="scale-row">
           <span className="muted small">양 조절</span>
-          {[0.5, 0.75, 1.25, 1.5, 2].map((k) => (
-            <button key={k} className="chip" onClick={() => scale(k)}>×{k}</button>
-          ))}
+          <Stepper value={k} onChange={scale} />
         </div>
 
-        <NutrientEditor n={e.total} onChange={(total) => setE({ ...e, total })} />
+        <NutrientEditor
+          n={e.total}
+          onChange={(total) => {
+            setE({ ...e, total });
+            setBase({ ...base, total: scaleNutrients(total, 1 / k) }); // 고친 값을 현재 배수 기준으로
+          }}
+        />
 
         {e.items.length > 1 && (
           <>

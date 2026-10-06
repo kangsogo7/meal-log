@@ -1,7 +1,7 @@
 // 즐겨찾기: 그룹별 저장 (☆ 버튼 → 그룹 고르기)
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, savedKey, sumNutrients, type EntryKind, type Item } from "./db";
+import { db, savedKey, sumNutrients, type Entry, type EntryKind, type Item } from "./db";
 import { Sheet } from "./components/ui";
 
 export interface FavDraft {
@@ -9,6 +9,14 @@ export interface FavDraft {
   title: string;
   place?: string;
   items: Item[];
+}
+
+/** 이미 기록한 식단 → 즐겨찾기 내용. 합계를 직접 고쳤으면 그 값이 그대로 저장되게 */
+export function entryDraft(e: Entry): FavDraft | null {
+  const title = e.title.trim();
+  if (!title) return null;
+  const items = e.items.length === 1 ? [{ ...e.items[0], nutrients: e.total }] : e.items;
+  return { kind: e.kind, title, place: e.place || undefined, items };
 }
 
 export async function addToGroup(d: FavDraft, groupId: number) {

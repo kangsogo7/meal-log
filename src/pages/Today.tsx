@@ -6,6 +6,7 @@ import { NutrientLine, Progress } from "../components/ui";
 import { WeekChart } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_EMOJI, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet from "./AddSheet";
+import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 
 /** 끼니의 기록들을 식사 세트로 저장 (즐겨찾기 탭에서 한 번에 기록) */
@@ -106,12 +107,15 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
             {list.length > 0 && (
               <ul className="entries">
                 {list.map((e) => (
-                  <li key={e.id} onClick={() => setEditing(e)}>
-                    <div className="entry-title">
-                      <span className={`tag ${e.kind}`}>{KIND_LABEL[e.kind]}</span>
-                      {e.place ? `${e.place} · ` : ""}{e.title}
+                  <li key={e.id} onClick={() => setEditing(e)} className="entry-row">
+                    <div>
+                      <div className="entry-title">
+                        <span className={`tag ${e.kind}`}>{KIND_LABEL[e.kind]}</span>
+                        {e.place ? `${e.place} · ` : ""}{e.title}
+                      </div>
+                      <NutrientLine n={e.total} />
                     </div>
-                    <NutrientLine n={e.total} />
+                    <FavStar getDraft={() => entryDraft(e)} />
                   </li>
                 ))}
               </ul>
