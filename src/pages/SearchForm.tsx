@@ -4,7 +4,7 @@ import { db, savedKey, scaleNutrients, type ItemSource, type Nutrients } from ".
 import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBrand, type Food } from "../foodDb";
 import { estimateMenu, GeminiError } from "../gemini";
 import { useSettings } from "../hooks";
-import { NumInput, NutrientEditor, NutrientLine } from "../components/ui";
+import { NumInput, NutrientEditor, NutrientLine, Stepper } from "../components/ui";
 import type { Draft } from "./AddSheet";
 
 interface Choice {
@@ -19,6 +19,8 @@ interface Choice {
   grams: number | null;
   nutrients: Nutrients;
   note?: string;
+  k?: number; // 중량을 모를 때의 배수
+  base?: Nutrients; // 중량을 모를 때 ×1 영양성분
 }
 
 const COPY = {
@@ -219,15 +221,23 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
               <NumInput value={choice.grams} onChange={setGrams} placeholder="g" />
               <span className="muted">g</span>
             </label>
-            {choice.baseGrams && (
-              <div className="scale-row">
-                {[0.5, 1, 1.5, 2].map((k) => (
-                  <button key={k} className={`chip ${choice.grams === choice.baseGrams! * k ? "on" : ""}`} onClick={() => setGrams(choice.baseGrams! * k)}>×{k}</button>
-                ))}
-              </div>
+            {choice.baseGrams ? (
+              <Stepper
+                value={(choice.grams ?? 0) / choice.baseGrams}
+                onChange={(k) => setGrams(Math.round(choice.baseGrams! * k * 10) / 10)}
+              />
+            ) : (
+              // 중량을 모르는 값(일부 AI·이전 기록)은 영양성분을 그대로 배수
+              <Stepper
+                value={choice.k ?? 1}
+                onChange={(k) => {
+                  const base = choice.base ?? choice.nutrients; // ×1일 때 값
+                  setChoice({ ...choice, k, base, nutrients: scaleNutrients(base, k) });
+                }}
+              />
             )}
           </div>
-          <NutrientEditor n={choice.nutrients} onChange={(n) => setChoice({ ...choice, nutrients: n, per100: undefined })} />
+          <NutrientEditor n={choice.nutrients} onChange={(n) => setChoice({ ...choice, nutrients: n, per100: undefined, k: undefined, base: undefined })} />
           <button className="primary block" onClick={save}>저장</button>
         </div>
       )}

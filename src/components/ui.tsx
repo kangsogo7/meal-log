@@ -114,6 +114,21 @@ export function NutrientEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nu
   );
 }
 
+/** − ×1.5 + : 기본 제공량의 배수를 0.5씩 조절 (최소 0.5) */
+export function Stepper({ value, onChange }: { value: number; onChange: (k: number) => void }) {
+  // 직접 g을 고쳐서 1.3배처럼 애매한 값이면 가까운 0.5 단위로 이동
+  const up = Math.floor(value * 2 + 1e-6) / 2 + 0.5;
+  const down = Math.max(0.5, Math.ceil(value * 2 - 1e-6) / 2 - 0.5);
+  const label = Number.isInteger(value * 2) ? value.toFixed(1) : value.toFixed(2).replace(/0$/, "");
+  return (
+    <div className="stepper">
+      <button onClick={() => onChange(down)} disabled={value <= 0.5} aria-label="0.5배 줄이기">−</button>
+      <span>×{label}</span>
+      <button onClick={() => onChange(up)} aria-label="0.5배 늘리기">+</button>
+    </div>
+  );
+}
+
 /** 왼쪽으로 밀면 삭제 버튼이 나오는 줄 */
 export function SwipeRow({ children, onTap, onDelete }: { children: ReactNode; onTap: () => void; onDelete: () => void }) {
   const OPEN = -84;
