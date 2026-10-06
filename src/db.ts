@@ -76,7 +76,11 @@ export interface FavGroup {
   id?: number;
   name: string;
   order: number;
+  emoji?: string; // 폴더 아이콘
 }
+
+export const FOLDER_EMOJIS = ["🍚", "🍳", "🥗", "🍗", "🥩", "🐟", "🍜", "🍞", "🥛", "🍎", "🍌", "🥜", "🍫", "🍰", "☕", "🥤", "🍕", "🍔", "🍱", "🥚", "🧀", "💪", "🔥", "⭐"];
+export const folderEmoji = (g: FavGroup) => g.emoji ?? "📁";
 
 /** 자주 먹는 식단 묶음. 한 번에 여러 개를 기록 */
 export interface MealSet {
@@ -112,7 +116,7 @@ db.version(2).stores({ sets: "++id, updatedAt" });
 db.version(3)
   .stores({ groups: "++id, order" })
   .upgrade(async (tx) => {
-    const id = await tx.table("groups").add({ name: "기본", order: 0 });
+    const id = await tx.table("groups").add({ name: "기본", order: 0, emoji: "⭐" });
     await tx.table("saved").toCollection().modify((s: SavedFood) => {
       if (s.fav) s.groupId = id as number;
       delete s.fav;
@@ -121,7 +125,9 @@ db.version(3)
 
 // 새로 설치한 경우에도 "기본" 그룹이 항상 있게
 db.on("ready", async () => {
-  if ((await db.groups.count()) === 0) await db.groups.add({ name: "기본", order: 0 });
+  if ((await db.groups.count()) === 0) await db.groups.add({ name: "기본", order: 0, emoji: "⭐" });
+  // 이모지가 생기기 전에 만든 "기본" 폴더
+  await db.groups.filter((g) => !g.emoji && g.name === "기본").modify({ emoji: "⭐" });
 });
 
 // ---------- 프로필 / 설정 ----------

@@ -27,6 +27,34 @@ export function Sheet({ title, onClose, children, footer }: { title: string; onC
   );
 }
 
+/** 화면 전체를 덮는 페이지 (음식 편집, 내 폴더 등) */
+export function Screen({ title, left, right, footer, children }: { title: ReactNode; left: ReactNode; right?: ReactNode; footer?: ReactNode; children: ReactNode }) {
+  useEffect(() => {
+    openSheets++;
+    document.body.classList.add("no-scroll");
+    return () => {
+      if (--openSheets === 0) document.body.classList.remove("no-scroll");
+    };
+  }, []);
+  return (
+    <div className="screen-page" role="dialog" aria-label={typeof title === "string" ? title : undefined}>
+      <header className="screen-head">
+        <div>{left}</div>
+        <h2>{title}</h2>
+        <div className="screen-right">{right}</div>
+      </header>
+      <div className="screen-body">{children}</div>
+      {footer && <footer className="screen-foot">{footer}</footer>}
+    </div>
+  );
+}
+
+export const BackIcon = () => (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M20 12H5M11 6l-6 6 6 6" />
+  </svg>
+);
+
 /**
  * 숫자 입력 (빈칸 허용).
  * 입력 중인 글자는 따로 들고 있어서, 칸을 비워도 부모가 0으로 저장한 값이 "0"으로 되살아나지 않음.
