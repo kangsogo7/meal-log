@@ -1,0 +1,36 @@
+name: Android install test
+
+# 올려 둔 APK를 에뮬레이터에 실제로 설치해 보고 오류 메시지를 확인 (수동 실행)
+on:
+  workflow_dispatch:
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: APK 받기
+        run: curl -fL -o meal-log.apk https://github.com/kangsogo7/meal-log/releases/download/android/meal-log.apk
+
+      - name: APK 정보
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          "$AAPT" dump badging meal-log.apk | head -20 || true
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify -v meal-log.apk || true
+
+      - name: KVM 사용 설정
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: 에뮬레이터에 설치
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          script: |
+            adb install -r meal-log.apk || true
+            adb shell pm list packages | grep meallog || echo "NOT INSTALLED"
+            adb logcat -d | grep -iE "PackageManager|install|meallog" | tail -40 || true
