@@ -130,7 +130,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 
 .page-head { display: flex; align-items: center; gap: 6px; padding: 10px 0 12px; }
 /* 날짜 글자 길이나 "오늘" 버튼 유무와 상관없이 화살표 위치 고정 */
-.date-nav { display: grid; grid-template-columns: 50px 36px 1fr 36px 50px; gap: 0; align-items: center; }
+.date-nav { display: grid; grid-template-columns: 36px 50px 1fr 50px 36px; gap: 0; align-items: center; }
 .date-nav button.ghost { padding: 8px 0; }
 @media (max-width: 370px) { .date-nav .date-label { font-size: 0.9rem; } }
 .date-nav .today-slot { padding: 5px 0; }

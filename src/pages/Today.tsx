@@ -45,14 +45,14 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
   return (
     <>
       <header className="page-head date-nav">
-        <span aria-hidden />
         <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
+        <span aria-hidden />
         <label className="date-label">
           {isToday ? "오늘 · " : ""}{formatDate(date)}
           <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
         </label>
-        <button className="ghost" onClick={() => setDate(addDays(date, 1))} aria-label="다음 날">▶</button>
         <button className={`chip today-slot ${isToday ? "" : "show"}`} onClick={() => setDate(todayStr())} tabIndex={isToday ? -1 : 0}>오늘</button>
+        <button className="ghost" onClick={() => setDate(addDays(date, 1))} aria-label="다음 날">▶</button>
       </header>
 
       <section className="card">
