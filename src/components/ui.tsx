@@ -89,7 +89,7 @@ export function Progress({ label, value, target, unit, className }: { label: str
   );
 }
 
-/** 탄단지·나트륨 편집. 칼로리는 탄단지를 고치면 자동으로 다시 계산(4/4/9) */
+/** 탄단지·나트륨 편집. 칼로리는 탄단지를 고치면 자동으로 다시 계산(4/4/9)되고, 직접 고칠 수도 있음 */
 export function NutrientEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) => void }) {
   const field = (key: "carb" | "protein" | "fat", label: string) => (
     <label className="nfield">
@@ -105,10 +105,10 @@ export function NutrientEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nu
   );
   return (
     <div className="ngrid three">
-      <div className="nfield">
+      <label className="nfield">
         <span>칼로리</span>
-        <output className="kcal-auto">{Math.round(n.kcal).toLocaleString()}</output>
-      </div>
+        <NumInput value={Math.round(n.kcal)} onChange={(v) => onChange({ ...n, kcal: v ?? 0 })} step="1" />
+      </label>
       {field("carb", "탄수화물")}
       {field("protein", "단백질")}
       {field("fat", "지방")}

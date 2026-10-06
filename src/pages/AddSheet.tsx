@@ -108,12 +108,9 @@ function Favorites({ onPick, onPickSet }: { onPick: (s: SavedFood) => void; onPi
   const [q, setQ] = useState("");
   const groups = useLiveQuery(() => db.groups.orderBy("order").toArray(), [], []);
   const favs = useLiveQuery(() => db.saved.filter((s) => s.groupId != null).toArray(), [], []);
-  const latest = useLiveQuery(() => db.saved.orderBy("updatedAt").reverse().limit(300).toArray(), [], []);
   const sets = useLiveQuery(() => db.sets.orderBy("updatedAt").reverse().toArray(), [], []);
   const match = (s: SavedFood) => !q || `${s.place ?? ""} ${s.title}`.includes(q.trim());
   const shownSets = sets.filter((s) => !q || `${s.name} ${s.entries.map((e) => e.title).join(" ")}`.includes(q.trim()));
-  // 최근: 실제로 먹은 적 있고 즐겨찾기 그룹에 없는 것
-  const recent = latest.filter((s) => s.groupId == null && s.uses > 0 && match(s)).slice(0, 40);
 
   const row = (s: SavedFood) => (
     <li key={s.key}>
@@ -165,12 +162,6 @@ function Favorites({ onPick, onPickSet }: { onPick: (s: SavedFood) => void; onPi
         );
       })}
       <button className="link small new-group" onClick={() => createGroup()}>+ 새 그룹</button>
-      {recent.length > 0 && (
-        <>
-          <h3 className="list-title">최근</h3>
-          <ul className="pick-list">{recent.map(row)}</ul>
-        </>
-      )}
     </div>
   );
 }

@@ -154,7 +154,7 @@ export default function Goals() {
   );
 }
 
-/** 탄단지만 입력하면 칼로리는 자동 계산 */
+/** 탄단지를 고치면 칼로리 자동 계산, 칼로리는 직접 고칠 수도 있음 */
 function MacroEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) => void }) {
   const update = (patch: Partial<Nutrients>) => {
     const next = { ...n, ...patch };
@@ -169,6 +169,10 @@ function MacroEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) =
   return (
     <>
       <div className="ngrid three">
+        <label className="nfield">
+          <span>칼로리</span>
+          <NumInput value={n.kcal} onChange={(v) => onChange({ ...n, kcal: v ?? 0 })} step="1" />
+        </label>
         {field("carb", "탄수화물")}
         {field("protein", "단백질")}
         {field("fat", "지방")}
@@ -177,7 +181,6 @@ function MacroEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) =
           <NumInput value={n.sodium ?? SODIUM_LIMIT} onChange={(v) => onChange({ ...n, sodium: v ?? 0 })} step="1" />
         </label>
       </div>
-      <p className="muted small">칼로리 <b>{kcalFromMacros(n.carb, n.protein, n.fat).toLocaleString()} kcal</b> (자동 계산)</p>
     </>
   );
 }
