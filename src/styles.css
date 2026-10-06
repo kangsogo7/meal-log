@@ -330,9 +330,21 @@ label.inline input { width: 110px; margin: 0; }
 .group-actions { display: flex; gap: 14px; }
 .danger-link { color: var(--over) !important; }
 .new-group { display: block; margin: 10px 0 4px; }
-.group-pick { list-style: none; padding: 0; margin: 0 0 12px; }
-.group-pick li { margin-bottom: 6px; }
-.group-pick button { text-align: left; }
+.picker-sub { margin: -2px 0 6px; }
+.group-list { display: flex; flex-direction: column; padding-bottom: 8px; }
+.group-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: none;
+  padding: 14px 2px; min-height: 52px; font-size: 0.95rem;
+}
+.group-row:last-child { border-bottom: none; }
+.group-row:active { background: var(--inset); }
+.group-row .count { margin-left: auto; color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.group-row.add { color: var(--muted); }
+.row-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
+.inline-new { display: flex; gap: 8px; padding-top: 10px; }
+.inline-new input { flex: 1; min-width: 0; }
+.inline-new button { white-space: nowrap; }
 
 input.missing { border-color: var(--over); }
 .empty { text-align: center; margin: 24px 0; }

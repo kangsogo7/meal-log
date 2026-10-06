@@ -185,6 +185,16 @@ export function SwipeRow({ children, onTap, onDelete }: { children: ReactNode; o
   );
 }
 
+/** 잠깐 보였다 사라지는 안내 (어느 화면에서든 호출) */
+export function flash(message: string) {
+  document.querySelectorAll(".toast.flash").forEach((el) => el.remove());
+  const el = document.createElement("div");
+  el.className = "toast flash";
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
 export function Toast({ message }: { message: string | null }) {
   if (!message) return null;
   return <div className="toast">{message}</div>;

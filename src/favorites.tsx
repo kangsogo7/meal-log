@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, savedKey, sumNutrients, type Entry, type EntryKind, type Item } from "./db";
-import { Sheet } from "./components/ui";
+import { flash, Sheet } from "./components/ui";
 
 export interface FavDraft {
   kind: EntryKind;
@@ -52,19 +52,52 @@ export async function deleteGroup(id: number, name: string) {
   });
 }
 
-/** 저장할 그룹 고르기 */
-function GroupPicker({ onPick, onClose }: { onPick: (id: number) => void; onClose: () => void }) {
+const FolderIcon = () => (
+  <svg className="row-icon" viewBox="0 0 24 24" aria-hidden><path d="M4 6h6l2 2h8v10H4z" /></svg>
+);
+const PlusIcon = () => (
+  <svg className="row-icon" viewBox="0 0 24 24" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
+);
+
+/** 저장할 그룹 고르기: 그룹을 누르면 바로 저장 (B안) */
+function GroupPicker({ subtitle, onPick, onClose }: { subtitle: string; onPick: (id: number, name: string) => void; onClose: () => void }) {
   const groups = useLiveQuery(() => db.groups.orderBy("order").toArray(), [], []);
+  const favs = useLiveQuery(() => db.saved.filter((s) => s.groupId != null).toArray(), [], []);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+
+  const addAndPick = async () => {
+    const n = name.trim();
+    if (!n) return;
+    const last = await db.groups.orderBy("order").last();
+    const id = (await db.groups.add({ name: n, order: (last?.order ?? 0) + 1 })) as number;
+    onPick(id, n);
+  };
+
   return (
-    <Sheet title="즐겨찾기 그룹" onClose={onClose}>
-      <ul className="group-pick">
+    <Sheet title="어느 그룹에 저장할까요?" onClose={onClose}>
+      <p className="muted small picker-sub">{subtitle}</p>
+      <div className="group-list">
         {groups.map((g) => (
-          <li key={g.id}>
-            <button className="block" onClick={() => onPick(g.id!)}>{g.name}</button>
-          </li>
+          <button key={g.id} className="group-row" onClick={() => onPick(g.id!, g.name)}>
+            <FolderIcon />
+            <span>{g.name}</span>
+            <span className="count">{favs.filter((s) => s.groupId === g.id).length}</span>
+          </button>
         ))}
-      </ul>
-      <button className="link" onClick={async () => { const id = await createGroup(); if (id) onPick(id); }}>+ 새 그룹</button>
+        {adding ? (
+          <div className="inline-new">
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="그룹 이름" autoFocus
+              onKeyDown={(e) => e.key === "Enter" && addAndPick()} />
+            <button onClick={addAndPick} disabled={!name.trim()}>만들고 저장</button>
+          </div>
+        ) : (
+          <button className="group-row add" onClick={() => setAdding(true)}>
+            <PlusIcon />
+            <span>새 그룹 만들기</span>
+          </button>
+        )}
+      </div>
     </Sheet>
   );
 }
@@ -99,10 +132,12 @@ export function FavStar({ getDraft, className }: { getDraft: () => FavDraft | nu
         // 고르기 창 안의 클릭이 아래 목록 줄(누르면 기록)로 전달되지 않게
         <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
           <GroupPicker
+            subtitle={`${draft.place ? draft.place + " · " : ""}${draft.title}`}
             onClose={() => setPicking(false)}
-            onPick={async (id) => {
+            onPick={async (id, name) => {
               await addToGroup(getDraft()!, id);
               setPicking(false);
+              flash(`${name}에 저장했어요`);
             }}
           />
         </div>
