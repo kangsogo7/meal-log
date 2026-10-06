@@ -54,7 +54,7 @@ function roundedTop(x: number, y: number, w: number, h: number, r: number) {
 /** 체중 추이 꺾은선. 점을 누르면 값 표시 */
 export function WeightChart({ points }: { points: { date: string; weight: number }[] }) {
   const [active, setActive] = useState<number | null>(null);
-  if (points.length < 2) return <p className="muted small">체중을 두 번 이상 기록하면 추이를 보여 드려요.</p>;
+  if (points.length < 2) return null;
   const W = 340, H = 160, padX = 14, top = 22, bottom = 22;
   const ws = points.map((p) => p.weight);
   const lo = Math.min(...ws) - 0.5, hi = Math.max(...ws) + 0.5;

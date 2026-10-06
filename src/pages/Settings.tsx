@@ -6,8 +6,8 @@ import { getTheme, setTheme, type Theme } from "../theme";
 
 const THEMES: { key: Theme; label: string }[] = [
   { key: "system", label: "시스템" },
-  { key: "light", label: "☀️ 라이트" },
-  { key: "dark", label: "🌙 다크" },
+  { key: "light", label: "라이트" },
+  { key: "dark", label: "다크" },
 ];
 
 export default function SettingsPage() {
@@ -93,19 +93,13 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
-        <p className="muted small">"시스템"은 휴대폰의 라이트/다크 설정을 따라가요.</p>
       </section>
 
       <section className="card form">
-        <h2>Gemini API 키</h2>
-        <p className="muted small">
-          외식 메뉴 추정, 식재료 양 계산, 인바디 사진 읽기에 써요. 키가 없어도 식약처 DB 검색과 직접 입력은 할 수 있어요.
-        </p>
-        <ol className="small steps">
-          <li><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Google AI Studio</a>에 구글 계정으로 로그인</li>
-          <li>"API 키 만들기"를 눌러 키 복사</li>
-          <li>아래에 붙여넣고 "연결 확인"</li>
-        </ol>
+        <div className="row-between">
+          <h2>Gemini API 키</h2>
+          <a className="small ext-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">키 발급 ↗</a>
+        </div>
         <input type="password" autoComplete="off" value={key} onChange={(e) => setKeyInput(e.target.value)} placeholder="AQ.으로 시작하는 키" />
         <div className="btn-row">
           <button className="primary" onClick={test} disabled={!key.trim()}>연결 확인</button>
@@ -118,12 +112,10 @@ export default function SettingsPage() {
             {[...new Set([settings.geminiModel, ...MODELS])].map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </label>
-        <p className="muted small">무료 사용 한도에 자주 걸리면 "lite" 모델로 바꿔 보세요. 무료 등급에서는 입력한 내용이 구글 서비스 개선에 쓰일 수 있어요.</p>
       </section>
 
       <section className="card form">
         <h2>백업</h2>
-        <p className="muted small">기록은 이 휴대폰에만 저장돼요. 휴대폰을 바꾸거나 앱을 지우기 전에 백업 파일을 저장해 두세요. (API 키는 백업에 들어가지 않아요)</p>
         <div className="btn-row">
           <button onClick={exportData}>백업 파일 저장</button>
           <button onClick={() => fileRef.current?.click()}>백업 불러오기</button>
@@ -132,21 +124,19 @@ export default function SettingsPage() {
       </section>
 
       <section className="card">
-        <h2>홈 화면에 앱 설치</h2>
-        <ul className="small steps">
-          <li><b>아이폰</b>: Safari로 열고 → 아래 공유 버튼(□↑) → "홈 화면에 추가"</li>
-          <li><b>안드로이드</b>: Chrome으로 열고 → 오른쪽 위 ⋮ → "홈 화면에 추가" 또는 "앱 설치"</li>
-        </ul>
+        <details>
+          <summary>홈 화면에 앱 설치</summary>
+          <ul className="small steps">
+            <li>아이폰: Safari → 공유(□↑) → 홈 화면에 추가</li>
+            <li>안드로이드: Chrome → ⋮ → 앱 설치</li>
+          </ul>
+        </details>
       </section>
 
-      <section className="card">
-        <h2>데이터 출처</h2>
-        <p className="muted small">
-          식품의약품안전처 전국통합식품영양성분정보 표준데이터(원재료성식품, 음식, 가공식품) — 공공데이터포털.
-          AI 추정값은 실제와 다를 수 있어요.
-        </p>
-      </section>
-      <p className="muted small version">앱 버전 {__APP_VERSION__}</p>
+      <p className="muted small version">
+        영양 데이터: 식품의약품안전처 (공공데이터포털)<br />
+        버전 {__APP_VERSION__}
+      </p>
     </>
   );
 }

@@ -32,7 +32,7 @@ export default function Goals() {
               <div className="protein"><span className="muted small">단백질</span><b>{target.protein}</b><em>g</em></div>
               <div className="fat"><span className="muted small">지방</span><b>{target.fat}</b><em>g</em></div>
             </div>
-            <p className="muted small">나트륨은 하루 <b>{(target.sodium ?? SODIUM_LIMIT).toLocaleString()}mg</b> 이하로 (WHO 권고 상한 2,000mg)</p>
+            <p className="muted small">나트륨 {(target.sodium ?? SODIUM_LIMIT).toLocaleString()}mg 이하</p>
           </>
         ) : !saved ? (
           <>
@@ -121,7 +121,7 @@ export default function Goals() {
             {ACTIVITY.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
         </label>
-        <p className="label">운동 (안 하는 운동은 0회)</p>
+        <p className="label">운동</p>
         <table className="ex-table">
           <thead>
             <tr><th></th><th>일주일에</th><th>한 번에</th></tr>
@@ -177,9 +177,7 @@ function MacroEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) =
           <NumInput value={n.sodium ?? SODIUM_LIMIT} onChange={(v) => onChange({ ...n, sodium: v ?? 0 })} step="1" />
         </label>
       </div>
-      <p className="muted small">
-        칼로리는 자동 계산: 탄 {n.carb}×4 + 단 {n.protein}×4 + 지 {n.fat}×9 = <b>{kcalFromMacros(n.carb, n.protein, n.fat).toLocaleString()} kcal</b>
-      </p>
+      <p className="muted small">칼로리 <b>{kcalFromMacros(n.carb, n.protein, n.fat).toLocaleString()} kcal</b> (자동 계산)</p>
     </>
   );
 }
@@ -215,7 +213,7 @@ function InBodyButton({ onRead }: { onRead: (r: BodyRecord) => void }) {
         disabled={busy}
         onClick={() => (settings.geminiKey ? input.current?.click() : alert("인바디 사진을 읽으려면 설정에서 Gemini API 키를 입력해 주세요."))}
       >
-        {busy ? "읽는 중..." : "📷 인바디 사진"}
+        {busy ? "읽는 중..." : "인바디 사진"}
       </button>
       <input ref={input} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
     </>

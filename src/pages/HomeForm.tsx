@@ -106,16 +106,15 @@ export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
 
   return (
     <div className="form">
-      <label>요리 이름 <span className="muted">(선택)</span>
-        <input value={dish} onChange={(e) => setDish(e.target.value)} placeholder="예: 닭가슴살 볶음밥" />
+      <label>요리 이름
+        <input value={dish} onChange={(e) => setDish(e.target.value)} placeholder="선택 · 예: 닭가슴살 볶음밥" />
       </label>
-      <label>넣은 식재료 <span className="muted">(한 줄에 하나씩)</span>
+      <label>식재료
         <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={"현미밥 200g\n계란 2개\n닭가슴살 100g\n올리브유 1큰술"} />
       </label>
       <button className="primary block" onClick={analyze} disabled={!text.trim() || busy}>
         {busy ? "찾는 중..." : "영양성분 찾기"}
       </button>
-      {!settings.geminiKey && <p className="muted small">"2개", "한 줌" 같은 양은 Gemini API 키가 있으면 AI가 그램으로 바꿔 줘요. 없으면 그램을 직접 입력해 주세요.</p>}
       {error && <p className="error">{error}</p>}
 
       {rows && (
@@ -134,23 +133,22 @@ export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
                     <option value={MANUAL}>직접 입력</option>
                   </select>
                   <label className="inline grams">
-                    <NumInput value={r.grams} onChange={(g) => update(i, { grams: g })} placeholder="g" />
+                    <NumInput value={r.grams} onChange={(g) => update(i, { grams: g })} placeholder="g" className={r.choice >= 0 && !r.grams ? "missing" : ""} />
                     <em>g</em>
                   </label>
                 </div>
-                {r.choice >= 0 && !r.grams && <p className="error small">몇 g인지 입력해 주세요</p>}
                 {r.choice === MANUAL && <NutrientEditor n={r.manual} onChange={(n) => update(i, { manual: n })} />}
               </li>
             ))}
           </ul>
           {settings.geminiKey && !aiUsed && (
-            <button className="block" onClick={retryAi} disabled={busy}>✨ AI로 다시 확인하기</button>
+            <button className="block" onClick={retryAi} disabled={busy}>AI로 다시 확인</button>
           )}
           <div className="card inset total">
             <span>합계</span>
             <NutrientLine n={total} />
           </div>
-          {missingGrams && <p className="error">g을 입력해야 저장할 수 있어요: {missing.join(", ")}</p>}
+          {missingGrams && <p className="error">g 입력 필요: {missing.join(", ")}</p>}
           <button className="primary block" onClick={save} disabled={missingGrams}>저장</button>
         </>
       )}

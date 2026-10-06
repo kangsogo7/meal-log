@@ -22,8 +22,8 @@ interface Choice {
 }
 
 const COPY = {
-  out: { placeholder: "상호 메뉴명 (예: 교촌치킨 허니콤보)", amount: "1인분", empty: "식약처 DB에 없는 메뉴예요." },
-  food: { placeholder: "식품 이름 (예: 그릭요거트, 바나나, 두유)", amount: "1개 (1회 제공량)", empty: "식약처 DB에 없는 식품이에요." },
+  out: { placeholder: "상호 메뉴명 (예: 교촌치킨 허니콤보)", amount: "1인분", empty: "검색 결과가 없어요" },
+  food: { placeholder: "식품 이름 (예: 그릭요거트, 바나나)", amount: "1개 (1회 제공량)", empty: "검색 결과가 없어요" },
 };
 
 export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onSave: (d: Draft) => void }) {
@@ -83,7 +83,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
         setSavedHit(
           prev
             ? {
-                id: "saved", label: `🕘 이전 기록: ${prev.place ? prev.place + " " : ""}${prev.title}`, title: prev.title, place: prev.place,
+                id: "saved", label: `이전 기록 · ${prev.place ? prev.place + " " : ""}${prev.title}`, title: prev.title, place: prev.place,
                 source: "saved", baseGrams: prev.items[0]?.grams ?? null, grams: prev.items[0]?.grams ?? null, nutrients: prev.total,
               }
             : null,
@@ -124,7 +124,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
       const refs = results.slice(0, 5).map((f) => `${foodLabel(f)}: ${f.per100.kcal}kcal, 탄${f.per100.carb} 단${f.per100.protein} 지${f.per100.fat}, 나트륨${f.per100.sodium}mg${f.serving ? `, 1회 ${f.serving}g` : ""}`);
       const est = await estimateMenu(settings, place ?? "", title, copy.amount, refs, kind);
       const c: Choice = {
-        id: "ai", label: `✨ AI 추정: ${est.name}`, title, place, source: "ai",
+        id: "ai", label: `AI 추정 · ${est.name}`, title, place, source: "ai",
         baseGrams: est.grams || null, grams: est.grams || null, nutrients: est.nutrients, note: est.note,
       };
       setAiChoice(c);
@@ -196,19 +196,17 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
               key={`${f.name}|${f.brand}|${i}`}
               label={foodLabel(f)}
               n={scaleNutrients(f.per100, listGrams(f) / 100)}
-              suffix={`${listGrams(f)}g 기준`}
+              suffix={`${listGrams(f)}g`}
               selected={choice?.id === `db${i}`}
               onClick={() => pickFood(f, i)}
             />
           ))}
           {!busy && results.length === 0 && !aiChoice && <p className="muted small">{copy.empty}</p>}
-          {!aiChoice && (settings.geminiKey ? (
+          {!aiChoice && settings.geminiKey && (
             <button className="block" onClick={runAi} disabled={busy === "ai"}>
-              {busy === "ai" ? "AI가 찾는 중..." : `✨ "${q}" AI에게 물어보기`}
+              {busy === "ai" ? "AI가 찾는 중..." : "AI로 찾기"}
             </button>
-          ) : (
-            <p className="muted small">설정에서 Gemini API 키를 넣으면 DB에 없는 것도 AI가 찾아 줘요.</p>
-          ))}
+          )}
         </div>
       )}
 

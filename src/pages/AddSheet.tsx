@@ -48,7 +48,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
     <Sheet title="식단 기록" onClose={onClose}>
       <div className="seg meal-seg">
         {MEALS.map((m) => (
-          <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>{m.icon} {m.label}</button>
+          <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>{m.label}</button>
         ))}
       </div>
 
@@ -68,7 +68,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
             ))}
           </div>
           <div className="manual-link">
-            <button className="link small" onClick={() => setMode("manual")}>✏️ 영양성분 직접 입력</button>
+            <button className="link small" onClick={() => setMode("manual")}>직접 입력</button>
           </div>
           {mode === "out" && <SearchForm key="out" kind="out" onSave={onSave} />}
           {mode === "home" && <HomeForm onSave={onSave} />}
@@ -138,40 +138,36 @@ function Favorites({ onPick, onPickSet }: { onPick: (s: SavedFood) => void; onPi
 
   return (
     <div>
-      <input placeholder="즐겨찾기·최근 메뉴 검색" value={q} onChange={(e) => setQ(e.target.value)} />
-      {saved.length === 0 ? (
-        <p className="muted small">한 번 기록한 메뉴가 여기에 모여요. ☆를 누르면 즐겨찾기에 추가돼요.</p>
-      ) : (
-        <p className="muted small">누르면 바로 기록돼요. ☆로 즐겨찾기, 왼쪽으로 밀면 삭제.</p>
-      )}
-      <h3 className="list-title">🍱 식사 세트</h3>
-      {shownSets.length === 0 ? (
-        <p className="muted small">식단 화면에서 끼니 아래 "식사 세트로 저장"을 누르면, 그 끼니 전체를 여기서 한 번에 기록할 수 있어요.</p>
-      ) : (
-        <ul className="pick-list">
-          {shownSets.map((s) => (
-            <li key={s.id}>
-              <SwipeRow onTap={() => onPickSet(s)} onDelete={() => db.sets.delete(s.id!)}>
-                <div><b>{s.name}</b> <span className="muted small">{s.entries.length}개</span></div>
-                <div className="muted small set-items">{s.entries.map((e) => (e.place ? `${e.place} ${e.title}` : e.title)).join(", ")}</div>
-                <NutrientLine n={s.total} />
-              </SwipeRow>
-            </li>
-          ))}
-        </ul>
+      <input placeholder="검색" value={q} onChange={(e) => setQ(e.target.value)} />
+      {shownSets.length > 0 && (
+        <>
+          <h3 className="list-title">식사 세트</h3>
+          <ul className="pick-list">
+            {shownSets.map((s) => (
+              <li key={s.id}>
+                <SwipeRow onTap={() => onPickSet(s)} onDelete={() => db.sets.delete(s.id!)}>
+                  <div><b>{s.name}</b> <span className="muted small">{s.entries.length}개</span></div>
+                  <div className="muted small set-items">{s.entries.map((e) => (e.place ? `${e.place} ${e.title}` : e.title)).join(", ")}</div>
+                  <NutrientLine n={s.total} />
+                </SwipeRow>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
       {favs.length > 0 && (
         <>
-          <h3 className="list-title">⭐ 즐겨찾기</h3>
+          <h3 className="list-title">즐겨찾기</h3>
           <ul className="pick-list">{favs.map(row)}</ul>
         </>
       )}
       {recent.length > 0 && (
         <>
-          <h3 className="list-title">🕘 최근 먹은 것</h3>
+          <h3 className="list-title">최근</h3>
           <ul className="pick-list">{recent.map(row)}</ul>
         </>
       )}
+      {saved.length === 0 && shownSets.length === 0 && <p className="muted small empty">아직 기록한 메뉴가 없어요</p>}
     </div>
   );
 }
