@@ -85,17 +85,16 @@ db.version(1).stores({
 
 // ---------- 프로필 / 설정 ----------
 export type Sex = "male" | "female";
-export type Goal = "cut" | "maintain" | "bulk";
-export type Intensity = "light" | "moderate" | "hard";
+export type Goal = "cut" | "maintain" | "leanbulk" | "bulk";
+export type ExerciseKind = "strength" | "interval" | "zone2";
 
 export interface Profile {
   sex: Sex;
   birthYear: number;
   height: number;
   activity: 1 | 2 | 3 | 4;
-  exerciseDays: number;
-  exerciseMinutes: number;
-  exerciseIntensity: Intensity;
+  /** 운동 종류별 일주일 횟수와 1회 시간(분) */
+  exercise: Record<ExerciseKind, { days: number; minutes: number }>;
   goal: Goal;
   override?: Nutrients | null; // 목표를 직접 지정한 경우
 }

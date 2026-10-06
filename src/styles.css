@@ -238,6 +238,15 @@ label.inline input { width: 110px; margin: 0; }
 .tabbar button.active { color: var(--accent); font-weight: 700; }
 .tab-icon { font-size: 1.25rem; }
 
+.ngrid.three { grid-template-columns: repeat(3, 1fr); }
+.ex-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.9rem; }
+.ex-table th { text-align: left; font-weight: 600; padding: 4px 6px 4px 0; }
+.ex-table thead th { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+.ex-table tbody th span { display: block; font-weight: 400; }
+.ex-table td { padding: 4px 0 4px 6px; width: 30%; }
+.ex-table input { padding: 8px 28px 8px 10px; }
+.ex-table .with-unit em { display: block; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); font-size: 0.85rem; }
+
 .version { text-align: center; margin: 8px 0 0; }
 
 .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 0.9rem; z-index: 30; }

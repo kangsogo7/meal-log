@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, setKV, todayStr, type BodyRecord, type Profile } from "../db";
-import { ACTIVITY, GOALS, INTENSITY } from "../nutrition";
+import { db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Nutrients, type Profile } from "../db";
+import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros } from "../nutrition";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
-import { NumInput, NutrientEditor, Sheet } from "../components/ui";
+import { NumInput, Sheet } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
 export default function Goals() {
@@ -45,8 +45,12 @@ export default function Goals() {
             <summary>어떻게 계산했나요?</summary>
             <ul className="small">
               <li>기초대사량 <b>{calc.bmr} kcal</b> · {calc.bmrMethod}{latest?.bmr ? ` (인바디 측정값: ${latest.bmr} kcal)` : ""}</li>
-              <li>일상 활동 + 운동(하루 평균 {calc.exerciseKcal} kcal) 포함 소모량 <b>{calc.tdee} kcal</b></li>
-              <li>목표 "{GOALS[profile.goal].label}": 소모량 × {GOALS[profile.goal].kcal}</li>
+              <li>
+                운동 소모량 일주일 {calc.exerciseDetail.map((e) => `${e.label} ${e.perWeek}`).join(" + ")} kcal
+                → 하루 평균 <b>{calc.exerciseKcal} kcal</b>
+              </li>
+              <li>기초대사량 × 평소 활동량 + 운동 = 하루 소모량 <b>{calc.tdee} kcal</b></li>
+              <li>목표 "{GOALS[profile.goal].label}": {GOALS[profile.goal].desc} (× {GOALS[profile.goal].kcal})</li>
               <li>단백질은 체중 1kg당 {GOALS[profile.goal].proteinPerKg}g, 지방은 칼로리의 25%, 나머지는 탄수화물</li>
               {calc.notes.map((n) => <li key={n}>{n}</li>)}
             </ul>
@@ -61,7 +65,7 @@ export default function Goals() {
           />
           목표를 직접 정하기
         </label>
-        {profile.override && <NutrientEditor n={profile.override} onChange={(n) => set({ override: n })} />}
+        {profile.override && <MacroEditor n={profile.override} onChange={(n) => set({ override: n })} />}
       </section>
 
       <section className="card">
@@ -114,25 +118,61 @@ export default function Goals() {
             {ACTIVITY.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
         </label>
-        <p className="label">운동</p>
-        <div className="two">
-          <label>일주일에 (회)<NumInput value={profile.exerciseDays} onChange={(v) => set({ exerciseDays: Math.min(7, v ?? 0) })} step="1" /></label>
-          <label>한 번에 (분)<NumInput value={profile.exerciseMinutes} onChange={(v) => set({ exerciseMinutes: v ?? 0 })} step="5" /></label>
-        </div>
-        <label>운동 강도
-          <select value={profile.exerciseIntensity} onChange={(e) => set({ exerciseIntensity: e.target.value as Profile["exerciseIntensity"] })}>
-            {Object.entries(INTENSITY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
-        </label>
+        <p className="label">운동 (안 하는 운동은 0회)</p>
+        <table className="ex-table">
+          <thead>
+            <tr><th></th><th>일주일에</th><th>한 번에</th></tr>
+          </thead>
+          <tbody>
+            {(Object.keys(EXERCISES) as ExerciseKind[]).map((k) => {
+              const ex = profile.exercise[k];
+              const setEx = (patch: Partial<typeof ex>) => set({ exercise: { ...profile.exercise, [k]: { ...ex, ...patch } } });
+              return (
+                <tr key={k}>
+                  <th>{EXERCISES[k].label}<span className="muted small">{EXERCISES[k].hint}</span></th>
+                  <td><div className="with-unit"><NumInput value={ex.days} onChange={(v) => setEx({ days: Math.min(7, v ?? 0) })} step="1" /><em>회</em></div></td>
+                  <td><div className="with-unit"><NumInput value={ex.minutes} onChange={(v) => setEx({ minutes: v ?? 0 })} step="5" /><em>분</em></div></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
         <p className="label">목표</p>
         <div className="seg">
-          {(Object.keys(GOALS) as Profile["goal"][]).map((g) => (
+          {GOAL_ORDER.map((g) => (
             <button key={g} className={profile.goal === g ? "on" : ""} onClick={() => set({ goal: g })}>{GOALS[g].label}</button>
           ))}
         </div>
+        <p className="muted small">{GOALS[profile.goal].label}: {GOALS[profile.goal].desc}, 단백질 체중 1kg당 {GOALS[profile.goal].proteinPerKg}g</p>
       </section>
 
       {bodyForm && <BodyForm record={bodyForm} onClose={() => setBodyForm(null)} />}
+    </>
+  );
+}
+
+/** 탄단지만 입력하면 칼로리는 자동 계산 */
+function MacroEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nutrients) => void }) {
+  const update = (patch: Partial<Nutrients>) => {
+    const next = { ...n, ...patch };
+    onChange({ ...next, kcal: kcalFromMacros(next.carb, next.protein, next.fat) });
+  };
+  const field = (key: "carb" | "protein" | "fat", label: string) => (
+    <label className="nfield">
+      <span>{label} (g)</span>
+      <NumInput value={n[key]} onChange={(v) => update({ [key]: v ?? 0 })} />
+    </label>
+  );
+  return (
+    <>
+      <div className="ngrid three">
+        {field("carb", "탄수화물")}
+        {field("protein", "단백질")}
+        {field("fat", "지방")}
+      </div>
+      <p className="muted small">
+        칼로리는 자동 계산: 탄 {n.carb}×4 + 단 {n.protein}×4 + 지 {n.fat}×9 = <b>{kcalFromMacros(n.carb, n.protein, n.fat).toLocaleString()} kcal</b>
+      </p>
     </>
   );
 }
