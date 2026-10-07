@@ -25,44 +25,44 @@
 /* 다크 모드: 설정이 "시스템"이면 휴대폰 설정을 따르고, "다크"면 항상 */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0c0c0e;
-    --card: #17171a;
-    --inset: #1f1f23;
-    --text: #d6d6da;
-    --muted: #8d8d96;
-    --border: #27272b;
-    --accent: #d6d6da;
-    --accent-ink: #18181b;
-    --accent-soft: #27272b;
+    --bg: #232625;
+    --card: #2e3231;
+    --inset: #373b3a;
+    --text: #d4e6dd;
+    --muted: #7c9f90;
+    --border: #3d4241;
+    --accent: #d4e6dd;
+    --accent-ink: #1f2d28;
+    --accent-soft: #3d4241;
     --point: #8fc2b1;
     --over: #fb923c;
-    --carb: #71717a;
-    --protein: #d6d6da;
-    --fat: #8d8d96;
-    --track: #27272b;
-    --tag-out-ink: #8d8d96;
-    --tag-food-ink: #8d8d96;
+    --carb: #5f7d71;
+    --protein: #d4e6dd;
+    --fat: #9dbdaf;
+    --track: #3d4241;
+    --tag-out-ink: #7c9f90;
+    --tag-food-ink: #7c9f90;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0c0c0e;
-  --card: #17171a;
-  --inset: #1f1f23;
-  --text: #d6d6da;
-  --muted: #8d8d96;
-  --border: #27272b;
-  --accent: #d6d6da;
-  --accent-ink: #18181b;
-  --accent-soft: #27272b;
+  --bg: #232625;
+  --card: #2e3231;
+  --inset: #373b3a;
+  --text: #d4e6dd;
+  --muted: #7c9f90;
+  --border: #3d4241;
+  --accent: #d4e6dd;
+  --accent-ink: #1f2d28;
+  --accent-soft: #3d4241;
   --point: #8fc2b1;
   --over: #fb923c;
-  --carb: #71717a;
-  --protein: #d6d6da;
-  --fat: #8d8d96;
-  --track: #27272b;
-  --tag-out-ink: #8d8d96;
-  --tag-food-ink: #8d8d96;
+  --carb: #5f7d71;
+  --protein: #d4e6dd;
+  --fat: #9dbdaf;
+  --track: #3d4241;
+  --tag-out-ink: #7c9f90;
+  --tag-food-ink: #7c9f90;
   color-scheme: dark;
 }
 
