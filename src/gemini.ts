@@ -202,12 +202,8 @@ export async function estimateMenu(
   place: string,
   menu: string,
   amount: string,
-  references: string[],
   kind: "out" | "food" = "out",
 ): Promise<MenuEstimate> {
-  const refs = references.length
-    ? `참고용 식약처 DB (100g 기준, 이름이 다른 메뉴일 수 있으니 같은 메뉴일 때만 써):\n${references.join("\n")}\n`
-    : "";
   const rules = `규칙:
 1. 입력한 이름 그대로의 메뉴를 찾아. 이름이 비슷한 다른 메뉴로 바꾸지 마. (예: "아이스 말차" ≠ "아이스 말차 라떼", "아메리카노" ≠ "카페 라떼". 우유가 들어가는지 같은 차이가 칼로리를 크게 바꿈)
 2. 그 가게/제조사의 공식 영양정보(홈페이지·앱·포장지)를 구글 검색으로 확인해서 그 값을 써. (검색을 못 하면 정확히 아는 경우에만) 사이즈가 있으면 그 사이즈 값을 써.
@@ -221,13 +217,11 @@ export async function estimateMenu(
 가게: ${place || "(모름)"}
 메뉴: ${menu}
 먹은 양: ${amount || "1인분"}
-${refs}
 이 가게의 이 메뉴를 "먹은 양"만큼 먹었을 때의 영양성분을 알려줘.
 ${rules}`
       : `너는 한국에서 파는 식품(편의점·마트 제품, 과일, 유제품 등)의 영양 정보를 정확히 찾는 영양사야.
 식품: ${[place, menu].filter(Boolean).join(" ")}
 먹은 양: ${amount || "1개 (1회 제공량)"}
-${refs}
 이 식품을 "먹은 양"만큼 먹었을 때의 영양성분을 알려줘. 시판 제품이면 포장지 영양정보 기준.
 ${rules}`;
 

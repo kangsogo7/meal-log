@@ -120,10 +120,9 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
     setError("");
     try {
       const { place, title } = placeAndTitle();
-      const refs = results.slice(0, 5).map((f) => `${foodLabel(f)}: ${f.per100.kcal}kcal, 탄${f.per100.carb} 단${f.per100.protein} 지${f.per100.fat}, 나트륨${f.per100.sodium}mg${f.serving ? `, 1회 ${f.serving}g` : ""}`);
       // 사이즈는 메뉴 이름에서 떼어 "먹은 양"으로 (예: "아이스말차 L사이즈" → 메뉴 "아이스말차", 양 "L 사이즈 1잔")
       const { label: size, text: menu } = parseSize(title);
-      const est = await estimateMenu(settings, place ?? "", menu || title, size ? `${size} 사이즈 1잔` : copy.amount, refs, kind);
+      const est = await estimateMenu(settings, place ?? "", menu || title, size ? `${size} 사이즈 1잔` : copy.amount, kind);
       const c: Choice = {
         id: "ai", label: `AI 추정 · ${est.name}`, title, place, source: "ai",
         portion: makePortion(est.nutrients, est.grams), note: est.note,
