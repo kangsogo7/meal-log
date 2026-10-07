@@ -21,6 +21,10 @@ export function initKeyboard() {
   const update = () => {
     root.setProperty("--vv-top", `${vv.offsetTop}px`);
     root.setProperty("--vv-h", `${vv.height}px`);
+    // 창 아래쪽이 키보드에 가려지는 높이
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height));
+    root.setProperty("--kb", `${kb}px`);
+    document.documentElement.classList.toggle("kb-open", kb > 80);
   };
   vv.addEventListener("scroll", update);
   vv.addEventListener("resize", () => {

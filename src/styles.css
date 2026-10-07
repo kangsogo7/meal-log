@@ -184,12 +184,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .chart .dot { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
 
 /* 시트 (아래에서 올라오는 창) */
-.sheet-backdrop { position: fixed; inset: 0; top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); background: rgba(0, 0, 0, 0.4); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+/* 창은 키보드와 상관없이 같은 자리에 그대로 두고, 키보드에 가려지는 만큼만 안쪽 아래 여백(--kb)을 줌 */
+.sheet-backdrop { position: fixed; inset: 0; top: var(--vv-top, 0px); bottom: calc(-1 * var(--vv-top, 0px)); background: rgba(0, 0, 0, 0.4); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
 .sheet {
   background: var(--card);
   width: 100%;
   max-width: 560px;
   max-height: 94%;
+  padding-bottom: var(--kb, 0px);
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
@@ -390,7 +392,7 @@ label.inline input { width: 110px; margin: 0; }
 .cart-btn.on .cart-count { color: var(--text); }
 
 /* ---------- 전체 화면 페이지 ---------- */
-.screen-page { position: fixed; inset: 0; top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); z-index: 40; background: var(--bg); display: flex; flex-direction: column; animation: slidein 0.34s cubic-bezier(0.32, 0.72, 0, 1); }
+.screen-page { position: fixed; inset: 0; top: var(--vv-top, 0px); bottom: calc(-1 * var(--vv-top, 0px)); padding-bottom: var(--kb, 0px); z-index: 40; background: var(--bg); display: flex; flex-direction: column; animation: slidein 0.34s cubic-bezier(0.32, 0.72, 0, 1); }
 @keyframes slidein { from { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .sheet, .sheet-backdrop, .screen-page { animation: none; } }
 .screen-head { display: grid; grid-template-columns: 64px 1fr 96px; align-items: center; padding: calc(env(safe-area-inset-top) + 10px) 12px 10px; background: var(--card); }
@@ -450,3 +452,10 @@ input.missing { border-color: var(--over); }
 /* 세트 수정 */
 .food-card.stack { flex-direction: column; align-items: stretch; cursor: default; }
 .pick-row { cursor: pointer; }
+
+/* 키보드가 떠 있을 때: 아래 홈 표시줄 여백 없애고, 담기 막대는 숨김 */
+.kb-open .sheet-foot { padding-bottom: 10px; }
+.kb-open .screen-foot { padding-bottom: 12px; }
+.kb-open .cart-bar { display: none; }
+/* 시트 내용이 스크롤되면 제목 아래 구분선 */
+.sheet-head.scrolled { box-shadow: 0 1px 0 var(--border); position: relative; z-index: 1; }

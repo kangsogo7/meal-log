@@ -97,10 +97,10 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
           {mode === "food" && <SearchForm key="food" kind="food" onSave={onSave} />}
           {mode === "fav" && <FavoritesTab cart={cart} toggle={toggle} put={put} />}
           {mode === "sets" && <SetsTab cart={cart} toggle={toggle} />}
-          {showCart && (
+          {showCart && count > 0 && (
             <div className="cart-bar">
-              <button className={`cart-btn ${count ? "on" : ""}`} onClick={recordCart}>
-                <span className="cart-count">{count}</span> {count ? "개 기록하기" : "개 담겼어요"}
+              <button className="cart-btn on" onClick={recordCart}>
+                <span className="cart-count">{count}</span> 개 기록하기
               </button>
             </div>
           )}
