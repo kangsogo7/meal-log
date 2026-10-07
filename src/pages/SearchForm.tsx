@@ -99,9 +99,9 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
     };
   }, [query, kind]);
 
-  // 상세를 고르면 화면을 내려서 영양성분과 저장 버튼이 보이게
+  // 상세를 고르면, 상세가 화면 밖에 있을 때만 보일 만큼만 내림
   useEffect(() => {
-    if (choice) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (choice) detailRef.current?.scrollIntoView({ block: "nearest" });
   }, [choice?.id]);
 
   /** AI에 넘길 상호/메뉴: DB에 있는 업체면 그걸로, 아니면 외식은 첫 단어를 상호로 */
@@ -184,7 +184,6 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
         onChange={(e) => { setQuery(e.target.value); setChoice(null); setError(""); }}
         placeholder={copy.placeholder}
         enterKeyHint="search"
-        autoFocus
       />
       {kind === "out" && split.brand && q && <p className="muted small">상호 <b>{split.brand}</b> · 메뉴 <b>{split.rest || "—"}</b></p>}
       {error && <p className="error">{error}</p>}

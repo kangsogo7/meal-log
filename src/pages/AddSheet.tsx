@@ -65,7 +65,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
   const showCart = mode === "fav" || mode === "sets";
 
   return (
-    <Sheet title="식단 기록" onClose={onClose}>
+    <Sheet title="식단 기록" onClose={onClose} tall>
       <div className="seg meal-seg">
         {MEALS.map((m) => (
           <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>{m.label}</button>

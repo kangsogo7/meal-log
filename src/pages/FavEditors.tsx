@@ -183,7 +183,7 @@ function SavedFoodPicker({ onPick, onClose }: { onPick: (s: SavedFood) => void; 
     .filter((s) => !query || `${s.place ?? ""} ${s.title}`.toLowerCase().includes(query))
     .sort((a, b) => Number(b.groupId != null) - Number(a.groupId != null) || b.uses - a.uses || b.updatedAt - a.updatedAt);
   return (
-    <Sheet title="음식 추가" onClose={onClose}>
+    <Sheet title="음식 추가" onClose={onClose} tall>
       <input className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="즐겨찾기·최근 음식 검색" />
       <ul className="mini-list">
         {list.map((s) => (

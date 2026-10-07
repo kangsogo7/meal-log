@@ -30,11 +30,12 @@ function useLayer() {
   return z;
 }
 
-export function Sheet({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+/** tall: 내용(검색 결과 등)이 바뀌어도 창 높이가 출렁이지 않게 높이 고정 */
+export function Sheet({ title, onClose, children, footer, tall }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
   const z = useLayer();
   return createPortal(
     <div className="sheet-backdrop" style={{ zIndex: z }} onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
+      <div className={`sheet ${tall ? "tall" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
         <header className="sheet-head">
           <h2>{title}</h2>
           <button className="ghost" onClick={onClose} aria-label="닫기">✕</button>

@@ -195,6 +195,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   flex-direction: column;
   animation: up 0.2s ease-out;
 }
+.sheet.tall { height: 94%; }
 @keyframes up { from { transform: translateY(30px); opacity: 0.5; } }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 6px; }
 .sheet-head h2 { margin: 0; }

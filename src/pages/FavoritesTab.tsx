@@ -60,7 +60,11 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
 
   // 고른 칩이 보이게 가로 스크롤
   useEffect(() => {
-    chipRow.current?.querySelector(".fchip.on")?.scrollIntoView({ inline: "nearest", block: "nearest" });
+    // 칩 줄만 가로로 (화면 세로 스크롤은 건드리지 않음)
+    const row = chipRow.current;
+    const chip = row?.querySelector<HTMLElement>(".fchip.on");
+    if (row && chip && (chip.offsetLeft < row.scrollLeft || chip.offsetLeft + chip.offsetWidth > row.scrollLeft + row.clientWidth))
+      row.scrollLeft = chip.offsetLeft - 16;
   }, [groupId]);
 
   return (
