@@ -440,3 +440,7 @@ input.missing { border-color: var(--over); }
 .ext-link { color: var(--point); text-decoration: none; margin-bottom: 10px; }
 
 .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 0.9rem; z-index: 1000; }
+
+/* 세트 수정 */
+.food-card.stack { flex-direction: column; align-items: stretch; cursor: default; }
+.pick-row { cursor: pointer; }

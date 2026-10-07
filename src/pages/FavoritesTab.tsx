@@ -1,11 +1,12 @@
 // 기록하기 > 즐겨찾기 / 식사 세트 탭, 음식 편집, 내 폴더(편집) 화면
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, folderEmoji, KIND_LABEL, type FavGroup, type MealSet, type SavedFood } from "../db";
+import { db, folderEmoji, KIND_LABEL, r1, sumNutrients, type FavGroup, type MealSet, type SavedFood } from "../db";
 import { BackIcon, flash, NutrientLine, Screen } from "../components/ui";
 import { applyFolderEdits, FolderPicker, NewFolderForm } from "../favorites";
 import { AmountEditor, portionGrams, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
+import { SavedFoodEditSheet, SetComposeScreen } from "./FavEditors";
 
 /** 담은 것: 즐겨찾기 음식 하나 또는 식사 세트 하나(여러 음식) */
 export interface CartItem {
@@ -49,6 +50,7 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
   const [folders, setFolders] = useState(false);
   // 카드를 눌러 연 음식과 그 양 (담기 전에 조절)
   const [open, setOpen] = useState<{ key: string; portion: Portion } | null>(null);
+  const [editFood, setEditFood] = useState<SavedFood | null>(null);
 
   // 선택한 폴더가 없거나 지워졌으면 첫 폴더
   const groupId = groups.some((g) => g.id === current) ? current! : groups[0]?.id;
@@ -112,7 +114,10 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
                 {isOpen && (
                   <div className="fc-amount" onClick={(e) => e.stopPropagation()}>
                     <AmountEditor portion={open!.portion} onChange={(p) => setOpen({ key: s.key, portion: p })} />
-                    <NutrientLine n={portionNutrients(open!.portion)} />
+                    <div className="row-between">
+                      <NutrientLine n={portionNutrients(open!.portion)} />
+                      <button className="text-btn" onClick={() => setEditFood(s)}>수정</button>
+                    </div>
                     <button className="primary block" onClick={() => { add(open!.portion); setOpen(null); }}>
                       {inCart ? "이 양으로 변경" : "이 양으로 담기"}
                     </button>
@@ -124,6 +129,7 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
         </ul>
       )}
 
+      {editFood && <SavedFoodEditSheet food={editFood} onClose={() => { setEditFood(null); setOpen(null); }} />}
       {editing && group && <FoodEditScreen group={group} onClose={() => setEditing(false)} />}
       {folders && <FolderScreen onClose={() => setFolders(false)} onOpen={(id) => { setCurrent(id); setFolders(false); }} />}
     </div>
@@ -136,6 +142,8 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
 export function SetsTab({ cart, toggle }: { cart: CartItem[]; toggle: (c: CartItem) => void }) {
   const sets = useLiveQuery(() => db.sets.orderBy("updatedAt").reverse().toArray(), [], []);
   const [editing, setEditing] = useState(false);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [composing, setComposing] = useState<MealSet | null>(null);
 
   return (
     <div className="fav-tab">
@@ -151,23 +159,40 @@ export function SetsTab({ cart, toggle }: { cart: CartItem[]; toggle: (c: CartIt
             const id = `set:${s.id}`;
             const on = cart.some((c) => c.id === id);
             const toggleThis = () => toggle({ id, drafts: s.entries });
+            const isOpen = openId === s.id;
             return (
-              <li key={s.id} className={`food-card ${on ? "picked" : ""}`} onClick={toggleThis}>
-                <div className="fc-main">
-                  <div className="fc-tags"><span className="badge">음식 {s.entries.length}개</span></div>
-                  <div className="fc-name">{s.name}</div>
-                  <div className="fc-sub">
-                    <span className="fc-serving muted">{s.entries.map((e) => e.title).join(", ")}</span>
-                    <span className="muted fc-kcal">{s.total.kcal}kcal</span>
+              <li key={s.id} className={`food-card ${on ? "picked" : ""} ${isOpen ? "open" : ""}`}>
+                <div className="fc-row" onClick={() => setOpenId(isOpen ? null : s.id!)}>
+                  <div className="fc-main">
+                    <div className="fc-tags"><span className="badge">음식 {s.entries.length}개</span></div>
+                    <div className="fc-name">{s.name}</div>
+                    <div className="fc-sub">
+                      <span className="fc-serving muted">{s.entries.map((e) => e.title).join(", ")}</span>
+                      <span className="muted fc-kcal">{Math.round(s.total.kcal)}kcal</span>
+                    </div>
                   </div>
+                  <AddToggle on={on} onClick={toggleThis} label={on ? "담기 취소" : "담기"} />
                 </div>
-                <AddToggle on={on} onClick={toggleThis} label={on ? "담기 취소" : "담기"} />
+                {isOpen && (
+                  <div className="fc-amount">
+                    <ul className="mini-list">
+                      {s.entries.map((e, i) => (
+                        <li key={i}>
+                          <span>{e.place && <b>{e.place} </b>}{e.title}{e.k && e.k !== 1 ? ` ×${r1(e.k)}` : ""}</span>
+                          <span className="muted">{Math.round(sumNutrients(e.items.map((x) => x.nutrients)).kcal)}kcal</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button className="block" onClick={() => setComposing(s)}>구성 수정</button>
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       )}
       {editing && <SetEditScreen sets={sets} onClose={() => setEditing(false)} />}
+      {composing && <SetComposeScreen set={composing} onClose={() => { setComposing(null); setOpenId(null); }} />}
     </div>
   );
 }
