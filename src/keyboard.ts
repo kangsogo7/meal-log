@@ -7,10 +7,10 @@ const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platfor
 /**
  * 지금 키보드 위로 보이는 영역의 아래 끝 (화면 위에서부터 px).
  * 아이폰은 키보드 높이를 믿을 만하게 알려 주지 않고, 키보드 위에 ^ ⌄ ✓ 막대(웹에서는 숨길 수 없음)까지 있어서
- * 화면(기기 세로 길이)의 34%보다 아래는 (한글 자판+막대 기준) 가려진다고 보고 그 위로 올림.
+ * 화면(기기 세로 길이)의 45%보다 아래는 (한글 자판+막대 기준) 가려진다고 보고 그 위로 올림.
  */
 function visibleBottom() {
-  if (isIOS) return window.screen.height * 0.34;
+  if (isIOS) return window.screen.height * 0.45;
   const vv = window.visualViewport;
   return vv ? vv.offsetTop + vv.height - 12 : window.innerHeight;
 }
