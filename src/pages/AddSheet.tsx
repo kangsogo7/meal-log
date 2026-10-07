@@ -20,15 +20,16 @@ export interface Draft {
   title: string;
   place?: string;
   items: Item[];
+  k?: number; // 양 조절 배수
 }
 
 /** 기록 저장 + 다음에 다시 쓰도록 메뉴 저장 */
 export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: string) {
   const total = sumNutrients(d.items.map((i) => i.nutrients));
-  await db.entries.add({ date, meal, kind: d.kind, title: d.title, place: d.place, items: d.items, total, memo, createdAt: Date.now() });
+  await db.entries.add({ date, meal, kind: d.kind, title: d.title, place: d.place, items: d.items, total, k: d.k, memo, createdAt: Date.now() });
   const key = savedKey(d.kind, d.place, d.title);
   const prev = await db.saved.get(key);
-  await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: d.items, total, uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
+  await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: d.items, total, k: d.k, uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
 }
 
 export default function AddSheet({ date, meal: initialMeal, onClose }: { date: string; meal: Meal; onClose: () => void }) {

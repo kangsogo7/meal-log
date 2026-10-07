@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, KIND_LABEL, type FavGroup, type MealSet, type SavedFood } from "../db";
 import { BackIcon, flash, NutrientLine, Screen } from "../components/ui";
 import { applyFolderEdits, FolderPicker, NewFolderForm } from "../favorites";
-import { AmountEditor, itemsGrams, makePortion, portionGrams, portionNutrients, scaleItems, type Portion } from "../portion";
+import { AmountEditor, portionGrams, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 
 /** 담은 것: 즐겨찾기 음식 하나 또는 식사 세트 하나(여러 음식) */
@@ -14,15 +14,11 @@ export interface CartItem {
   portion?: Portion; // 즐겨찾기 음식: 고른 양
 }
 
-const basePortion = (s: SavedFood) => makePortion(s.total, itemsGrams(s.items));
+const basePortion = (s: SavedFood) => storedPortion(s);
 
 /** 즐겨찾기 음식을 고른 양만큼의 기록 내용으로 */
 function savedDraft(s: SavedFood, p: Portion): Draft {
-  const items =
-    s.items.length === 1
-      ? [{ ...s.items[0], grams: portionGrams(p) ?? s.items[0].grams, amountText: portionGrams(p) ? `${portionGrams(p)}g` : s.items[0].amountText, nutrients: portionNutrients(p) }]
-      : scaleItems(s.items, p.k);
-  return { kind: s.kind, title: s.title, place: s.place, items };
+  return { kind: s.kind, title: s.title, place: s.place, items: portionItems(s, p), k: p.k };
 }
 
 /** "교촌치킨 · 150g" 같은 한 줄 설명 */

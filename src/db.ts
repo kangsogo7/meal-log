@@ -42,6 +42,8 @@ export interface Entry {
   place?: string; // 외식 가게 이름 / 식품 제조사
   items: Item[];
   total: Nutrients;
+  /** 양 조절 배수 (items·total은 이 배수로 먹은 양, 기준 1회 제공량 = 먹은 양 ÷ k). 없으면 1 */
+  k?: number;
   memo?: string;
   createdAt: number;
 }
@@ -64,6 +66,7 @@ export interface SavedFood {
   place?: string;
   items: Item[];
   total: Nutrients;
+  k?: number; // 양 조절 배수 (Entry.k와 같음)
   uses: number;
   updatedAt: number;
   /** @deprecated v3부터 groupId 사용 */
@@ -86,7 +89,7 @@ export const folderEmoji = (g: FavGroup) => g.emoji ?? "📁";
 export interface MealSet {
   id?: number;
   name: string;
-  entries: { kind: EntryKind; title: string; place?: string; items: Item[] }[];
+  entries: { kind: EntryKind; title: string; place?: string; items: Item[]; k?: number }[];
   total: Nutrients;
   updatedAt: number;
 }

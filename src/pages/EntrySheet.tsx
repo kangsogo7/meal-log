@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { db, KIND_LABEL, MEALS, sumNutrients, type Entry, type EntryKind } from "../db";
 import { NutrientEditor, NutrientLine, Sheet } from "../components/ui";
-import { AmountEditor, itemsGrams, makePortion, portionNutrients, scaleItems, withNutrients, type Portion } from "../portion";
+import { AmountEditor, portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
 
 export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const [e, setE] = useState<Entry>(entry);
-  // 양 조절: 처음 기록한 양을 ×1로 두고 공통 양 조절(portion)로 계산
-  const [portion, setPortion] = useState<Portion>(() => makePortion(entry.total, itemsGrams(entry.items)));
-  const items = scaleItems(entry.items, portion.k);
+  // 양 조절: 저장할 때의 1회 제공량(×1)과 배수를 그대로 이어서
+  const [portion, setPortion] = useState<Portion>(() => storedPortion(entry));
+  const items = portionItems(entry, portion);
   const total = sumNutrients([portionNutrients(portion)]);
-  // 지금 화면 값 그대로의 기록 (재료가 하나면 영양성분을 직접 고친 값도 그 재료에 반영)
-  const current: Entry = { ...e, items: items.length === 1 ? [{ ...items[0], nutrients: total }] : items, total };
+  // 지금 화면 값 그대로의 기록
+  const current: Entry = { ...e, items, total, k: portion.k };
 
   const save = async () => {
     try {

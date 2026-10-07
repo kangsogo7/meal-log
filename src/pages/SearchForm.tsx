@@ -5,7 +5,7 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, parseSize, searchFoods
 import { estimateMenu, GeminiError } from "../gemini";
 import { useSettings } from "../hooks";
 import { NutrientEditor, NutrientLine } from "../components/ui";
-import { AmountEditor, itemsGrams, makePortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
+import { AmountEditor, makePortion, storedPortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar, type FavDraft } from "../favorites";
 
@@ -83,7 +83,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
           prev
             ? {
                 id: "saved", label: `이전 기록 · ${prev.place ? prev.place + " " : ""}${prev.title}`, title: prev.title, place: prev.place,
-                source: "saved", portion: makePortion(prev.total, itemsGrams(prev.items)),
+                source: "saved", portion: storedPortion(prev),
               }
             : null,
         );
@@ -167,6 +167,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
         amountText: grams ? `${grams}g` : "",
         grams, source: c.source, matchName: c.matchName, nutrients: portionNutrients(c.portion),
       }],
+      k: c.portion.k,
     };
   };
 

@@ -29,6 +29,21 @@ export function itemsGrams(items: Item[]): number | null {
 export const scaleItems = (items: Item[], k: number): Item[] =>
   items.map((i) => ({ ...i, grams: i.grams ? r1(i.grams * k) : i.grams, nutrients: scaleNutrients(i.nutrients, k) }));
 
+/** 저장된 기록·즐겨찾기(먹은 양 + 배수 k) → 양 조절. 기준(×1) = 먹은 양 ÷ k */
+export function storedPortion(s: { total: Nutrients; items: Item[]; k?: number }): Portion {
+  const k = s.k && s.k > 0 ? s.k : 1;
+  const g = itemsGrams(s.items);
+  return makePortion(scaleNutrients(s.total, 1 / k), g ? g / k : null, k);
+}
+
+/** 저장된 재료를 고른 양으로 (재료가 하나면 영양성분을 직접 고친 값도 반영) */
+export function portionItems(s: { items: Item[]; k?: number }, p: Portion): Item[] {
+  const items = scaleItems(s.items, p.k / (s.k && s.k > 0 ? s.k : 1));
+  if (items.length !== 1) return items;
+  const g = portionGrams(p);
+  return [{ ...items[0], grams: g ?? items[0].grams, amountText: g ? `${g}g` : items[0].amountText, nutrients: portionNutrients(p) }];
+}
+
 /** 먹은 양 g 입력(소수점 한 자리) + − ×배수 + */
 export function AmountEditor({ portion, onChange }: { portion: Portion; onChange: (p: Portion) => void }) {
   return (

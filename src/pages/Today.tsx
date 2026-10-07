@@ -16,7 +16,7 @@ async function saveAsSet(mealLabel: string, list: Entry[]) {
   try {
     await db.sets.add({
       name,
-      entries: list.map((e) => ({ kind: e.kind, title: e.title, place: e.place, items: e.items })),
+      entries: list.map((e) => ({ kind: e.kind, title: e.title, place: e.place, items: e.items, k: e.k })),
       total: sumNutrients(list.map((e) => e.total)),
       updatedAt: Date.now(),
     });
