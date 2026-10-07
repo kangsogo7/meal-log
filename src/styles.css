@@ -459,3 +459,8 @@ input.missing { border-color: var(--over); }
 .sheet-head.scrolled { box-shadow: 0 1px 0 var(--border); position: relative; z-index: 1; }
 /* 아이폰에서 입력 중: 목록이 짧아도 입력칸을 키보드 위로 올릴 수 있게 */
 .sheet-body.typing, .screen-body.typing { padding-bottom: 50vh; }
+/* 즐겨찾기·세트 목록 배경이 창 맨 아래까지 이어지게 (목록이 짧아도 아래에 다른 색 띠가 남지 않게) */
+.sheet-body:has(> .fav-tab) { display: flex; flex-direction: column; }
+.sheet-body > .fav-tab { flex: 1 0 auto; margin-bottom: -16px; }
+.sheet-body.typing:has(> .fav-tab) { padding-bottom: 16px; }
+.sheet-body.typing > .fav-tab { padding-bottom: 50vh; }

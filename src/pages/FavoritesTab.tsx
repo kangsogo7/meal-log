@@ -122,7 +122,7 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
                       <NutrientLine n={portionNutrients(open!.portion)} />
                       <button className="text-btn" onClick={() => setEditFood(s)}>수정</button>
                     </div>
-                    <button className="primary block" onClick={() => { add(open!.portion); setOpen(null); }}>
+                    <button className="primary block" onClick={() => add(open!.portion)}>
                       {inCart ? "이 양으로 변경" : "이 양으로 담기"}
                     </button>
                   </div>
