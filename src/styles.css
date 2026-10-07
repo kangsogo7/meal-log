@@ -1,20 +1,20 @@
 /* 미니멀 모노톤: 흰/회/검정 위주, 포인트(--point)는 링크·선택 표시에만 조금 */
 :root {
-  --bg: #f5f5f6;
-  --card: #ffffff;
-  --inset: #f3f3f4;
+  --bg: #e8e8eb;
+  --card: #f4f4f6;
+  --inset: #ebebee;
   --text: #18181b;
   --muted: #71717a;
-  --border: #e7e7ea;
+  --border: #dadade;
   --accent: #18181b; /* 주 버튼 */
-  --accent-ink: #ffffff;
-  --accent-soft: #ececee;
+  --accent-ink: #f4f4f6;
+  --accent-soft: #e2e2e6;
   --point: #3f6f60;
   --over: #c2410c; /* 목표 초과 등 상태 표시에만 */
   --carb: #a1a1aa;
   --protein: #18181b;
   --fat: #52525b;
-  --track: #ececee;
+  --track: #e2e2e6;
   --tag-out-bg: transparent;
   --tag-out-ink: #71717a;
   --tag-food-bg: transparent;
@@ -28,20 +28,20 @@
     --bg: #0c0c0e;
     --card: #17171a;
     --inset: #1f1f23;
-    --text: #f4f4f5;
-    --muted: #a1a1aa;
+    --text: #d6d6da;
+    --muted: #8d8d96;
     --border: #27272b;
-    --accent: #f4f4f5;
+    --accent: #d6d6da;
     --accent-ink: #18181b;
     --accent-soft: #27272b;
     --point: #8fc2b1;
     --over: #fb923c;
     --carb: #71717a;
-    --protein: #f4f4f5;
-    --fat: #a1a1aa;
+    --protein: #d6d6da;
+    --fat: #8d8d96;
     --track: #27272b;
-    --tag-out-ink: #a1a1aa;
-    --tag-food-ink: #a1a1aa;
+    --tag-out-ink: #8d8d96;
+    --tag-food-ink: #8d8d96;
     color-scheme: dark;
   }
 }
@@ -49,20 +49,20 @@
   --bg: #0c0c0e;
   --card: #17171a;
   --inset: #1f1f23;
-  --text: #f4f4f5;
-  --muted: #a1a1aa;
+  --text: #d6d6da;
+  --muted: #8d8d96;
   --border: #27272b;
-  --accent: #f4f4f5;
+  --accent: #d6d6da;
   --accent-ink: #18181b;
   --accent-soft: #27272b;
   --point: #8fc2b1;
   --over: #fb923c;
   --carb: #71717a;
-  --protein: #f4f4f5;
-  --fat: #a1a1aa;
+  --protein: #d6d6da;
+  --fat: #8d8d96;
   --track: #27272b;
-  --tag-out-ink: #a1a1aa;
-  --tag-food-ink: #a1a1aa;
+  --tag-out-ink: #8d8d96;
+  --tag-food-ink: #8d8d96;
   color-scheme: dark;
 }
 
