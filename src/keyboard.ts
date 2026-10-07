@@ -32,10 +32,6 @@ export function initKeyboard() {
   const update = () => {
     root.setProperty("--vv-top", `${vv.offsetTop}px`);
     root.setProperty("--vv-h", `${vv.height}px`);
-    // 창 아래쪽이 키보드에 가려지는 높이
-    const kb = Math.max(0, Math.round(window.innerHeight - vv.height));
-    root.setProperty("--kb", `${kb}px`);
-    document.documentElement.classList.toggle("kb-open", kb > 80);
   };
   vv.addEventListener("scroll", update);
   vv.addEventListener("resize", () => {
@@ -52,5 +48,9 @@ export function initKeyboard() {
     // 키보드가 다 올라온 뒤 확인. 가려지지 않았으면 아무것도 안 함
     for (const ms of [0, 350, 700]) setTimeout(() => { update(); revealFocused(); }, ms);
   });
+  // 키보드가 떠 있는 동안(글자 입력칸에 포커스) 표시. 키보드 높이 값은 아이폰에서 믿을 수 없어서 포커스로 판단
+  const typing = (el: Element | null) => !!el && (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|file|range|color|date)$/.test((el as HTMLInputElement).type)));
+  document.addEventListener("focusin", (e) => document.documentElement.classList.toggle("kb-open", typing(e.target as Element)));
+  document.addEventListener("focusout", () => setTimeout(() => document.documentElement.classList.toggle("kb-open", typing(document.activeElement)), 50));
   update();
 }
