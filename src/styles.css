@@ -384,7 +384,6 @@ label.inline input { width: 110px; margin: 0; }
 .add-toggle.on { background: var(--accent); color: var(--accent-ink); font-size: 1rem; }
 .check { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--track); color: var(--muted); display: grid; place-items: center; font-size: 1rem; }
 .check.on { background: var(--accent); color: var(--accent-ink); }
-.cart-bar { position: sticky; bottom: -16px; margin: 0 -16px -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--border); }
 .cart-btn { width: 100%; min-height: 52px; border: none; border-radius: 999px; background: var(--track); color: var(--muted); font-size: 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .cart-btn.on { background: var(--accent); color: var(--accent-ink); }
 .cart-count { display: inline-grid; place-items: center; min-width: 28px; height: 28px; border-radius: 50%; background: var(--card); color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
@@ -455,7 +454,7 @@ input.missing { border-color: var(--over); }
 /* 키보드가 떠 있을 때: 아래 홈 표시줄 여백 없애고, 담기 막대는 숨김 */
 .kb-open .sheet-foot { padding-bottom: 10px; }
 .kb-open .screen-foot { padding-bottom: 12px; }
-.kb-open .cart-bar { display: none; }
+.kb-open .sheet-foot:has(.cart-btn) { display: none; }
 /* 시트 내용이 스크롤되면 제목 아래 구분선 */
 .sheet-head.scrolled { box-shadow: 0 1px 0 var(--border); position: relative; z-index: 1; }
 /* 아이폰에서 입력 중: 목록이 짧아도 입력칸을 키보드 위로 올릴 수 있게 */

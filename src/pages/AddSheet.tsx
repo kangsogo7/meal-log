@@ -65,9 +65,16 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
   };
 
   const showCart = mode === "fav" || mode === "sets";
+  // 담은 게 있으면 창 맨 아래에 고정 (목록 길이와 상관없이 항상 화면 하단)
+  const cartFooter =
+    showCart && count > 0 ? (
+      <button className="cart-btn on" onClick={recordCart}>
+        <span className="cart-count">{count}</span> 개 기록하기
+      </button>
+    ) : undefined;
 
   return (
-    <Sheet title="식단 기록" onClose={onClose} tall>
+    <Sheet title="식단 기록" onClose={onClose} tall footer={cartFooter}>
       <div className="seg meal-seg">
         {MEALS.map((m) => (
           <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>{m.label}</button>
@@ -99,13 +106,6 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
           {mode === "food" && <SearchForm key="food" kind="food" onSave={onSave} />}
           {mode === "fav" && <FavoritesTab cart={cart} toggle={toggle} put={put} />}
           {mode === "sets" && <SetsTab cart={cart} toggle={toggle} />}
-          {showCart && count > 0 && (
-            <div className="cart-bar">
-              <button className="cart-btn on" onClick={recordCart}>
-                <span className="cart-count">{count}</span> 개 기록하기
-              </button>
-            </div>
-          )}
         </>
       )}
     </Sheet>
