@@ -16,6 +16,18 @@ function toGeminiSchema(s: unknown): unknown {
   return s;
 }
 
+/** 마지막 요청이 어느 모델에 몇 번, 얼마나 걸렸는지 (느릴 때 원인 확인용) */
+export interface TraceStep { model: string; status: number; ms: number; search: boolean }
+let lastTrace: TraceStep[] = [];
+export const getLastTrace = () => lastTrace;
+/** "4.2초 · gemini-3.8-flash" / 재시도가 있었으면 단계별로 */
+export function formatTrace(t: TraceStep[]) {
+  if (!t.length) return "";
+  const total = t.reduce((a, s) => a + s.ms, 0);
+  const steps = t.map((s) => `${s.model.replace("gemini-", "")}${s.search ? "(검색)" : ""} ${s.status === 200 ? "" : s.status + " "}${(s.ms / 1000).toFixed(1)}초`).join(" → ");
+  return `${(total / 1000).toFixed(1)}초 · ${steps}`;
+}
+
 /** 생각하기 최소 설정을 거절한 모델 (다음부터는 바로 빼고 보냄) */
 const noFastThinking = new Set<string>();
 
@@ -74,16 +86,21 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
 
   // 무료 한도는 모델마다 따로라서, 한도 초과(429)면 바로 다음 모델로.
   // 서버가 붐비면(5xx) 처음 모델은 한 번 더 기다렸다가, 그래도 안 되면 다음 모델로.
+  const trace: TraceStep[] = [];
+  lastTrace = trace;
   const models = [settings.geminiModel, ...GEMINI_MODELS.filter((m) => m !== settings.geminiModel)];
   const call = async (model: string) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const post = async (body: string) => {
+      const t0 = performance.now();
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body,
       });
-      return { status: res.status, text: await res.text() };
+      const out = { status: res.status, text: await res.text() };
+      trace.push({ model, status: res.status, ms: Math.round(performance.now() - t0), search: !!opts.search });
+      return out;
     };
     try {
       const fast = !opts.search && !noFastThinking.has(model);

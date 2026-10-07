@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { db, savedKey, scaleNutrients, type ItemSource, type Nutrients } from "../db";
 import { foodLabel, listGrams, loadFoodDb, loadProductDb, parseSize, searchFoods, splitBrand, type Food } from "../foodDb";
-import { estimateMenu, GeminiError } from "../gemini";
+import { estimateMenu, formatTrace, GeminiError, getLastTrace } from "../gemini";
 import { useSettings } from "../hooks";
 import { NutrientEditor, NutrientLine } from "../components/ui";
 import { AmountEditor, makePortion, storedPortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
@@ -36,6 +36,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
   const [choice, setChoice] = useState<Choice | null>(null);
   const [busy, setBusy] = useState<"" | "db" | "ai" | "verify">("");
   const [error, setError] = useState("");
+  const [aiTime, setAiTime] = useState(""); // AI가 걸린 시간·모델 (느릴 때 원인 확인용)
   const detailRef = useRef<HTMLDivElement>(null);
   const copy = COPY[kind];
 
@@ -120,6 +121,8 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
   const runAi = async (search = false) => {
     setBusy(search ? "verify" : "ai");
     setError("");
+    setAiTime("");
+    const t0 = performance.now();
     try {
       const { place, title } = placeAndTitle();
       // 사이즈는 메뉴 이름에서 떼어 "먹은 양"으로 (예: "아이스말차 L사이즈" → 메뉴 "아이스말차", 양 "L 사이즈 1잔")
@@ -135,6 +138,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
       setError(e instanceof GeminiError ? e.message : "AI 추정에 실패했어요.");
     } finally {
       setBusy("");
+      setAiTime(`총 ${((performance.now() - t0) / 1000).toFixed(1)}초 (${formatTrace(getLastTrace())})`);
     }
   };
 
@@ -189,6 +193,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
       />
       {kind === "out" && split.brand && q && <p className="muted small">상호 <b>{split.brand}</b> · 메뉴 <b>{split.rest || "—"}</b></p>}
       {error && <p className="error">{error}</p>}
+      {error && aiTime && <p className="muted small">{aiTime}</p>}
 
       {q && (
         <div className="results">
@@ -221,6 +226,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
             <FavStar getDraft={() => toDraft(choice)} />
           </div>
           {choice.note && <p className="muted small">{choice.note}</p>}
+          {choice.id === "ai" && aiTime && <p className="muted small">{aiTime}</p>}
           {choice.id === "ai" && !choice.verified && (
             <button className="link small verify-btn" onClick={() => runAi(true)} disabled={!!busy}>
               {busy === "verify" ? "공식 정보 찾는 중... (10초 이상 걸릴 수 있어요)" : "공식 정보로 다시 찾기 (느림)"}
