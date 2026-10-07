@@ -20,7 +20,9 @@ function revealFocused() {
   if (!box) return;
   const bottom = Math.min(box.getBoundingClientRect().bottom, visibleBottom());
   const r = el.getBoundingClientRect();
-  if (r.bottom > bottom - 12) box.scrollTop += r.bottom - bottom + 24;
+  // 아이폰은 키보드 위에 ^ ⌄ ✓ 막대가 보이는 영역 안에 떠 있어서(웹에서는 숨길 수 없음) 그만큼 더 띄움
+  const gap = isIOS ? 72 : 12;
+  if (r.bottom > bottom - gap) box.scrollTop += r.bottom - bottom + gap + 16;
 }
 
 export function initKeyboard() {
