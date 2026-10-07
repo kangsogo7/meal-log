@@ -35,13 +35,32 @@ export const cleanKey = (key: string) => key.replace(/[^A-Za-z0-9._-]/g, "");
 /** 예전 키(AIza...) 또는 2026년 6월부터 발급되는 새 키(AQ....) 모양인지 */
 export const looksLikeKey = (key: string) => /^(AIza[A-Za-z0-9_-]{35}|AQ\.[A-Za-z0-9._-]{20,})$/.test(key);
 
-async function generateJson<T>(settings: Settings, parts: Part[], schema: object): Promise<T> {
+/** 답 글에서 JSON만 꺼냄 (```json 블록이나 앞뒤 설명이 섞여 와도) */
+function extractJson(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1] ?? text;
+  const start = fenced.indexOf("{");
+  const end = fenced.lastIndexOf("}");
+  return start >= 0 && end > start ? fenced.slice(start, end + 1) : fenced;
+}
+
+/**
+ * search: 구글 검색으로 공식 영양정보를 찾아보게 함.
+ * 검색 도구를 쓰면 응답 형식(responseSchema)을 강제할 수 없어서, 형식은 글로 알려 주고 JSON만 골라 읽음.
+ */
+async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean } = {}): Promise<T> {
   const apiKey = cleanKey(settings.geminiKey);
   if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
-  const body = JSON.stringify({
-    contents: [{ role: "user", parts }],
-    generationConfig: { responseMimeType: "application/json", responseSchema: toGeminiSchema(schema), temperature: 0.2 },
-  });
+  const body = JSON.stringify(
+    opts.search
+      ? {
+          contents: [{ role: "user", parts: [...parts, { text: `\n답은 다른 말 없이 아래 JSON 스키마에 맞는 JSON 하나만 출력해.\n${JSON.stringify(schema)}` }] }],
+          tools: [{ google_search: {} }],
+        }
+      : {
+          contents: [{ role: "user", parts }],
+          generationConfig: { responseMimeType: "application/json", responseSchema: toGeminiSchema(schema), temperature: 0.2 },
+        },
+  );
 
   // 무료 한도는 모델마다 따로라서, 한도 초과(429)면 바로 다음 모델로.
   // 서버가 붐비면(5xx) 처음 모델은 한 번 더 기다렸다가, 그래도 안 되면 다음 모델로.
@@ -95,7 +114,7 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
     .join("");
   if (!text) throw new GeminiError("Gemini가 답을 주지 않았어요. 다시 시도해 주세요.");
   try {
-    return JSON.parse(text) as T;
+    return JSON.parse(extractJson(text)) as T;
   } catch {
     throw new GeminiError("Gemini 응답을 읽지 못했어요. 다시 시도해 주세요.");
   }
@@ -186,24 +205,31 @@ export async function estimateMenu(
   references: string[],
   kind: "out" | "food" = "out",
 ): Promise<MenuEstimate> {
-  const refs = references.length ? `참고 (식약처 DB, 100g 기준):\n${references.join("\n")}\n` : "";
+  const refs = references.length
+    ? `참고용 식약처 DB (100g 기준, 이름이 다른 메뉴일 수 있으니 같은 메뉴일 때만 써):\n${references.join("\n")}\n`
+    : "";
+  const rules = `규칙:
+1. 입력한 이름 그대로의 메뉴를 찾아. 이름이 비슷한 다른 메뉴로 바꾸지 마. (예: "아이스 말차" ≠ "아이스 말차 라떼", "아메리카노" ≠ "카페 라떼". 우유가 들어가는지 같은 차이가 칼로리를 크게 바꿈)
+2. 그 가게/제조사의 공식 영양정보(홈페이지·앱·포장지)를 구글 검색으로 확인해서 그 값을 써. (검색을 못 하면 정확히 아는 경우에만) 사이즈가 있으면 그 사이즈 값을 써.
+3. 공식 값을 못 찾았을 때만, 같은 종류 메뉴의 일반적인 레시피로 추정해.
+4. name: 공식 메뉴 이름 (사이즈 포함). 그 가게에 정확히 그 메뉴가 없으면 입력한 이름 그대로.
+5. note: 근거를 한국어로 짧게. 공식 값이면 "투썸 공식 영양정보 · L 473ml"처럼, 추정이면 "공식 정보 없음 · 말차+물 473ml 기준 추정"처럼 무엇을 가정했는지.
+6. 칼로리는 탄수화물×4 + 단백질×4 + 지방×9 와 크게 어긋나지 않게.`;
   const prompt =
     kind === "out"
-      ? `너는 한국 외식 메뉴 영양 정보를 잘 아는 영양사야.
+      ? `너는 한국 외식·카페 메뉴의 영양 정보를 정확히 찾는 영양사야.
 가게: ${place || "(모름)"}
 메뉴: ${menu}
 먹은 양: ${amount || "1인분"}
 ${refs}
-이 가게의 이 메뉴를 "먹은 양"만큼 먹었을 때의 영양성분을 추정해.
-프랜차이즈라면 공식 영양 정보를 최대한 기억해서 쓰고, 모르면 비슷한 메뉴의 일반적인 값으로 추정해.
-note에는 근거나 가정(예: "공식 영양정보 기준", "일반적인 1인분 400g 가정")을 한국어로 짧게 적어.`
-      : `너는 한국에서 파는 식품(편의점·마트 제품, 과일, 유제품 등)의 영양 정보를 잘 아는 영양사야.
+이 가게의 이 메뉴를 "먹은 양"만큼 먹었을 때의 영양성분을 알려줘.
+${rules}`
+      : `너는 한국에서 파는 식품(편의점·마트 제품, 과일, 유제품 등)의 영양 정보를 정확히 찾는 영양사야.
 식품: ${[place, menu].filter(Boolean).join(" ")}
 먹은 양: ${amount || "1개 (1회 제공량)"}
 ${refs}
-이 식품을 "먹은 양"만큼 먹었을 때의 영양성분을 추정해.
-시판 제품이라면 포장지 영양정보를 최대한 기억해서 쓰고, 모르면 비슷한 제품의 일반적인 값으로 추정해.
-note에는 근거나 가정(예: "제품 영양정보 기준 1봉지 120g", "중간 크기 1개 기준")을 한국어로 짧게 적어.`;
+이 식품을 "먹은 양"만큼 먹었을 때의 영양성분을 알려줘. 시판 제품이면 포장지 영양정보 기준.
+${rules}`;
 
   const schema = {
     type: "object",
@@ -215,8 +241,15 @@ note에는 근거나 가정(예: "제품 영양정보 기준 1봉지 120g", "중
     },
     required: ["name", "grams", "nutrients", "note"],
   };
-  const res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema);
-  return { ...res, nutrients: toNutrients(res.nutrients) };
+  let res: MenuEstimate;
+  try {
+    res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema, { search: true });
+    if (!res?.nutrients) throw new GeminiError("형식 오류");
+  } catch {
+    // 검색을 못 쓰는 경우(한도 등)엔 검색 없이
+    res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema);
+  }
+  return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients) };
 }
 
 // ---------- 인바디 결과지 ----------

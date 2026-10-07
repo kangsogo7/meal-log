@@ -184,12 +184,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .chart .dot { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
 
 /* 시트 (아래에서 올라오는 창) */
-.sheet-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.sheet-backdrop { position: fixed; inset: 0; top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); background: rgba(0, 0, 0, 0.4); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
 .sheet {
   background: var(--card);
   width: 100%;
   max-width: 560px;
-  max-height: 94dvh;
+  max-height: 94%;
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
@@ -385,7 +385,7 @@ label.inline input { width: 110px; margin: 0; }
 .cart-btn.on .cart-count { color: var(--text); }
 
 /* ---------- 전체 화면 페이지 ---------- */
-.screen-page { position: fixed; inset: 0; z-index: 40; background: var(--bg); display: flex; flex-direction: column; animation: slidein 0.18s ease-out; }
+.screen-page { position: fixed; inset: 0; top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); z-index: 40; background: var(--bg); display: flex; flex-direction: column; animation: slidein 0.18s ease-out; }
 @keyframes slidein { from { transform: translateX(24px); opacity: 0.6; } }
 .screen-head { display: grid; grid-template-columns: 64px 1fr 96px; align-items: center; padding: calc(env(safe-area-inset-top) + 10px) 12px 10px; background: var(--card); }
 .screen-head h2 { margin: 0; text-align: center; font-size: 1.05rem; }

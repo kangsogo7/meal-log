@@ -144,8 +144,49 @@ const SYNONYMS: [RegExp, string][] = [
 function expand(query: string): string[] {
   let q = query.trim();
   for (const [re, to] of SYNONYMS) q = q.replace(re, to);
+  // "아이스말차"처럼 붙여 쓴 온도 표시는 떼어서 따로 검색
+  q = q.replace(/(^|\s)(아이스|핫|따뜻한|차가운)(?=\S)/g, "$1$2 ");
   return q.split(/\s+/).filter(Boolean);
 }
+
+// ---------- 사이즈 (음료) ----------
+const SIZE_WORDS: [RegExp, string][] = [
+  [/^(max|맥스)$/i, "MAX"],
+  [/^(l|라지|large|그란데|grande)$/i, "L"],
+  [/^(r|레귤러|regular|m|미디엄|medium|톨|tall)$/i, "R"],
+  [/^(s|스몰|small|숏|short)$/i, "S"],
+  [/^(벤티|venti|xl)$/i, "XL"],
+];
+
+/** "아이스말차 L사이즈" → { size: "L", label: "L", text: "아이스말차" } */
+export function parseSize(query: string): { size?: string; label?: string; text: string } {
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  let size: string | undefined;
+  let label: string | undefined;
+  const rest = words.filter((w) => {
+    if (w === "사이즈") return false;
+    if (size || words.length < 2) return true;
+    const core = w.replace(/사이즈$/, "").replace(/^\((.*)\)$/, "$1");
+    for (const [re, v] of SIZE_WORDS) {
+      if (re.test(core)) {
+        size = v;
+        label = core;
+        return false;
+      }
+    }
+    return true;
+  });
+  return { size, label, text: rest.join(" ") };
+}
+
+/** 이름 끝에 붙은 사이즈 표기 "(L)", "(Max)" */
+const nameSize = (name: string) => {
+  const m = name.match(/\(([a-z]+)\)\s*$/i)?.[1];
+  return (m && SIZE_WORDS.find(([re]) => re.test(m))?.[1]) || (m ? m.toUpperCase() : "");
+};
+
+/** 온도처럼 메뉴를 고르는 데 덜 중요한 단어 (이것만 맞은 결과는 빼기) */
+const MODIFIERS = new Set(["아이스", "iced", "ice", "핫", "hot", "따뜻한", "차가운"]);
 
 export interface SearchOptions {
   /** 식재료 우선(집밥) / 음식 우선(외식) */
@@ -155,8 +196,11 @@ export interface SearchOptions {
 }
 
 export function searchFoods(list: Food[], query: string, opts: SearchOptions = {}): Food[] {
+  const { size, text } = parseSize(query);
+  query = text;
   const tokens = expand(query).map(norm).filter(Boolean);
   if (!tokens.length) return [];
+  const hasCore = tokens.some((t) => !MODIFIERS.has(t));
   const brand = opts.brand ? norm(opts.brand) : "";
   const whole = norm(query);
   const scored: { f: Food; s: number }[] = [];
@@ -166,8 +210,13 @@ export function searchFoods(list: Food[], query: string, opts: SearchOptions = {
     if (brand && !(fb && (fb.includes(brand) || brand.includes(fb)))) continue;
     const hay = f.norm + "|" + norm(f.group) + "|" + fb;
     let hit = 0;
-    for (const t of tokens) if (hay.includes(t)) hit++;
-    if (hit === 0) continue;
+    let coreHit = false;
+    for (const t of tokens) {
+      if (!hay.includes(t)) continue;
+      hit++;
+      if (!MODIFIERS.has(t)) coreHit = true;
+    }
+    if (hit === 0 || (hasCore && !coreHit)) continue;
 
     let s = hit * 15 - (tokens.length - hit) * 20;
     const parts = f.name.split("_").map(norm);
@@ -179,6 +228,11 @@ export function searchFoods(list: Food[], query: string, opts: SearchOptions = {
       if (f.name.includes("생것")) s += 6;
     } else if (opts.prefer === "dish" && f.kind === 1) s += 10;
     if (brand) s += 20;
+    if (size) {
+      const ns = nameSize(f.name);
+      if (ns === size) s += 25;
+      else if (ns) s -= 10;
+    }
     if (f.partial) s -= 5;
     s -= f.name.length * 0.3;
     scored.push({ f, s });
