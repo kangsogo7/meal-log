@@ -1,7 +1,7 @@
 // 즐겨찾기: 폴더(그룹)별 저장. ☆ 버튼 → 폴더 고르기
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, FOLDER_EMOJIS, folderEmoji, savedKey, sumNutrients, type Entry, type EntryKind, type FavGroup, type Item } from "./db";
+import { baseServing, db, FOLDER_EMOJIS, folderEmoji, savedKey, sumNutrients, type Entry, type EntryKind, type FavGroup, type Item } from "./db";
 import { flash, Sheet } from "./components/ui";
 
 export interface FavDraft {
@@ -23,9 +23,10 @@ export function entryDraft(e: Entry): FavDraft | null {
 export async function addToGroup(d: FavDraft, groupId: number) {
   const key = savedKey(d.kind, d.place, d.title);
   const prev = await db.saved.get(key);
+  const items = baseServing(d.items, d.k); // 1회 제공량으로만 저장
   await db.saved.put({
-    key, kind: d.kind, title: d.title, place: d.place, items: d.items,
-    total: sumNutrients(d.items.map((i) => i.nutrients)), k: d.k,
+    key, kind: d.kind, title: d.title, place: d.place, items,
+    total: sumNutrients(items.map((i) => i.nutrients)),
     uses: prev?.uses ?? 0, updatedAt: prev?.updatedAt ?? Date.now(), groupId,
   });
 }

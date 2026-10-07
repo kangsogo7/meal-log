@@ -1,34 +1,32 @@
 // 즐겨찾기 음식 수정 / 식사 세트 구성 수정
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, r1, savedKey, scaleNutrients, sumNutrients, type MealSet, type Nutrients, type SavedFood } from "../db";
+import { db, r1, savedKey, sumNutrients, type MealSet, type Nutrients, type SavedFood } from "../db";
 import { BackIcon, flash, NumInput, NutrientEditor, NutrientLine, Screen, Sheet } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 
 // ---------------------------------------------------------------------------
-// 즐겨찾기 음식 수정: 이름·상호·1회 제공량·영양성분 (저장된 배수는 그대로)
+// 즐겨찾기 음식 수정: 이름·상호·1회 제공량·영양성분
 // ---------------------------------------------------------------------------
 export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose: () => void }) {
   const single = food.items.length === 1;
-  const [start] = useState(() => storedPortion(food));
   const [title, setTitle] = useState(food.title);
   const [place, setPlace] = useState(food.place ?? "");
-  const [grams, setGrams] = useState<number | null>(start.baseGrams);
+  const [grams, setGrams] = useState<number | null>(single ? food.items[0].grams : null);
   const [amountText, setAmountText] = useState(food.items[0]?.amountText ?? "");
-  const [base, setBase] = useState<Nutrients>(start.base);
+  const [base, setBase] = useState<Nutrients>(food.total);
 
   const save = async () => {
     const t = title.trim();
     if (!t) return;
-    const k = start.k;
     const p = place.trim() || undefined;
     const items = single
       ? [{
           ...food.items[0],
           name: t,
-          grams: grams ? r1(grams * k) : null,
-          amountText: grams ? `${r1(grams * k)}g` : amountText,
-          nutrients: scaleNutrients(base, k),
+          grams: grams ? r1(grams) : null,
+          amountText: grams ? `${r1(grams)}g` : amountText,
+          nutrients: base,
         }]
       : food.items;
     const key = savedKey(food.kind, p, t);
@@ -67,7 +65,7 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
         )}
         {single ? (
           <>
-            {start.baseGrams ? (
+            {food.items[0]?.grams ? (
               <label>1회 제공량 (g)
                 <NumInput value={grams} onChange={setGrams} decimals={1} />
               </label>
@@ -125,7 +123,7 @@ export function SetComposeScreen({ set, onClose }: { set: MealSet; onClose: () =
   };
 
   const add = (s: SavedFood) => {
-    const e: SetEntry = { kind: s.kind, title: s.title, place: s.place, items: s.items, k: s.k };
+    const e: SetEntry = { kind: s.kind, title: s.title, place: s.place, items: s.items };
     setRows((p) => [...p, { id: nextId.current++, e, portion: entryPortion(e) }]);
     flash(`${s.title} 추가했어요`);
   };

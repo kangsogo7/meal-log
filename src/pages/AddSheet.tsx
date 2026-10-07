@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
+import { baseServing, db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
 import { flash, Sheet } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
@@ -29,7 +29,9 @@ export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: strin
   await db.entries.add({ date, meal, kind: d.kind, title: d.title, place: d.place, items: d.items, total, k: d.k, memo, createdAt: Date.now() });
   const key = savedKey(d.kind, d.place, d.title);
   const prev = await db.saved.get(key);
-  await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: d.items, total, k: d.k, uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
+  // 즐겨찾기·최근 메뉴에는 양 조절 전 1회 제공량으로
+  const base = baseServing(d.items, d.k);
+  await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: base, total: sumNutrients(base.map((i) => i.nutrients)), uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
 }
 
 export default function AddSheet({ date, meal: initialMeal, onClose }: { date: string; meal: Meal; onClose: () => void }) {

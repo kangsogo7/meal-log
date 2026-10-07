@@ -58,7 +58,16 @@ export interface BodyRecord {
   source: "manual" | "inbody" | "health"; // health = 건강 앱에서 가져옴
 }
 
-/** 한 번 찾은 메뉴/식재료를 다시 쓰기 위한 저장소 */
+/** 즐겨찾기·최근 메뉴는 1회 제공량(×1)으로만 저장: 배수 k로 기록한 재료를 ×1로 되돌림 */
+export function baseServing(items: Item[], k?: number): Item[] {
+  if (!k || k === 1) return items;
+  return items.map((i) => {
+    const grams = i.grams ? r1(i.grams / k) : i.grams;
+    return { ...i, grams, amountText: i.grams ? `${grams}g` : i.amountText, nutrients: scaleNutrients(i.nutrients, 1 / k) };
+  });
+}
+
+/** 한 번 찾은 메뉴/식재료를 다시 쓰기 위한 저장소 (항상 1회 제공량 기준) */
 export interface SavedFood {
   key: string;
   kind: Entry["kind"];
@@ -66,7 +75,6 @@ export interface SavedFood {
   place?: string;
   items: Item[];
   total: Nutrients;
-  k?: number; // 양 조절 배수 (Entry.k와 같음)
   uses: number;
   updatedAt: number;
   /** @deprecated v3부터 groupId 사용 */
@@ -144,6 +152,16 @@ db.version(3)
     });
   });
 db.version(4).stores({ activity: "date" });
+// v5: 즐겨찾기·최근 메뉴는 1회 제공량(×1)만 저장. 양 조절 배수까지 저장됐던 것을 ×1로 되돌림
+db.version(5).upgrade(async (tx) => {
+  await tx.table("saved").toCollection().modify((s: SavedFood & { k?: number }) => {
+    if (s.k && s.k !== 1) {
+      s.items = baseServing(s.items, s.k);
+      s.total = sumNutrients(s.items.map((i) => i.nutrients));
+    }
+    delete s.k;
+  });
+});
 
 // 새로 설치한 경우에도 "기본" 그룹이 항상 있게
 db.on("ready", async () => {
