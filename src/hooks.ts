@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, DEFAULT_SETTINGS, getKV, todayStr, type Nutrients, type Profile, type Settings } from "./db";
+import { db, DEFAULT_SETTINGS, getKV, todayStr, type BodyRecord, type DayActivity, type Nutrients, type Profile, type Settings } from "./db";
 import { calcTargets, DEFAULT_PROFILE, type TargetResult } from "./nutrition";
 
 export function useSettings(): Settings {
@@ -28,8 +28,24 @@ export function useTargets(date: string = todayStr()): { target: Nutrients | nul
   const saved = useProfileSaved();
   const body = useLatestBody();
   const day = useLiveQuery(() => db.activity.get(date), [date]);
+  const { target, calc } = resolveTarget(profile, saved, body, day, date);
+  return { target, calc, hasProfile: !!saved && !!body };
+}
+
+/** 그날의 목표 (직접 지정 > 계산값, "실제 활동 칼로리 반영"이면 그날 활동 칼로리로) */
+function resolveTarget(profile: Profile | undefined, saved: boolean | undefined, body: BodyRecord | undefined, day: DayActivity | undefined, date: string) {
   const actual = profile?.useActualActivity && day?.activeKcal != null ? { activeKcal: day.activeKcal, isToday: date === todayStr() } : undefined;
   const calc = profile && saved ? calcTargets(profile, body, actual) : null;
   const target = (saved && profile?.override) || calc?.target || null;
-  return { target, calc, hasProfile: !!saved && !!body };
+  return { target, calc };
+}
+
+/** 여러 날짜의 목표를 한 번에 (주간 평가용) */
+export function useTargetsFor(dates: string[]): Record<string, Nutrients | null> {
+  const profile = useProfile();
+  const saved = useProfileSaved();
+  const body = useLatestBody();
+  const from = dates[0], to = dates[dates.length - 1];
+  const acts = useLiveQuery(() => db.activity.where("date").between(from, to, true, true).toArray(), [from, to], []);
+  return Object.fromEntries(dates.map((d) => [d, resolveTarget(profile, saved, body, acts.find((a) => a.date === d), d).target]));
 }

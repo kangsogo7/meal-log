@@ -292,3 +292,21 @@ export async function imageToBase64(file: File, maxSide = 1600): Promise<{ mimeT
   const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
   return { mimeType: "image/jpeg", data: dataUrl.split(",")[1] };
 }
+
+// ---------- 주간 식단 한줄평 ----------
+export async function weeklyComment(settings: Settings, goalLabel: string, report: string): Promise<string> {
+  const prompt = `너는 한국인 사용자의 식단을 봐 주는 영양 코치야. 사용자의 목표는 "${goalLabel}"이야.
+아래는 이번 주(월~일) 하루하루의 섭취량과 목표, 먹은 음식이야.
+${report}
+
+2~3문장으로 짧게 평가해 줘.
+- 잘한 점 하나, 아쉬운 점 하나를 실제 숫자나 요일·음식을 근거로.
+- 다음 주에 바로 해 볼 수 있는 구체적인 팁 하나.
+- 존댓말(~해요)로, 꾸밈말 없이 담백하게. 이모지 쓰지 마.`;
+  const res = await generateJson<{ comment: string }>(
+    settings,
+    [{ text: prompt }],
+    { type: "object", properties: { comment: { type: "string" } }, required: ["comment"] },
+  );
+  return (res.comment ?? "").trim();
+}

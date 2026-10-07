@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { addDays, db, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
+import { db, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useProfile, useTargets } from "../hooks";
 import { DateNav, NutrientLine, Progress } from "../components/ui";
-import { WeekChart } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_EMOJI, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
+import WeeklyCard from "./WeeklyCard";
 
 /** 끼니의 기록들을 식사 세트로 저장 (즐겨찾기 탭에서 한 번에 기록) */
 async function saveAsSet(mealLabel: string, list: Entry[]) {
@@ -34,13 +34,8 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
   const { target } = useTargets(date);
   const profile = useProfile();
 
-  const weekStart = addDays(date, -6);
-  const weekEntries = useLiveQuery(() => db.entries.where("date").between(weekStart, date, true, true).toArray(), [weekStart, date], []);
-  const entries = weekEntries.filter((e) => e.date === date).sort((a, b) => a.createdAt - b.createdAt);
+  const entries = useLiveQuery(() => db.entries.where("date").equals(date).sortBy("createdAt"), [date], []);
   const total = sumNutrients(entries.map((e) => e.total));
-
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const weekKcal = days.map((d) => sumNutrients(weekEntries.filter((e) => e.date === d).map((e) => e.total)).kcal);
   return (
     <>
       <DateNav date={date} onChange={setDate} />
@@ -116,10 +111,7 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
         );
       })}
 
-      <section className="card">
-        <h2>최근 7일 칼로리</h2>
-        <WeekChart days={days} values={weekKcal} goal={target?.kcal ?? null} selected={date} onSelect={setDate} />
-      </section>
+      <WeeklyCard date={date} onSelect={setDate} />
 
       {adding && <AddSheet date={date} meal={adding} onClose={() => setAdding(null)} />}
       {editing && <EntrySheet entry={editing} onClose={() => setEditing(null)} />}
