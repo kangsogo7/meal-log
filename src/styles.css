@@ -193,10 +193,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
-  animation: up 0.2s ease-out;
+  animation: up 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
 }
 .sheet.tall { height: 94%; }
-@keyframes up { from { transform: translateY(30px); opacity: 0.5; } }
+/* 화면 맨 아래에서 끝까지 부드럽게 올라옴 (뒤 배경은 서서히 어두워짐) */
+@keyframes up { from { transform: translateY(100%); } }
+.sheet-backdrop { animation: dim 0.3s ease-out; }
+@keyframes dim { from { background: rgba(0, 0, 0, 0); } }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 6px; }
 .sheet-head h2 { margin: 0; }
 .sheet-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 16px 16px; }
@@ -386,8 +390,9 @@ label.inline input { width: 110px; margin: 0; }
 .cart-btn.on .cart-count { color: var(--text); }
 
 /* ---------- 전체 화면 페이지 ---------- */
-.screen-page { position: fixed; inset: 0; top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); z-index: 40; background: var(--bg); display: flex; flex-direction: column; animation: slidein 0.18s ease-out; }
-@keyframes slidein { from { transform: translateX(24px); opacity: 0.6; } }
+.screen-page { position: fixed; inset: 0; top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100%); z-index: 40; background: var(--bg); display: flex; flex-direction: column; animation: slidein 0.34s cubic-bezier(0.32, 0.72, 0, 1); }
+@keyframes slidein { from { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .sheet, .sheet-backdrop, .screen-page { animation: none; } }
 .screen-head { display: grid; grid-template-columns: 64px 1fr 96px; align-items: center; padding: calc(env(safe-area-inset-top) + 10px) 12px 10px; background: var(--card); }
 .screen-head h2 { margin: 0; text-align: center; font-size: 1.05rem; }
 .screen-right { display: flex; justify-content: flex-end; }
