@@ -12,7 +12,17 @@ function revealFocused() {
   const top = vv?.offsetTop ?? 0;
   const bottom = top + (vv?.height ?? window.innerHeight);
   const r = el.getBoundingClientRect();
-  if (r.top < top + 8 || r.bottom > bottom - 8) el.scrollIntoView({ block: "center" });
+  if (r.top >= top + 8 && r.bottom <= bottom - 8) return;
+  // 창(시트·전체 화면) 안이면 그 창의 스크롤만 움직임 — 뒤 화면까지 같이 밀리지 않게
+  const box = el.closest(".sheet-body, .screen-body");
+  if (box) {
+    const b = box.getBoundingClientRect();
+    const visTop = Math.max(b.top, top);
+    const visBottom = Math.min(b.bottom, bottom);
+    box.scrollTop += r.top + r.height / 2 - (visTop + visBottom) / 2;
+  } else if (!document.body.classList.contains("no-scroll")) {
+    el.scrollIntoView({ block: "center" });
+  }
 }
 
 export function initKeyboard() {

@@ -4,19 +4,27 @@ import { addDays, formatDate, todayStr, type Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
 
 let openLayers = 0;
+let lockedY = 0;
 
 /**
  * 창(시트·전체 화면)을 body 바로 아래에 그림.
  * 다른 창 안에서 열어도 그 창의 스크롤 영역에 갇히지 않고(아이폰), 나중에 연 창이 항상 위에 옴.
- * 마지막 창이 닫힐 때까지 뒤 화면 스크롤 잠금.
+ * 마지막 창이 닫힐 때까지 뒤 화면을 지금 위치에 고정 (키보드가 떠도 뒤 화면이 밀려 내려가지 않게).
  */
 function useLayer() {
   const [z] = useState(() => 20 + openLayers * 10);
   useEffect(() => {
-    openLayers++;
-    document.body.classList.add("no-scroll");
+    if (openLayers++ === 0) {
+      lockedY = window.scrollY;
+      document.body.style.top = `-${lockedY}px`;
+      document.body.classList.add("no-scroll");
+    }
     return () => {
-      if (--openLayers === 0) document.body.classList.remove("no-scroll");
+      if (--openLayers === 0) {
+        document.body.classList.remove("no-scroll");
+        document.body.style.top = "";
+        window.scrollTo(0, lockedY);
+      }
     };
   }, []);
   return z;

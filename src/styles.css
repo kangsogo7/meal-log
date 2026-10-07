@@ -74,7 +74,7 @@ body {
   font-size: 16px;
   line-height: 1.45;
 }
-body.no-scroll { overflow: hidden; }
+body.no-scroll { overflow: hidden; position: fixed; left: 0; right: 0; }
 
 .app { min-height: 100dvh; }
 .content {
