@@ -4,13 +4,15 @@
 
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-/** 지금 키보드 위로 보이는 영역의 아래 끝 (화면 위에서부터 px) */
+/**
+ * 지금 키보드 위로 보이는 영역의 아래 끝 (화면 위에서부터 px).
+ * 아이폰은 키보드 높이를 믿을 만하게 알려 주지 않고, 키보드 위에 ^ ⌄ ✓ 막대(웹에서는 숨길 수 없음)까지 있어서
+ * 화면(기기 세로 길이)의 34%보다 아래는 (한글 자판+막대 기준) 가려진다고 보고 그 위로 올림.
+ */
 function visibleBottom() {
+  if (isIOS) return window.screen.height * 0.34;
   const vv = window.visualViewport;
-  const h = window.innerHeight;
-  // 키보드가 떴는데 visualViewport가 줄지 않는 경우(일부 아이폰)를 대비해, 화면의 절반 아래는 가려진다고 봄
-  if (isIOS && (!vv || vv.height > h * 0.85)) return h * 0.5;
-  return vv ? vv.offsetTop + vv.height : h;
+  return vv ? vv.offsetTop + vv.height - 12 : window.innerHeight;
 }
 
 function revealFocused() {
@@ -20,9 +22,7 @@ function revealFocused() {
   if (!box) return;
   const bottom = Math.min(box.getBoundingClientRect().bottom, visibleBottom());
   const r = el.getBoundingClientRect();
-  // 아이폰은 키보드 위에 ^ ⌄ ✓ 막대가 보이는 영역 안에 떠 있어서(웹에서는 숨길 수 없음) 그만큼 더 띄움
-  const gap = isIOS ? 72 : 12;
-  if (r.bottom > bottom - gap) box.scrollTop += r.bottom - bottom + gap + 16;
+  if (r.bottom > bottom) box.scrollTop += r.bottom - bottom;
 }
 
 export function initKeyboard() {
@@ -50,7 +50,7 @@ export function initKeyboard() {
     // 목록이 짧아도 입력칸을 키보드 위로 올릴 수 있게 아래 여백을 줌 (창을 닫을 때까지 유지 — 여백이 사라지며 화면이 튀지 않게)
     if (isIOS) box.classList.add("typing");
     // 키보드가 다 올라온 뒤 확인. 가려지지 않았으면 아무것도 안 함
-    for (const ms of [350, 700]) setTimeout(() => { update(); revealFocused(); }, ms);
+    for (const ms of [0, 350, 700]) setTimeout(() => { update(); revealFocused(); }, ms);
   });
   update();
 }
