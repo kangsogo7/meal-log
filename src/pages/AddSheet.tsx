@@ -34,7 +34,7 @@ export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: strin
 
 export default function AddSheet({ date, meal: initialMeal, onClose }: { date: string; meal: Meal; onClose: () => void }) {
   const [meal, setMeal] = useState<Meal>(initialMeal);
-  const [mode, setMode] = useState<Mode>("out");
+  const [mode, setMode] = useState<Mode>("fav");
   // 즐겨찾기·세트에서 담은 것 (탭을 오가도 유지)
   const [cart, setCart] = useState<CartItem[]>([]);
   const toggle = (c: CartItem) => setCart((p) => (p.some((x) => x.id === c.id) ? p.filter((x) => x.id !== c.id) : [...p, c]));
@@ -75,7 +75,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
       {mode === "manual" ? (
         <>
           <div className="row-between">
-            <button className="link" onClick={() => setMode("out")}>← 돌아가기</button>
+            <button className="link" onClick={() => setMode("fav")}>← 돌아가기</button>
             <b>직접 입력</b>
           </div>
           <ManualForm onSave={onSave} />
