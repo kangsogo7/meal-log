@@ -16,6 +16,9 @@ function toGeminiSchema(s: unknown): unknown {
   return s;
 }
 
+/** 생각하기 최소 설정을 거절한 모델 (다음부터는 바로 빼고 보냄) */
+const noFastThinking = new Set<string>();
+
 export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -50,30 +53,46 @@ function extractJson(text: string): string {
 async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean } = {}): Promise<T> {
   const apiKey = cleanKey(settings.geminiKey);
   if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
-  const body = JSON.stringify(
-    opts.search
-      ? {
-          contents: [{ role: "user", parts: [...parts, { text: `\n답은 다른 말 없이 아래 JSON 스키마에 맞는 JSON 하나만 출력해.\n${JSON.stringify(schema)}` }] }],
-          tools: [{ google_search: {} }],
-        }
-      : {
-          contents: [{ role: "user", parts }],
-          generationConfig: { responseMimeType: "application/json", responseSchema: toGeminiSchema(schema), temperature: 0.2 },
-        },
-  );
+  // 검색 없는 요청은 "생각하기"를 최소로 해서 빨리 답하게 (모델이 이 설정을 모르면 빼고 다시 보냄)
+  const makeBody = (fastThinking: boolean) =>
+    JSON.stringify(
+      opts.search
+        ? {
+            contents: [{ role: "user", parts: [...parts, { text: `\n답은 다른 말 없이 아래 JSON 스키마에 맞는 JSON 하나만 출력해.\n${JSON.stringify(schema)}` }] }],
+            tools: [{ google_search: {} }],
+          }
+        : {
+            contents: [{ role: "user", parts }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: toGeminiSchema(schema),
+              temperature: 0.2,
+              ...(fastThinking ? { thinkingConfig: { thinkingLevel: "minimal" } } : {}),
+            },
+          },
+    );
 
   // 무료 한도는 모델마다 따로라서, 한도 초과(429)면 바로 다음 모델로.
   // 서버가 붐비면(5xx) 처음 모델은 한 번 더 기다렸다가, 그래도 안 되면 다음 모델로.
   const models = [settings.geminiModel, ...GEMINI_MODELS.filter((m) => m !== settings.geminiModel)];
   const call = async (model: string) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-    try {
+    const post = async (body: string) => {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body,
       });
       return { status: res.status, text: await res.text() };
+    };
+    try {
+      const fast = !opts.search && !noFastThinking.has(model);
+      const res = await post(makeBody(fast));
+      if (fast && res.status === 400 && /thinking/i.test(res.text)) {
+        noFastThinking.add(model);
+        return await post(makeBody(false));
+      }
+      return res;
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
       throw new GeminiError(`구글 서버에 연결하지 못했어요. 와이파이/데이터를 바꿔 보거나, 광고 차단 앱이 있다면 꺼 보세요. (${reason})`);
@@ -203,6 +222,8 @@ export async function estimateMenu(
   menu: string,
   amount: string,
   kind: "out" | "food" = "out",
+  /** true면 구글 검색으로 공식 영양정보를 확인 (정확하지만 느림) */
+  search = false,
 ): Promise<MenuEstimate> {
   const rules = `규칙:
 1. 입력한 이름 그대로의 메뉴를 찾아. 이름이 비슷한 다른 메뉴로 바꾸지 마. (예: "아이스 말차" ≠ "아이스 말차 라떼", "아메리카노" ≠ "카페 라떼". 우유가 들어가는지 같은 차이가 칼로리를 크게 바꿈)
@@ -236,11 +257,15 @@ ${rules}`;
     required: ["name", "grams", "nutrients", "note"],
   };
   let res: MenuEstimate;
-  try {
-    res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema, { search: true });
-    if (!res?.nutrients) throw new GeminiError("형식 오류");
-  } catch {
-    // 검색을 못 쓰는 경우(한도 등)엔 검색 없이
+  if (search) {
+    try {
+      res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema, { search: true });
+      if (!res?.nutrients) throw new GeminiError("형식 오류");
+    } catch {
+      // 검색을 못 쓰는 경우(한도 등)엔 검색 없이
+      res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema);
+    }
+  } else {
     res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema);
   }
   return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients) };

@@ -18,6 +18,7 @@ interface Choice {
   matchName?: string;
   portion: Portion; // 먹은 양 (공통 양 조절)
   note?: string;
+  verified?: boolean; // AI가 구글 검색으로 공식 정보를 확인했는지
 }
 
 const COPY = {
@@ -33,7 +34,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
   const [savedHit, setSavedHit] = useState<Choice | null>(null);
   const [aiChoice, setAiChoice] = useState<Choice | null>(null);
   const [choice, setChoice] = useState<Choice | null>(null);
-  const [busy, setBusy] = useState<"" | "db" | "ai">("");
+  const [busy, setBusy] = useState<"" | "db" | "ai" | "verify">("");
   const [error, setError] = useState("");
   const detailRef = useRef<HTMLDivElement>(null);
   const copy = COPY[kind];
@@ -115,16 +116,17 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
     return { title: q };
   };
 
-  const runAi = async () => {
-    setBusy("ai");
+  /** search: 구글 검색으로 공식 영양정보 확인 (느림). 기본은 빠른 답 */
+  const runAi = async (search = false) => {
+    setBusy(search ? "verify" : "ai");
     setError("");
     try {
       const { place, title } = placeAndTitle();
       // 사이즈는 메뉴 이름에서 떼어 "먹은 양"으로 (예: "아이스말차 L사이즈" → 메뉴 "아이스말차", 양 "L 사이즈 1잔")
       const { label: size, text: menu } = parseSize(title);
-      const est = await estimateMenu(settings, place ?? "", menu || title, size ? `${size} 사이즈 1잔` : copy.amount, kind);
+      const est = await estimateMenu(settings, place ?? "", menu || title, size ? `${size} 사이즈 1잔` : copy.amount, kind, search);
       const c: Choice = {
-        id: "ai", label: `AI 추정 · ${est.name}`, title, place, source: "ai",
+        id: "ai", label: `AI 추정 · ${est.name}`, title, place, source: "ai", verified: search,
         portion: makePortion(est.nutrients, est.grams), note: est.note,
       };
       setAiChoice(c);
@@ -205,7 +207,7 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
           ))}
           {!busy && results.length === 0 && !aiChoice && <p className="muted small">{copy.empty}</p>}
           {!aiChoice && settings.geminiKey && (
-            <button className="block" onClick={runAi} disabled={busy === "ai"}>
+            <button className="block" onClick={() => runAi()} disabled={busy === "ai"}>
               {busy === "ai" ? "AI가 찾는 중..." : "AI로 찾기"}
             </button>
           )}
@@ -219,6 +221,11 @@ export default function SearchForm({ kind, onSave }: { kind: "out" | "food"; onS
             <FavStar getDraft={() => toDraft(choice)} />
           </div>
           {choice.note && <p className="muted small">{choice.note}</p>}
+          {choice.id === "ai" && !choice.verified && (
+            <button className="link small verify-btn" onClick={() => runAi(true)} disabled={!!busy}>
+              {busy === "verify" ? "공식 정보 찾는 중... (10초 이상 걸릴 수 있어요)" : "공식 정보로 다시 찾기 (느림)"}
+            </button>
+          )}
           <AmountEditor portion={choice.portion} onChange={(portion) => setChoice({ ...choice, portion })} />
           <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, portion: withNutrients(choice.portion, n) })} />
           <button className="primary block" onClick={save}>저장</button>
