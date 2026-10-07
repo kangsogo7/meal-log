@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, KIND_LABEL, r1, sumNutrients, type FavGroup, type MealSet, type SavedFood } from "../db";
-import { BackIcon, flash, NutrientLine, Screen } from "../components/ui";
+import { BackIcon, flash, NutrientLine, revealInSheet, Screen } from "../components/ui";
 import { applyFolderEdits, FolderPicker, NewFolderForm } from "../favorites";
 import { AmountEditor, portionGrams, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
@@ -51,6 +51,12 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
   // 카드를 눌러 연 음식과 그 양 (담기 전에 조절)
   const [open, setOpen] = useState<{ key: string; portion: Portion } | null>(null);
   const [editFood, setEditFood] = useState<SavedFood | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  // 카드를 펼치면 양 조절 영역이 보이게 (잘려 있을 때만)
+  useEffect(() => {
+    if (open) revealInSheet(listRef.current?.querySelector(".food-card.open"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open?.key]);
 
   // 선택한 폴더가 없거나 지워졌으면 첫 폴더
   const groupId = groups.some((g) => g.id === current) ? current! : groups[0]?.id;
@@ -88,7 +94,7 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
       {items.length === 0 ? (
         <p className="muted small empty">검색 결과나 기록 옆의 ☆를 눌러 이 폴더에 담아 보세요</p>
       ) : (
-        <ul className="food-cards">
+        <ul className="food-cards" ref={listRef}>
           {items.map((s) => {
             const id = `fav:${s.key}`;
             const inCart = cart.find((c) => c.id === id);
@@ -148,6 +154,10 @@ export function SetsTab({ cart, toggle }: { cart: CartItem[]; toggle: (c: CartIt
   const [editing, setEditing] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [composing, setComposing] = useState<MealSet | null>(null);
+  const setsRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    if (openId != null) revealInSheet(setsRef.current?.querySelector(".food-card.open"));
+  }, [openId]);
 
   return (
     <div className="fav-tab">
@@ -158,7 +168,7 @@ export function SetsTab({ cart, toggle }: { cart: CartItem[]; toggle: (c: CartIt
       {sets.length === 0 ? (
         <p className="muted small empty">식단 화면에서 끼니 아래 "식사 세트로 저장"을 누르면 여기에 생겨요</p>
       ) : (
-        <ul className="food-cards">
+        <ul className="food-cards" ref={setsRef}>
           {sets.map((s) => {
             const id = `set:${s.id}`;
             const on = cart.some((c) => c.id === id);

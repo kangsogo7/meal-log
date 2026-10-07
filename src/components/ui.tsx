@@ -66,6 +66,18 @@ export function Screen({ title, left, right, footer, children }: { title: ReactN
   );
 }
 
+/** 펼친 내용이 창 아래로 잘려 있으면, 그 창 안에서만 보일 만큼 부드럽게 올림 (이미 다 보이면 그대로) */
+export function revealInSheet(el: Element | null | undefined) {
+  const box = el?.closest(".sheet-body, .screen-body");
+  if (!el || !box) return;
+  const b = box.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const pad = 12;
+  // 아래가 잘린 만큼 올리되, 카드가 창보다 크면 카드 위쪽이 보이는 데까지만
+  const d = Math.min(r.bottom - b.bottom + pad, r.top - b.top - pad);
+  if (d > 0) box.scrollBy({ top: d, behavior: "smooth" });
+}
+
 /** ◀ 날짜 오늘 ▶ (글자 길이와 상관없이 화살표 위치 고정) */
 export function DateNav({ date, onChange }: { date: string; onChange: (d: string) => void }) {
   const isToday = date === todayStr();
