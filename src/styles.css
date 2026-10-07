@@ -459,3 +459,5 @@ input.missing { border-color: var(--over); }
 .kb-open .cart-bar { display: none; }
 /* 시트 내용이 스크롤되면 제목 아래 구분선 */
 .sheet-head.scrolled { box-shadow: 0 1px 0 var(--border); position: relative; z-index: 1; }
+/* 아이폰에서 입력 중: 목록이 짧아도 입력칸을 키보드 위로 올릴 수 있게 */
+.sheet-body.typing, .screen-body.typing { padding-bottom: 50vh; }
