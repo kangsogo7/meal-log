@@ -1,24 +1,24 @@
-/* 미니멀 모노톤: 흰/회/검정 위주, 포인트(--point)는 링크·선택 표시에만 조금 */
+/* 미니멀 모노톤: 연회색 바탕 + 포레스트 그린 글자(라이트), 포인트(--point)는 링크·선택 표시에만 조금 */
 :root {
   --bg: #e8e8eb;
   --card: #f4f4f6;
   --inset: #ebebee;
-  --text: #18181b;
-  --muted: #71717a;
+  --text: #2c4a40;
+  --muted: #6d7f78;
   --border: #dadade;
-  --accent: #18181b; /* 주 버튼 */
+  --accent: #2c4a40; /* 주 버튼 */
   --accent-ink: #f4f4f6;
   --accent-soft: #e2e2e6;
   --point: #3f6f60;
   --over: #c2410c; /* 목표 초과 등 상태 표시에만 */
-  --carb: #a1a1aa;
-  --protein: #18181b;
-  --fat: #52525b;
+  --carb: #9aa8a3;
+  --protein: #2c4a40;
+  --fat: #4f6a61;
   --track: #e2e2e6;
   --tag-out-bg: transparent;
-  --tag-out-ink: #71717a;
+  --tag-out-ink: #6d7f78;
   --tag-food-bg: transparent;
-  --tag-food-ink: #71717a;
+  --tag-food-ink: #6d7f78;
   color-scheme: light;
 }
 
