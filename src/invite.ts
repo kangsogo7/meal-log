@@ -1,9 +1,14 @@
 // 그룹 초대 링크: https://kangsogo7.github.io/meal-log/?join=코드&g=그룹이름
 // 링크로 앱(웹)을 열면 초대를 기억해 두고 그룹 탭에서 바로 참여할 수 있게 함.
-// 안드로이드 앱은 meallog://join?code=…&g=… 로 열림 (초대 페이지의 "앱에서 열기")
+// 안드로이드에서 링크를 열면 바로 설치된 앱(meallog://join?code=…)으로 넘김. 앱이 없으면 noapp=1을 붙여 웹으로 돌아옴
 import { Capacitor } from "@capacitor/core";
 
-export interface Invite { code: string; group: string }
+export interface Invite {
+  code: string;
+  group: string;
+  /** 앱으로 넘기려 했는데 앱이 없어 웹으로 돌아온 경우 */
+  noApp?: boolean;
+}
 
 const KEY = "meal-log-invite";
 const EVENT = "meal-invite";
@@ -14,7 +19,7 @@ export const inviteLink = (code: string, group: string) => `${WEB_URL}?join=${co
 
 /** 안드로이드 크롬 등에서 설치된 앱을 여는 주소 (앱이 없으면 그대로 웹에 머묾) */
 export const androidAppLink = (inv: Invite) =>
-  `intent://join?code=${inv.code}&g=${encodeURIComponent(inv.group)}#Intent;scheme=meallog;package=${ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(inviteLink(inv.code, inv.group))};end`;
+  `intent://join?code=${inv.code}&g=${encodeURIComponent(inv.group)}#Intent;scheme=meallog;package=${ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(inviteLink(inv.code, inv.group) + "&noapp=1")};end`;
 
 export const isNativeApp = () => Capacitor.isNativePlatform();
 export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -32,7 +37,7 @@ function parse(url: string): Invite | null {
     const u = new URL(url);
     const code = (u.searchParams.get("join") ?? u.searchParams.get("code") ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (code.length < 6) return null;
-    return { code, group: u.searchParams.get("g") ?? "" };
+    return { code, group: u.searchParams.get("g") ?? "", ...(u.searchParams.has("noapp") ? { noApp: true } : {}) };
   } catch {
     return null;
   }
@@ -76,9 +81,10 @@ export function initInvites() {
   if (inv) {
     save(inv);
     const u = new URL(location.href);
-    u.searchParams.delete("join");
-    u.searchParams.delete("g");
+    for (const k of ["join", "g", "noapp"]) u.searchParams.delete(k);
     history.replaceState(null, "", u.pathname + u.search + u.hash);
+    // 안드로이드 브라우저(카카오톡 포함)로 열렸으면 바로 앱으로. 앱이 없으면 noapp=1로 이 페이지가 다시 열림
+    if (isAndroid() && !isNativeApp() && !inv.noApp) location.href = androidAppLink(inv);
   }
   if (isNativeApp()) {
     import("@capacitor/app")

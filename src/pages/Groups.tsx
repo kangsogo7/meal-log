@@ -82,7 +82,7 @@ function Setup({ invite, onDone, error: initialError }: { invite: Invite | null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
   // 안드로이드 브라우저에서 초대를 열면 앱으로 보내고, 웹에서 참여는 한 번 더 눌러야 보이게
-  const appFirst = !!invite && isAndroid() && !isNativeApp();
+  const appFirst = !!invite && isAndroid() && !isNativeApp() && !invite.noApp;
   const [webJoin, setWebJoin] = useState(!appFirst);
   const start = async () => {
     if (!name.trim()) return;

@@ -37,4 +37,6 @@ jobs:
             adb shell getprop ro.build.version.release
             adb install -r meal-log.apk 2>&1 || true
             adb shell pm list packages | grep meallog || echo "NOT INSTALLED"
+            # 그룹 초대 앱 링크가 이 앱으로 열리는지
+            adb shell am start -W -a android.intent.action.VIEW -d "meallog://join?code=TEST01&g=test" 2>&1 || true
             adb logcat -d | grep -iE "PackageManager|PackageInstaller|INSTALL_|meallog|Failure" | grep -v "Instant App" | tail -60 || true
