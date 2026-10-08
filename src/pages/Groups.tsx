@@ -4,7 +4,7 @@ import { addDays, formatDate, todayStr } from "../db";
 import { BackIcon, flash, Screen, Sheet } from "../components/ui";
 import { GRADE_EMOJI, type Grade } from "../nutrition";
 import { weekLabel, weekStartOf } from "../weekly";
-import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isNativeApp, isStandalone, onInvite, pendingInvite, type Invite } from "../invite";
+import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isNativeApp, isStandalone, kakaoExternalLink, onInvite, pendingInvite, type Invite } from "../invite";
 import {
   addComment, createGroup, createMe, deleteComment, joinGroup, leaveAll, leaveGroup, loadMe, renameGroup, renameMe,
   watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchTodayCount,
@@ -54,10 +54,17 @@ export default function Groups() {
 function InviteHelp({ invite }: { invite: Invite }) {
   if (isNativeApp()) return null;
   if (isAndroid()) {
+    // 앱을 쓰는 사람이 브라우저에서 실수로 참여하지 않게 "앱에서 열기"를 가장 먼저
     return (
-      <p className="small invite-help">
-        식단 기록 앱을 설치했다면 <a className="link" href={androidAppLink(invite)}>앱에서 열기</a>
-      </p>
+      <div className="invite-open">
+        <a className="btn-link primary" href={androidAppLink(invite)}>식단 기록 앱에서 열기</a>
+        {isKakao() && (
+          <>
+            <a className="btn-link outline" href={kakaoExternalLink(invite)}>크롬 등 다른 브라우저로 열기</a>
+            <p className="muted small">카카오톡 안에서는 앱이 안 열릴 수 있어요. 그럴 땐 다른 브라우저로 연 다음 "앱에서 열기"를 눌러 주세요.</p>
+          </>
+        )}
+      </div>
     );
   }
   if (isIOS() && !isStandalone()) {
@@ -74,6 +81,9 @@ function Setup({ invite, onDone, error: initialError }: { invite: Invite | null;
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
+  // 안드로이드 브라우저에서 초대를 열면 앱으로 보내고, 웹에서 참여는 한 번 더 눌러야 보이게
+  const appFirst = !!invite && isAndroid() && !isNativeApp();
+  const [webJoin, setWebJoin] = useState(!appFirst);
   const start = async () => {
     if (!name.trim()) return;
     setBusy(true);
@@ -95,17 +105,23 @@ function Setup({ invite, onDone, error: initialError }: { invite: Invite | null;
       <section className="card form">
         {invite ? (
           <>
-            <p><b>{invite.group || "식단"}</b> 그룹 초대를 받았어요. 닉네임만 정하면 바로 들어가요.</p>
+            <p><b>{invite.group || "식단"}</b> 그룹 초대를 받았어요.{webJoin && " 닉네임만 정하면 바로 들어가요."}</p>
             <InviteHelp invite={invite} />
           </>
         ) : (
           <p className="small">그룹을 만들어 멤버를 초대하면, 서로의 하루 식단을 날짜별로 보고 댓글을 남길 수 있어요.</p>
         )}
-        <label>닉네임
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="그룹에 보일 이름" maxLength={20} />
-        </label>
-        {error && <p className="error small">{error}</p>}
-        <button className="primary block" onClick={start} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : invite ? "시작하고 참여하기" : "시작하기"}</button>
+        {webJoin ? (
+          <>
+            <label>닉네임
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="그룹에 보일 이름" maxLength={20} />
+            </label>
+            {error && <p className="error small">{error}</p>}
+            <button className="primary block" onClick={start} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : invite ? "시작하고 참여하기" : "시작하기"}</button>
+          </>
+        ) : (
+          <button className="link small" onClick={() => setWebJoin(true)}>앱이 없어요 · 이 브라우저에서 참여</button>
+        )}
       </section>
     </>
   );

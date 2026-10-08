@@ -19,6 +19,10 @@ export const androidAppLink = (inv: Invite) =>
 export const isNativeApp = () => Capacitor.isNativePlatform();
 export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 export const isAndroid = () => /Android/i.test(navigator.userAgent);
+/** 카카오톡 안의 브라우저 (여기서는 다른 앱을 여는 링크가 막히는 경우가 있음) */
+export const isKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
+/** 카카오톡 안에서 같은 초대를 폰의 기본 브라우저로 다시 열기 */
+export const kakaoExternalLink = (inv: Invite) => `kakaotalk://web/openExternal?url=${encodeURIComponent(inviteLink(inv.code, inv.group))}`;
 /** 홈 화면에 추가한 앱으로 열었는지 (아니면 사파리·크롬 같은 브라우저) */
 export const isStandalone = () =>
   window.matchMedia?.("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;

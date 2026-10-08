@@ -542,3 +542,6 @@ input.missing { border-color: var(--over); }
 .body-list li { flex-wrap: nowrap; }
 .body-list li > span { flex: 1; min-width: 0; }
 .row-edit { flex: none; white-space: nowrap; min-height: 34px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--inset); color: var(--text); font-size: 0.85rem; font-weight: 600; }
+.invite-open { display: flex; flex-direction: column; gap: 8px; }
+.invite-open .btn-link { margin-top: 0; }
+.btn-link.outline { border: 1px solid var(--border); background: var(--inset); color: var(--text); }
