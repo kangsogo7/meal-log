@@ -215,7 +215,8 @@ async function doSync() {
     const week = evaluateWeek(days.map((d) => evaluateDay(d, entries.filter((e) => e.date === d), targets[d])));
     if (!week.days.some((d) => d.status !== "future" && d.status !== "none")) continue;
     const ai = await getKV<{ text: string } | null>(`weekAi:${start}`, null);
-    const memo = await getKV(`weekMemo:${start}`, "");
+    const memoRaw = await getKV<unknown>(`weekMemo:${start}`, "");
+    const memo = typeof memoRaw === "string" ? memoRaw : "";
     put("weeks", start, {
       start,
       score: week.score,

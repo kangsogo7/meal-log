@@ -196,7 +196,10 @@ export const DEFAULT_SETTINGS: Settings = { geminiKey: "", geminiModel: "gemini-
 
 export async function getKV<T>(key: string, fallback: T): Promise<T> {
   const row = await db.kv.get(key);
-  return row ? ({ ...fallback, ...(row.value as object) } as T) : fallback;
+  if (!row) return fallback;
+  // 설정 같은 객체는 기본값과 합쳐서(새로 생긴 항목 채우기), 글자·참/거짓·숫자는 저장된 값 그대로
+  const isObj = (v: unknown) => !!v && typeof v === "object" && !Array.isArray(v);
+  return (isObj(fallback) && isObj(row.value) ? { ...fallback, ...(row.value as object) } : row.value) as T;
 }
 export async function setKV(key: string, value: unknown) {
   await db.kv.put({ key, value });

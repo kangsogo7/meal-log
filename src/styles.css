@@ -506,3 +506,4 @@ input.missing { border-color: var(--over); }
 .comment-input button { flex: none; }
 .like-btn { border: none; background: var(--inset); border-radius: 999px; min-height: 40px; width: 40px; padding: 0; font-size: 1.1rem; }
 .leave-btn { display: block; margin: 8px auto 24px; color: var(--muted); }
+.week-memo-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }

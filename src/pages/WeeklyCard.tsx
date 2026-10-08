@@ -137,7 +137,7 @@ function WeekMemo({ start }: { start: string }) {
   useEffect(() => {
     let alive = true;
     setText(null);
-    getKV<string>(key, "").then((v) => alive && setText(v));
+    getKV<unknown>(key, "").then((v) => alive && setText(typeof v === "string" ? v : ""));
     return () => { alive = false; };
   }, [key]);
   useEffect(() => {
@@ -147,12 +147,15 @@ function WeekMemo({ start }: { start: string }) {
   }, [key, text]);
   if (text == null) return null;
   return (
-    <textarea
-      className="week-memo"
-      rows={2}
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      placeholder="내 메모 (예: 다음 주는 주말 외식 줄이기)"
-    />
+    <label className="week-memo-label">
+      내 메모
+      <textarea
+        className="week-memo"
+        rows={2}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="한줄평을 보고 다짐이나 생각을 남겨요 (예: 다음 주는 주말 외식 줄이기)"
+      />
+    </label>
   );
 }
