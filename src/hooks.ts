@@ -33,7 +33,7 @@ export function useTargets(date: string = todayStr()): { target: Nutrients | nul
 }
 
 /** 그날의 목표 (직접 지정 > 계산값, "실제 활동 칼로리 반영"이면 그날 활동 칼로리로) */
-function resolveTarget(profile: Profile | undefined, saved: boolean | undefined, body: BodyRecord | undefined, day: DayActivity | undefined, date: string) {
+export function resolveTarget(profile: Profile | undefined, saved: boolean | undefined, body: BodyRecord | undefined, day: DayActivity | undefined, date: string) {
   const actual = profile?.useActualActivity && day?.activeKcal != null ? { activeKcal: day.activeKcal, isToday: date === todayStr() } : undefined;
   const calc = profile && saved ? calcTargets(profile, body, actual) : null;
   const target = (saved && profile?.override) || calc?.target || null;

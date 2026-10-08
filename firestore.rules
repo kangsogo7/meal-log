@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// 식단 기록 친구 공유 규칙
+// - 내 정보·식단·평가는 나와, 나와 친구로 연결된 사람만 읽을 수 있음
+// - 쓰기는 본인만. 댓글은 볼 수 있는 사람이 자기 이름으로만 남기고, 쓴 사람이나 주인이 지울 수 있음
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isFriend(owner) {
+      return exists(/databases/$(database)/documents/friendships/$(request.auth.uid + '_' + owner))
+        || exists(/databases/$(database)/documents/friendships/$(owner + '_' + request.auth.uid));
+    }
+    function canSee(owner) {
+      return signedIn() && (request.auth.uid == owner || isFriend(owner));
+    }
+
+    match /users/{uid} {
+      allow read: if canSee(uid);
+      allow write: if signedIn() && request.auth.uid == uid;
+
+      match /{kind}/{id} {
+        allow read: if (kind == 'days' || kind == 'weeks') && canSee(uid);
+        allow write: if (kind == 'days' || kind == 'weeks') && signedIn() && request.auth.uid == uid;
+
+        match /comments/{cid} {
+          allow read: if canSee(uid);
+          allow create: if canSee(uid)
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 500;
+          allow delete: if signedIn() && (resource.data.uid == request.auth.uid || request.auth.uid == uid);
+        }
+      }
+    }
+
+    // 초대 코드 → 사용자. 코드를 아는 사람만 찾을 수 있음 (목록 조회 불가)
+    match /codes/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // 친구 연결: 문서 이름은 두 uid를 정렬해 '_'로 이은 것
+    match /friendships/{id} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow create, update: if signedIn()
+        && request.resource.data.members.size() == 2
+        && request.auth.uid in request.resource.data.members
+        && id == request.resource.data.members[0] + '_' + request.resource.data.members[1];
+      allow delete: if signedIn() && request.auth.uid in resource.data.members;
+    }
+  }
+}
