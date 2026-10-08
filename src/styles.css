@@ -491,19 +491,44 @@ input.missing { border-color: var(--over); }
 .verify-btn { align-self: flex-start; padding: 4px 0; }
 .week-memo { width: 100%; resize: vertical; font-size: 16px; /* 16px 미만이면 아이폰이 입력할 때 화면을 확대함 */ background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
 
-/* 친구 */
+.leave-btn { display: block; margin: 8px auto 24px; color: var(--muted); }
+.week-memo-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+
+/* 그룹 */
 .center-pad { text-align: center; padding: 40px 0; }
-.friend-me { display: flex; flex-direction: column; gap: 10px; }
-.friend-name { font-size: 1.1rem; }
-.code-chip { border: 1px dashed var(--border); background: var(--inset); color: var(--text); border-radius: 10px; padding: 6px 12px; min-height: 0; font-weight: 700; letter-spacing: 0.12em; font-variant-numeric: tabular-nums; }
-.friend-list { list-style: none; padding: 0; margin: 0; }
-.friend-list li { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-top: 1px solid var(--border); cursor: pointer; }
-.friend-list li:first-child { border-top: none; }
-.comments { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 10px; }
-.comment { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.9rem; }
+.page-head.row-between { justify-content: space-between; }
+.avatar { flex: none; display: inline-grid; place-items: center; border-radius: 50%; font-weight: 700; font-size: 0.85rem; }
+.avatars { display: flex; gap: 6px; flex-wrap: wrap; }
+.join-card { margin-top: 12px; }
+.group-date { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; text-align: center; margin: 4px 0 12px; }
+.group-date .ghost { color: var(--muted); }
+.member-card { gap: 10px; cursor: pointer; }
+.member-head { display: flex; align-items: center; gap: 10px; }
+.member-head .fc-name { flex: 1; min-width: 0; }
+.meal-chips { display: flex; gap: 6px; flex-wrap: wrap; font-size: 0.82rem; }
+.meal-chips span { background: var(--inset); border-radius: 999px; padding: 4px 10px; }
+.empty-member { background: transparent; border: 1.5px dashed var(--border); cursor: default; }
+.empty-member .fc-name { flex: 1; }
+.group-week { margin-top: 12px; }
+.group-week h2 { margin: 0; }
+.rank { list-style: none; padding: 0; margin: 8px 0 0; }
+.rank li { display: grid; grid-template-columns: 1.5em 1fr auto; gap: 8px; padding: 10px 0; border-top: 1px solid var(--border); align-items: baseline; }
+.rank li:first-child { border-top: none; }
+.invite-box { display: flex; flex-direction: column; gap: 10px; }
+.invite-code { font-size: 1.5rem; letter-spacing: 0.16em; font-variant-numeric: tabular-nums; }
+.member-list { list-style: none; padding: 0; margin: 8px 0 12px; }
+.member-list li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
+.member-list li:first-child { border-top: none; }
+.member-list li b { flex: 1; }
+.danger-text { color: var(--over) !important; }
+.title-2line { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.big-num { font-size: 1.4rem; }
+.member-meal + .member-meal { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; }
+.comments { display: flex; flex-direction: column; gap: 8px; }
+.comment { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.92rem; }
 .comment-input { display: flex; gap: 6px; align-items: center; }
 .comment-input input { flex: 1; min-width: 0; }
 .comment-input button { flex: none; }
-.like-btn { border: none; background: var(--inset); border-radius: 999px; min-height: 40px; width: 40px; padding: 0; font-size: 1.1rem; }
-.leave-btn { display: block; margin: 8px auto 24px; color: var(--muted); }
-.week-memo-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.like-btn { border: none; background: var(--inset); border-radius: 999px; min-height: 44px; width: 44px; padding: 0; font-size: 1.1rem; }
+.like-btn.on { background: var(--accent); }
+.like-count { background: var(--inset); border-radius: 999px; padding: 3px 9px; }

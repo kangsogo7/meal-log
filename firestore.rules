@@ -1,56 +1,74 @@
 rules_version = '2';
 
-// 식단 기록 친구 공유 규칙
-// - 내 정보·식단·평가는 나와, 나와 친구로 연결된 사람만 읽을 수 있음
-// - 쓰기는 본인만. 댓글은 볼 수 있는 사람이 자기 이름으로만 남기고, 쓴 사람이나 주인이 지울 수 있음
+// 식단 기록 그룹 공유 규칙
+// - 그룹 정보와 그룹에 올린 식단·평가·댓글은 그 그룹 멤버만 볼 수 있음
+// - 식단·평가는 본인 것만 올리고 지울 수 있음. 댓글은 멤버가 자기 이름으로만 남기고, 쓴 사람이나 기록 주인이 지울 수 있음
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
       return request.auth != null;
     }
-    function isFriend(owner) {
-      return exists(/databases/$(database)/documents/friendships/$(request.auth.uid + '_' + owner))
-        || exists(/databases/$(database)/documents/friendships/$(owner + '_' + request.auth.uid));
-    }
-    function canSee(owner) {
-      return signedIn() && (request.auth.uid == owner || isFriend(owner));
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    // 내 닉네임 (나만)
     match /users/{uid} {
-      allow read: if canSee(uid);
-      allow write: if signedIn() && request.auth.uid == uid;
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
 
-      match /{kind}/{id} {
-        allow read: if (kind == 'days' || kind == 'weeks') && canSee(uid);
-        allow write: if (kind == 'days' || kind == 'weeks') && signedIn() && request.auth.uid == uid;
+    match /groups/{gid} {
+      function member() {
+        return signedIn() && request.auth.uid in get(/databases/$(database)/documents/groups/$(gid)).data.members;
+      }
+
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn()
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.members == [request.auth.uid];
+      allow update: if signedIn() && (
+        // 멤버가 그룹 이름·멤버 이름·목표 수정
+        (request.auth.uid in resource.data.members
+          && request.resource.data.members == resource.data.members
+          && changed().hasOnly(['name', 'names', 'goals']))
+        // 초대 코드로 참여: 자기 자신만 추가
+        || (!(request.auth.uid in resource.data.members)
+          && request.resource.data.members.toSet() == resource.data.members.toSet().union([request.auth.uid].toSet())
+          && changed().hasOnly(['members', 'names', 'goals']))
+        // 나가기: 자기 자신만 빠짐 (방장이면 다른 멤버에게 넘김)
+        || (request.auth.uid in resource.data.members
+          && request.resource.data.members.toSet() == resource.data.members.toSet().difference([request.auth.uid].toSet())
+          && changed().hasOnly(['members', 'names', 'goals', 'owner']))
+      );
+      // 마지막 멤버가 나가면 그룹 삭제
+      allow delete: if signedIn() && request.auth.uid in resource.data.members && resource.data.members.size() <= 1;
+
+      match /{kind}/{docId} {
+        allow read: if (kind == 'days' || kind == 'weeks') && member();
+        allow create, update: if (kind == 'days' || kind == 'weeks') && member()
+          && request.resource.data.uid == request.auth.uid
+          && docId.matches(request.auth.uid + '_.*');
+        allow delete: if (kind == 'days' || kind == 'weeks') && signedIn() && resource.data.uid == request.auth.uid;
 
         match /comments/{cid} {
-          allow read: if canSee(uid);
-          allow create: if canSee(uid)
+          allow read: if member();
+          allow create: if member()
             && request.resource.data.uid == request.auth.uid
             && request.resource.data.text is string
             && request.resource.data.text.size() > 0
             && request.resource.data.text.size() <= 500;
-          allow delete: if signedIn() && (resource.data.uid == request.auth.uid || request.auth.uid == uid);
+          allow delete: if signedIn() && (resource.data.uid == request.auth.uid || docId.matches(request.auth.uid + '_.*'));
         }
       }
     }
 
-    // 초대 코드 → 사용자. 코드를 아는 사람만 찾을 수 있음 (목록 조회 불가)
+    // 초대 코드 → 그룹. 코드를 아는 사람만 찾을 수 있음 (목록 조회 불가)
     match /codes/{code} {
       allow get: if signedIn();
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
-      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
-    }
-
-    // 친구 연결: 문서 이름은 두 uid를 정렬해 '_'로 이은 것
-    match /friendships/{id} {
-      allow read: if signedIn() && request.auth.uid in resource.data.members;
-      allow create, update: if signedIn()
-        && request.resource.data.members.size() == 2
-        && request.auth.uid in request.resource.data.members
-        && id == request.resource.data.members[0] + '_' + request.resource.data.members[1];
-      allow delete: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn()
+        && getAfter(/databases/$(database)/documents/groups/$(request.resource.data.gid)).data.owner == request.auth.uid;
+      allow delete: if signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.gid)).data.members;
     }
   }
 }
