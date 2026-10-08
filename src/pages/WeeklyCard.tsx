@@ -148,7 +148,7 @@ function WeekMemo({ start }: { start: string }) {
   if (text == null) return null;
   return (
     <label className="week-memo-label">
-      내 메모
+      코멘트
       <textarea
         className="week-memo"
         rows={2}

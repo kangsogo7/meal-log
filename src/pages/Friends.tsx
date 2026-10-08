@@ -282,7 +282,7 @@ function ProfileView({ me, owner, name, onClose, onUnfriend }: { me: Me; owner: 
                     })}
                   </ul>
                 )}
-                {w.ai && <div className="ai-comment"><p>{w.ai}</p>{w.memo && <p className="muted">메모: {w.memo}</p>}</div>}
+                {w.ai && <div className="ai-comment"><p>{w.ai}</p>{w.memo && <p className="muted">코멘트: {w.memo}</p>}</div>}
                 <Comments me={me} owner={owner} kind="weeks" id={w.start} />
               </div>
             )}
