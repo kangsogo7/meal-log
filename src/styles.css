@@ -538,3 +538,7 @@ input.missing { border-color: var(--over); }
 .invite-actions { gap: 8px; }
 .invite-actions button { flex: 1; }
 .invite-help { margin: 0; }
+/* 체중 기록 목록: 수정 버튼은 항상 오른쪽 끝 한 줄 */
+.body-list li { flex-wrap: nowrap; }
+.body-list li > span { flex: 1; min-width: 0; }
+.row-edit { flex: none; white-space: nowrap; min-height: 34px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--inset); color: var(--text); font-size: 0.85rem; font-weight: 600; }

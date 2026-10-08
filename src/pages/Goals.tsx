@@ -103,11 +103,11 @@ export default function Goals() {
         {records.length > 0 && (
           <details>
             <summary className="small">전체 기록 보기</summary>
-            <ul className="mini-list">
+            <ul className="mini-list body-list">
               {[...records].reverse().map((r) => (
                 <li key={r.id}>
                   <span>{r.date} · {r.weight}kg{r.bodyFat ? ` · ${r.bodyFat}%` : ""}{r.muscle ? ` · 근육 ${r.muscle}kg` : ""}</span>
-                  <button className="ghost small" onClick={() => setBodyForm(r)}>수정</button>
+                  <button className="row-edit" onClick={() => setBodyForm(r)}>수정</button>
                 </li>
               ))}
             </ul>
