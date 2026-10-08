@@ -125,6 +125,34 @@ function AiComment({ start, week, goalLabel, entries }: { start: string; week: W
           {busy ? "AI가 보는 중..." : saved?.text ? "기록이 바뀌었어요 · AI 한줄평 다시 받기" : "AI 한줄평 받기"}
         </button>
       )}
+      {saved?.text && <WeekMemo start={start} />}
     </div>
+  );
+}
+
+/** 한줄평에 남기는 내 메모 (주마다 하나, 입력하면 바로 저장) */
+function WeekMemo({ start }: { start: string }) {
+  const key = `weekMemo:${start}`;
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setText(null);
+    getKV<string>(key, "").then((v) => alive && setText(v));
+    return () => { alive = false; };
+  }, [key]);
+  useEffect(() => {
+    if (text == null) return;
+    const t = setTimeout(() => setKV(key, text), 400);
+    return () => clearTimeout(t);
+  }, [key, text]);
+  if (text == null) return null;
+  return (
+    <textarea
+      className="week-memo"
+      rows={2}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      placeholder="내 메모 (예: 다음 주는 주말 외식 줄이기)"
+    />
   );
 }
