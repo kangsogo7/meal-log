@@ -5,7 +5,7 @@ import { GRADE_EMOJI, type Grade } from "../nutrition";
 import { formatDate } from "../db";
 import { weekLabel, CRITERIA, CRITERIA_ORDER } from "../weekly";
 import {
-  addComment, addFriend, createMe, deleteComment, loadMe, loadShared, removeFriend, renameMe, setShare, syncShares,
+  addComment, addFriend, createMe, deleteComment, leave, loadMe, loadShared, removeFriend, renameMe, setShare, syncShares,
   watchComments, watchFriends, type Comment, type Friend, type Me, type SharedDay, type SharedWeek,
 } from "../share";
 
@@ -60,7 +60,7 @@ function Setup({ onDone, error: initialError }: { onDone: (m: Me) => void; error
   );
 }
 
-function Home({ me, setMe }: { me: Me; setMe: (m: Me) => void }) {
+function Home({ me, setMe }: { me: Me; setMe: (m: Me | null) => void }) {
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState("");
@@ -164,6 +164,14 @@ function Home({ me, setMe }: { me: Me; setMe: (m: Me) => void }) {
           ))}
         </ul>
       </section>
+
+      <button className="link small leave-btn" onClick={() => {
+        if (!confirm("친구 기능을 그만 쓸까요? 올린 기록, 친구 연결, 초대 코드가 모두 지워져요. 폰에 있는 기록은 그대로예요.")) return;
+        run("leave", async () => {
+          await leave(me);
+          setMe(null);
+        });
+      }}>친구 기능 그만 쓰기</button>
 
       {view && (
         <ProfileView

@@ -260,3 +260,13 @@ export async function addComment(me: Me, owner: string, kind: "days" | "weeks", 
 export async function deleteComment(owner: string, kind: "days" | "weeks", id: string, cid: string) {
   await deleteDoc(doc(fs, "users", owner, kind, id, "comments", cid));
 }
+
+/** 친구 기능 그만 쓰기: 올린 기록·친구 연결·초대 코드·내 정보를 지우고 로그아웃 */
+export async function leave(me: Me) {
+  await setShare(me, false);
+  const fr = await getDocs(query(collection(fs, "friendships"), where("members", "array-contains", me.uid)));
+  await Promise.all(fr.docs.map((d) => deleteDoc(d.ref)));
+  await deleteDoc(doc(fs, "codes", me.code)).catch(() => {});
+  await deleteDoc(doc(fs, "users", me.uid));
+  await auth.signOut();
+}
