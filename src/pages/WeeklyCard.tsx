@@ -6,6 +6,7 @@ import { useProfile, useSettings, useTargetsFor } from "../hooks";
 import { GOALS, GRADE_EMOJI } from "../nutrition";
 import { WeekChart } from "../components/charts";
 import { GeminiError, weeklyComment } from "../gemini";
+import { runInBackground, useJob } from "../bgJobs";
 import { CRITERIA, CRITERIA_ORDER, evaluateDay, evaluateWeek, weekDays, weekLabel, weekStartOf, type WeekResult } from "../weekly";
 
 const DOW = ["월", "화", "수", "목", "금", "토", "일"];
@@ -103,23 +104,20 @@ function AiComment({ start, week, goalLabel, entries }: { start: string; week: W
     })
     .join("\n");
   const saved = useLiveQuery(() => getKV<{ sig: string; text: string } | null>(key, null), [key]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  // 요청은 뒤에서 진행 (다른 화면으로 가도 계속되고, 끝나면 알림)
+  const { running: busy, error } = useJob(key);
   const fresh = saved && saved.sig === report ? saved.text : null;
 
   if (!settings.geminiKey) return null;
-  const run = async () => {
-    setBusy(true);
-    setError("");
-    try {
-      const text = await weeklyComment(settings, goalLabel, report);
-      await setKV(key, { sig: report, text });
-    } catch (e) {
-      setError(e instanceof GeminiError ? e.message : "AI 한줄평을 받지 못했어요.");
-    } finally {
-      setBusy(false);
-    }
-  };
+  const run = () =>
+    runInBackground(
+      key,
+      async () => {
+        const text = await weeklyComment(settings, goalLabel, report);
+        await setKV(key, { sig: report, text });
+      },
+      { done: "AI 한줄평이 도착했어요", fail: (e) => (e instanceof GeminiError ? e.message : "AI 한줄평을 받지 못했어요.") },
+    );
 
   return (
     <div className="ai-comment">
@@ -127,7 +125,7 @@ function AiComment({ start, week, goalLabel, entries }: { start: string; week: W
       {error && <p className="error small">{error}</p>}
       {!fresh && (
         <button className="block" onClick={run} disabled={busy}>
-          {busy ? "AI가 보는 중..." : saved?.text ? "기록이 바뀌었어요 · AI 한줄평 다시 받기" : "AI 한줄평 받기"}
+          {busy ? "AI가 보는 중... (다른 화면을 써도 돼요)" : saved?.text ? "기록이 바뀌었어요 · AI 한줄평 다시 받기" : "AI 한줄평 받기"}
         </button>
       )}
       {saved?.text && <WeekMemo start={start} />}
