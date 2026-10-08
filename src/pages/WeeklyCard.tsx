@@ -154,7 +154,7 @@ function WeekMemo({ start }: { start: string }) {
         rows={2}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="한줄평을 보고 다짐이나 생각을 남겨요 (예: 다음 주는 주말 외식 줄이기)"
+        placeholder="AI 한줄평에 대한 내 한줄평"
       />
     </label>
   );
