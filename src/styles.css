@@ -532,3 +532,8 @@ input.missing { border-color: var(--over); }
 .like-btn { border: none; background: var(--inset); border-radius: 999px; min-height: 44px; width: 44px; padding: 0; font-size: 1.1rem; }
 .like-btn.on { background: var(--accent); }
 .like-count { background: var(--inset); border-radius: 999px; padding: 3px 9px; }
+.invite-card { display: flex; flex-direction: column; gap: 10px; border: 1.5px solid var(--accent); }
+.invite-card p { margin: 0; }
+.invite-actions { gap: 8px; }
+.invite-actions button { flex: 1; }
+.invite-help { margin: 0; }

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, getKV, todayStr } from "./db";
+import { onInvite, pendingInvite } from "./invite";
 import Today from "./pages/Today";
 import Activity from "./pages/Activity";
 import Goals from "./pages/Goals";
@@ -41,7 +42,9 @@ function useShareSync() {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("today");
+  // 그룹 초대 링크로 열었으면 그룹 탭부터
+  const [tab, setTab] = useState<Tab>(() => (pendingInvite() ? "groups" : "today"));
+  useEffect(() => onInvite(() => setTab("groups")), []);
   useShareSync();
   return (
     <div className="app">

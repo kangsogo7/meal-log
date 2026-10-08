@@ -109,7 +109,7 @@ export async function createGroup(me: Me, name: string): Promise<string> {
 }
 
 /** 초대 코드로 그룹 참여 */
-export async function joinGroup(me: Me, rawCode: string): Promise<string> {
+export async function joinGroup(me: Me, rawCode: string): Promise<{ id: string; name: string }> {
   const code = rawCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
   const c = await getDoc(doc(fs, "codes", code));
   if (!c.exists()) throw new Error("없는 코드예요. 다시 확인해 주세요.");
@@ -121,7 +121,7 @@ export async function joinGroup(me: Me, rawCode: string): Promise<string> {
   });
   await afterMembershipChange();
   const g = await getDoc(doc(fs, "groups", gid));
-  return (g.data()?.name as string) ?? "그룹";
+  return { id: gid, name: (g.data()?.name as string) ?? "그룹" };
 }
 
 export async function renameGroup(g: Group, name: string) {

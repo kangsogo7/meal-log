@@ -4,6 +4,7 @@ import { addDays, formatDate, todayStr } from "../db";
 import { BackIcon, flash, Screen, Sheet } from "../components/ui";
 import { GRADE_EMOJI, type Grade } from "../nutrition";
 import { weekLabel, weekStartOf } from "../weekly";
+import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isNativeApp, isStandalone, onInvite, pendingInvite, type Invite } from "../invite";
 import {
   addComment, createGroup, createMe, deleteComment, joinGroup, leaveAll, leaveGroup, loadMe, renameGroup, renameMe,
   watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchTodayCount,
@@ -32,16 +33,44 @@ function Avatar({ uid, name, size = 32 }: { uid: string; name: string; size?: nu
 export default function Groups() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [error, setError] = useState("");
+  // 초대 링크로 들어온 초대 (참여하거나 닫을 때까지 기억)
+  const [invite, setInvite] = useState<Invite | null>(pendingInvite);
+  const [openFirst, setOpenFirst] = useState<string | null>(null);
+  useEffect(() => onInvite(setInvite), []);
   useEffect(() => {
     loadMe().then(setMe).catch((e) => { setError(errText(e)); setMe(null); });
   }, []);
+  const dismiss = () => {
+    clearInvite();
+    setInvite(null);
+  };
 
   if (me === undefined) return <p className="muted small center-pad">불러오는 중...</p>;
-  if (!me) return <Setup onDone={setMe} error={error} />;
-  return <Home me={me} setMe={setMe} />;
+  if (!me) return <Setup invite={invite} onDone={(m, gid) => { if (gid) { dismiss(); setOpenFirst(gid); } setMe(m); }} error={error} />;
+  return <Home me={me} setMe={setMe} invite={invite} dismiss={dismiss} openFirst={openFirst} />;
 }
 
-function Setup({ onDone, error: initialError }: { onDone: (m: Me) => void; error: string }) {
+/** 브라우저로 초대 링크를 열었을 때: 홈 화면 앱(아이폰)이나 설치한 앱(안드로이드)에서 참여하도록 안내 */
+function InviteHelp({ invite }: { invite: Invite }) {
+  if (isNativeApp()) return null;
+  if (isAndroid()) {
+    return (
+      <p className="small invite-help">
+        식단 기록 앱을 설치했다면 <a className="link" href={androidAppLink(invite)}>앱에서 열기</a>
+      </p>
+    );
+  }
+  if (isIOS() && !isStandalone()) {
+    return (
+      <p className="muted small invite-help">
+        홈 화면에 추가한 앱을 쓰고 있다면, 그 앱의 그룹 탭에서 코드 <b>{invite.code}</b>를 입력해 주세요. 사파리와 홈 화면 앱은 기록이 따로 저장돼요.
+      </p>
+    );
+  }
+  return null;
+}
+
+function Setup({ invite, onDone, error: initialError }: { invite: Invite | null; onDone: (m: Me, gid?: string) => void; error: string }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
@@ -50,7 +79,10 @@ function Setup({ onDone, error: initialError }: { onDone: (m: Me) => void; error
     setBusy(true);
     setError("");
     try {
-      onDone(await createMe(name.trim()));
+      const m = await createMe(name.trim());
+      const joined = invite ? await joinGroup(m, invite.code) : null;
+      if (joined) flash(`${joined.name} 그룹에 들어왔어요`);
+      onDone(m, joined?.id);
     } catch (e) {
       setError(errText(e));
     } finally {
@@ -61,23 +93,30 @@ function Setup({ onDone, error: initialError }: { onDone: (m: Me) => void; error
     <>
       <header className="page-head"><h1>그룹</h1></header>
       <section className="card form">
-        <p className="small">그룹을 만들어 멤버를 초대하면, 서로의 하루 식단을 날짜별로 보고 댓글을 남길 수 있어요.</p>
+        {invite ? (
+          <>
+            <p><b>{invite.group || "식단"}</b> 그룹 초대를 받았어요. 닉네임만 정하면 바로 들어가요.</p>
+            <InviteHelp invite={invite} />
+          </>
+        ) : (
+          <p className="small">그룹을 만들어 멤버를 초대하면, 서로의 하루 식단을 날짜별로 보고 댓글을 남길 수 있어요.</p>
+        )}
         <label>닉네임
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="그룹에 보일 이름" maxLength={20} />
         </label>
         {error && <p className="error small">{error}</p>}
-        <button className="primary block" onClick={start} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : "시작하기"}</button>
+        <button className="primary block" onClick={start} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : invite ? "시작하고 참여하기" : "시작하기"}</button>
       </section>
     </>
   );
 }
 
-function Home({ me, setMe }: { me: Me; setMe: (m: Me | null) => void }) {
+function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me | null) => void; invite: Invite | null; dismiss: () => void; openFirst: string | null }) {
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(openFirst);
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(me.name);
@@ -102,6 +141,31 @@ function Home({ me, setMe }: { me: Me; setMe: (m: Me | null) => void }) {
         <h1>그룹</h1>
         <button className="chip primary" onClick={() => setCreating(true)}>+ 새 그룹</button>
       </header>
+
+      {invite && (
+        <section className="card invite-card">
+          {groups?.some((g) => g.code === invite.code) ? (
+            <>
+              <p><b>{invite.group || "이"}</b> 그룹에 이미 들어가 있어요.</p>
+              <button className="primary block" onClick={() => { const g = groups.find((x) => x.code === invite.code)!; dismiss(); setOpen(g.id); }}>그룹 열기</button>
+            </>
+          ) : (
+            <>
+              <p><b>{invite.group || "식단"}</b> 그룹 초대를 받았어요.</p>
+              <InviteHelp invite={invite} />
+              <div className="row-between invite-actions">
+                <button onClick={dismiss}>나중에</button>
+                <button className="primary" disabled={busy === "invite"} onClick={() => run("invite", async () => {
+                  const g = await joinGroup(me, invite.code);
+                  dismiss();
+                  flash(`${g.name} 그룹에 들어왔어요`);
+                  setOpen(g.id);
+                })}>{busy === "invite" ? "참여하는 중..." : "참여하기"}</button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       <section className="card row-between">
         {renaming ? (
@@ -134,9 +198,10 @@ function Home({ me, setMe }: { me: Me; setMe: (m: Me | null) => void }) {
           <div className="input-with-star">
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="6자리 코드" maxLength={8} autoCapitalize="characters" />
             <button className="primary" disabled={busy === "join" || code.trim().length < 6} onClick={() => run("join", async () => {
-              const n = await joinGroup(me, code);
+              const g = await joinGroup(me, code);
               setCode("");
-              flash(`${n} 그룹에 들어왔어요`);
+              flash(`${g.name} 그룹에 들어왔어요`);
+              setOpen(g.id);
             })}>참여</button>
           </div>
         </label>
@@ -310,7 +375,10 @@ function MembersSheet({ me, group, onClose }: { me: Me; group: Group; onClose: (
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(group.name);
   const [error, setError] = useState("");
-  const invite = `"${group.name}" 식단 그룹에 초대해요. 식단 기록 앱의 그룹 탭에서 코드 ${group.code} 를 입력하세요.`;
+  const link = inviteLink(group.code, group.name);
+  const invite = `"${group.name}" 식단 그룹에 초대해요. 링크를 누르면 바로 들어올 수 있어요.
+${link}
+(앱 그룹 탭에서 코드 ${group.code} 입력해도 돼요)`;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(group.code);
@@ -321,7 +389,7 @@ function MembersSheet({ me, group, onClose }: { me: Me; group: Group; onClose: (
   };
   const share = async () => {
     try {
-      if (navigator.share) await navigator.share({ text: invite });
+      if (navigator.share) await navigator.share({ title: "식단 그룹 초대", text: invite });
       else {
         await navigator.clipboard.writeText(invite);
         flash("초대 문구를 복사했어요");
