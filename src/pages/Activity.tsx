@@ -60,11 +60,11 @@ export default function Activity() {
 
       <section className="card">
         <h2>최근 7일 걸음</h2>
-        <WeekChart days={days} values={days.map((d) => byDate(d)?.steps ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 걸음 수" unit="보" />
+        <WeekChart days={days} values={days.map((d) => byDate(d)?.steps ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 걸음 수" unit="보" showAll />
       </section>
       <section className="card">
         <h2>최근 7일 활동 칼로리</h2>
-        <WeekChart days={days} values={days.map((d) => byDate(d)?.activeKcal ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 활동 칼로리" />
+        <WeekChart days={days} values={days.map((d) => byDate(d)?.activeKcal ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 활동 칼로리" showAll />
       </section>
 
       <SyncCard mode={mode} lastSync={last?.syncedAt} />

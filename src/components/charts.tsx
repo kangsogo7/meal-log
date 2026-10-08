@@ -2,8 +2,12 @@ import { useState } from "react";
 
 /** 최근 7일 막대 + 목표선. 막대를 누르면 그 날짜로 이동 */
 export function WeekChart({
-  days, values, goal, selected, onSelect, label = "최근 7일 섭취 칼로리", unit = "kcal",
-}: { days: string[]; values: number[]; goal: number | null; selected: string; onSelect: (d: string) => void; label?: string; unit?: string }) {
+  days, values, goal, selected, onSelect, label = "최근 7일 섭취 칼로리", unit = "kcal", showAll = false,
+}: {
+  days: string[]; values: number[]; goal: number | null; selected: string; onSelect: (d: string) => void; label?: string; unit?: string;
+  /** 모든 막대 위에 값 표시 (기본은 고른 날만) */
+  showAll?: boolean;
+}) {
   const W = 340, H = 150, top = 18, bottom = 24, gap = 10;
   const plotH = H - top - bottom;
   const max = Math.max(goal ? goal * 1.2 : 0, ...values, 1);
@@ -29,8 +33,8 @@ export function WeekChart({
               className={over ? "bar over" : "bar"}
               opacity={sel ? 1 : 0.55}
             />
-            {sel && v > 0 && (
-              <text x={x + bw / 2} y={top + plotH - h - 5} textAnchor="middle" className="val">{v.toLocaleString()}</text>
+            {(sel || showAll) && v > 0 && (
+              <text x={x + bw / 2} y={top + plotH - h - 5} textAnchor="middle" className={sel ? "val" : "val dim"}>{v.toLocaleString()}</text>
             )}
             <text x={x + bw / 2} y={H - 6} textAnchor="middle" className={sel ? "tick sel" : "tick"}>{`${m}/${day}`}</text>
           </g>

@@ -180,6 +180,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .chart .tick { fill: var(--muted); font-size: 11px; }
 .chart .tick.sel { fill: var(--text); font-weight: 700; }
 .chart .val { fill: var(--text); font-size: 12px; font-weight: 600; }
+.chart .val.dim { fill: var(--muted); font-size: 10.5px; font-weight: 500; }
 .chart .line { stroke: var(--accent); stroke-width: 2; }
 .chart .dot { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
 
