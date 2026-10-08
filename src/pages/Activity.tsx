@@ -18,10 +18,13 @@ const agoText = (t: number) => {
 export default function Activity() {
   const [date, setDate] = useState(todayStr());
   const mode = healthMode();
-  const weekStart = addDays(date, -6);
-  const week = useLiveQuery(() => db.activity.where("date").between(weekStart, date, true, true).toArray(), [weekStart, date], []);
+  // 그래프는 고른 날짜와 상관없이 항상 오늘까지 최근 7일
+  const today = todayStr();
+  const weekStart = addDays(today, -6);
+  const week = useLiveQuery(() => db.activity.where("date").between(weekStart, today, true, true).toArray(), [weekStart, today], []);
+  const dayRow = useLiveQuery(() => db.activity.get(date), [date]);
   const last = useLiveQuery(() => db.activity.orderBy("date").last(), []);
-  const day: DayActivity | undefined = week.find((d) => d.date === date);
+  const day: DayActivity | undefined = dayRow;
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const byDate = (d: string) => week.find((w) => w.date === d);
   // 운동 시간: 아이폰 "운동하기 시간"이 있으면 그것, 없으면 운동 기록 합계
