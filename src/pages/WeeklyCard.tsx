@@ -1,5 +1,5 @@
 // 식단 화면 아래: 주간 평가 (월~일)
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, getKV, MEALS, setKV } from "../db";
 import { useProfile, useSettings, useTargetsFor } from "../hooks";
@@ -10,7 +10,22 @@ import { CRITERIA, CRITERIA_ORDER, evaluateDay, evaluateWeek, weekDays, weekLabe
 
 const DOW = ["월", "화", "수", "목", "금", "토", "일"];
 
-export default function WeeklyCard({ date, onSelect }: { date: string; onSelect: (d: string) => void }) {
+export default function WeeklyCard({ date, onSelect: select }: { date: string; onSelect: (d: string) => void }) {
+  const cardRef = useRef<HTMLElement>(null);
+  // 여기서 날짜를 고르면 위쪽 식단 내용이 바뀌며 화면이 밀리는데, 이 카드가 화면의 같은 자리에 그대로 있게 잡아 둠
+  const onSelect = (d: string) => {
+    const el = cardRef.current;
+    if (!el) return select(d);
+    const top = el.getBoundingClientRect().top;
+    select(d);
+    const until = performance.now() + 800; // 그날 기록을 불러와 그려질 때까지
+    const hold = () => {
+      const now = el.getBoundingClientRect().top;
+      if (Math.abs(now - top) > 0.5) window.scrollBy(0, now - top);
+      if (performance.now() < until) setTimeout(hold, 16);
+    };
+    setTimeout(hold, 0);
+  };
   const [start, setStart] = useState(() => weekStartOf(date));
   // 위에서 날짜를 바꾸면 그 날짜가 있는 주로
   useEffect(() => setStart(weekStartOf(date)), [date]);
@@ -25,7 +40,7 @@ export default function WeeklyCard({ date, onSelect }: { date: string; onSelect:
   const goalKcal = goals.length ? Math.round(goals.reduce((a, b) => a + b, 0) / goals.length) : null;
 
   return (
-    <section className="card weekly">
+    <section className="card weekly" ref={cardRef}>
       <div className="weekly-head">
         <h2>주간 평가</h2>
         <div className="week-nav">
