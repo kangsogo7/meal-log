@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { baseServing, db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
 import { flash, Sheet } from "../components/ui";
 import SearchForm from "./SearchForm";
@@ -34,9 +34,35 @@ export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: strin
   await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: base, total: sumNutrients(base.map((i) => i.nutrients)), uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
 }
 
-export default function AddSheet({ date, meal: initialMeal, onClose }: { date: string; meal: Meal; onClose: () => void }) {
+// 기록 창을 연 채 홈 화면에 갔다가 폰이 앱을 정리해도, 30분 안에 돌아오면 쓰던 그대로 다시 열기
+const DRAFT_KEY = "meal-log-add-draft";
+export interface AddDraft { date: string; meal: Meal; mode: Mode; query: string; at: number }
+export function loadAddDraft(): AddDraft | null {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null") as AddDraft | null;
+    return d && Date.now() - d.at < 30 * 60 * 1000 ? d : null;
+  } catch {
+    return null;
+  }
+}
+const saveAddDraft = (d: AddDraft | null) => {
+  try {
+    if (d) localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    else localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* 저장 못 해도 기록에는 영향 없음 */
+  }
+};
+
+export default function AddSheet({ date, meal: initialMeal, onClose: close, restore }: { date: string; meal: Meal; onClose: () => void; restore?: AddDraft | null }) {
+  const onClose = () => {
+    saveAddDraft(null);
+    close();
+  };
   const [meal, setMeal] = useState<Meal>(initialMeal);
-  const [mode, setMode] = useState<Mode>("fav");
+  const [mode, setMode] = useState<Mode>(restore?.mode ?? "fav");
+  const [query, setQuery] = useState(restore?.query ?? "");
+  useEffect(() => saveAddDraft({ date, meal, mode, query, at: Date.now() }), [date, meal, mode, query]);
   // 즐겨찾기·세트에서 담은 것 (탭을 오가도 유지)
   const [cart, setCart] = useState<CartItem[]>([]);
   const toggle = (c: CartItem) => setCart((p) => (p.some((x) => x.id === c.id) ? p.filter((x) => x.id !== c.id) : [...p, c]));
@@ -101,9 +127,9 @@ export default function AddSheet({ date, meal: initialMeal, onClose }: { date: s
               <button className="link small" onClick={() => setMode("manual")}>직접 입력</button>
             </div>
           )}
-          {mode === "out" && <SearchForm key="out" kind="out" onSave={onSave} />}
+          {mode === "out" && <SearchForm key="out" kind="out" onSave={onSave} initialQuery={restore?.mode === "out" ? restore.query : ""} onQueryChange={setQuery} />}
           {mode === "home" && <HomeForm onSave={onSave} />}
-          {mode === "food" && <SearchForm key="food" kind="food" onSave={onSave} />}
+          {mode === "food" && <SearchForm key="food" kind="food" onSave={onSave} initialQuery={restore?.mode === "food" ? restore.query : ""} onQueryChange={setQuery} />}
           {mode === "fav" && <FavoritesTab cart={cart} toggle={toggle} put={put} />}
           {mode === "sets" && <SetsTab cart={cart} toggle={toggle} />}
         </>

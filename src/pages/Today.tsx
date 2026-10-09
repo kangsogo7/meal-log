@@ -4,7 +4,7 @@ import { db, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } 
 import { useProfile, useTargets } from "../hooks";
 import { DateNav, NutrientLine, Progress } from "../components/ui";
 import { evaluateMeal, GOALS, GRADE_EMOJI, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
-import AddSheet from "./AddSheet";
+import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
@@ -27,8 +27,10 @@ async function saveAsSet(mealLabel: string, list: Entry[]) {
 }
 
 export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
-  const [date, setDate] = useState(todayStr());
-  const [adding, setAdding] = useState<Meal | null>(null);
+  // 쓰던 기록 창이 있으면(앱이 다시 시작된 경우) 그대로 다시 열기
+  const [restore, setRestore] = useState<AddDraft | null>(loadAddDraft);
+  const [date, setDate] = useState(restore?.date ?? todayStr());
+  const [adding, setAdding] = useState<Meal | null>(restore?.meal ?? null);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [openEval, setOpenEval] = useState<Meal | null>(null);
   const { target } = useTargets(date);
@@ -113,7 +115,7 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
 
       <WeeklyCard date={date} onSelect={setDate} />
 
-      {adding && <AddSheet date={date} meal={adding} onClose={() => setAdding(null)} />}
+      {adding && <AddSheet date={date} meal={adding} restore={restore?.meal === adding ? restore : null} onClose={() => { setAdding(null); setRestore(null); }} />}
       {editing && <EntrySheet entry={editing} onClose={() => setEditing(null)} />}
     </>
   );
