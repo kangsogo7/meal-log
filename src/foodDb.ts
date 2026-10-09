@@ -9,12 +9,44 @@ export interface Food {
   serving: number; // 1회 제공량(g), 모르면 0
   pkg?: number; // 제품 포장 중량(g)
   group: string;
-  /** 지방/탄수화물 값이 비어 있는 프랜차이즈 데이터 */
+  /** 프랜차이즈 영양 표시에 탄수화물·지방이 없어서(의무 표시 항목이 아님) 추정값으로 채운 메뉴 */
   partial: boolean;
   norm: string;
 }
 
 let foods: Food[] | null = null;
+
+const median = (a: number[]) => {
+  const s = [...a].sort((x, y) => x - y);
+  return s[Math.floor(s.length / 2)];
+};
+
+/**
+ * 프랜차이즈 메뉴 상당수는 식약처 DB에 칼로리·단백질·당류·나트륨만 있고 탄수화물·지방이 비어 있음.
+ * 칼로리에서 단백질 몫을 뺀 나머지를, 같은 종류(대표식품명, 예: 햄버거) 음식들의 평균 탄수화물:지방 칼로리 비율로 나눠 채움.
+ */
+function fillMissingMacros(list: Food[]) {
+  const ratios = new Map<string, number[]>();
+  const all: number[] = [];
+  for (const f of list) {
+    const c = f.per100.carb * 4, ft = f.per100.fat * 9;
+    if (f.partial || f.per100.kcal <= 50 || c + ft <= 0) continue;
+    const share = ft / (c + ft);
+    all.push(share);
+    if (!ratios.has(f.group)) ratios.set(f.group, []);
+    ratios.get(f.group)!.push(share);
+  }
+  const global = all.length ? median(all) : 0.45;
+  for (const f of list) {
+    if (!f.partial) continue;
+    const g = ratios.get(f.group);
+    const fatShare = g && g.length >= 3 ? median(g) : global;
+    const rest = Math.max(0, f.per100.kcal - f.per100.protein * 4);
+    const r1 = (v: number) => Math.round(v * 10) / 10;
+    f.per100.fat = r1((rest * fatShare) / 9);
+    f.per100.carb = r1(Math.max(f.per100.sugar ?? 0, (rest * (1 - fatShare)) / 4));
+  }
+}
 let loading: Promise<Food[]> | null = null;
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s_()\[\],·]/g, "");
@@ -44,6 +76,7 @@ export function loadFoodDb(): Promise<Food[]> {
           norm: norm(name),
         });
       }
+      fillMissingMacros(list);
       foods = list;
       return list;
     })
