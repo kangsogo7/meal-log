@@ -41,6 +41,8 @@ const qty = (s) => {
   const m = String(s ?? "").match(/[\d.]+/);
   return m ? Number(m[0]) : null;
 };
+/** 원본에 값이 아예 없으면 -1 (0과 구분: 앱이 추정해서 채움) */
+const nb = (v, k) => (v === null || v === undefined || String(v).trim() === "" ? -1 : n(Number(v) * k));
 const n = (v) => {
   const x = Number(v);
   return Number.isFinite(x) ? Math.round(x * 10) / 10 : 0;
@@ -59,13 +61,14 @@ for (const { pk, kind } of DATASETS) {
       kind === "raw" ? 0 : 1, // 1 종류: 0=식재료, 1=음식
       rest && rest !== "해당없음" ? rest : "", // 2 업체명
       n(r.ENERC * k), // 3 kcal / 100g
-      n(r.CHOCDF * k), // 4 탄수화물
+      nb(r.CHOCDF, k), // 4 탄수화물 (없으면 -1)
       n(r.PROT * k), // 5 단백질
-      n(r.FATCE * k), // 6 지방
+      nb(r.FATCE, k), // 6 지방 (없으면 -1)
       n(r.SUGAR * k), // 7 당류
       n(r.NAT * k), // 8 나트륨(mg)
       qty(r.SERV_SIZE) || qty(r.FOOD_SIZE) || 0, // 9 1회 제공량(g), 없으면 0
       (r.FOOD_LV4_NM ?? "").trim(), // 10 대표식품명
+      nb(r.FASAT, k), // 11 포화지방 (없으면 -1, 지방 추정에 씀)
     ]);
   }
 }
@@ -104,14 +107,14 @@ const median = (xs) => {
 for (const [name, rows] of groups) {
   if (rows.length < 3) continue;
   const col = (i) => n(median(rows.map((r) => r[i])));
-  foods.push([name, 0, "", col(0), col(1), col(2), col(3), col(4), col(5), 0, `가공식품 ${rows.length}개 평균`]);
+  foods.push([name, 0, "", col(0), col(1), col(2), col(3), col(4), col(5), 0, `가공식품 ${rows.length}개 평균`, -1]);
 }
 
 await mkdir("public", { recursive: true });
 const out = {
   source: "식품의약품안전처 전국통합식품영양성분정보 표준데이터 (공공데이터포털)",
   builtAt: new Date().toISOString().slice(0, 10),
-  fields: ["name", "kind", "brand", "kcal", "carb", "protein", "fat", "sugar", "sodium", "serving", "group"],
+  fields: ["name", "kind", "brand", "kcal", "carb(-1=없음)", "protein", "fat(-1=없음)", "sugar", "sodium", "serving", "group", "satFat(-1=없음)"],
   foods,
 };
 await writeFile("public/food-db.json", JSON.stringify(out));

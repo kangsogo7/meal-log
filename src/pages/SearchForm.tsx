@@ -179,7 +179,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
       place: f.brand || (kind === "out" ? place : undefined),
       source: "db", matchName: f.name,
       portion: makePortion(scaleNutrients(f.per100, grams / 100), grams),
-      note: f.partial ? "이 메뉴는 식약처 DB에 탄수화물·지방 값이 없어서, 같은 종류 음식의 평균 비율로 추정했어요. 더 정확한 값은 AI로 찾기를 눌러 보세요." : undefined,
+      note: f.partial ? "식약처 DB에 탄수화물·지방 값이 없어서, 이 메뉴의 칼로리·단백질·포화지방과 같은 종류 음식의 비율로 추정했어요. 더 정확한 값은 AI로 찾기를 눌러 보세요." : undefined,
     };
   };
 
@@ -225,7 +225,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
           {results.map((f, i) => (
             <ResultButton
               key={`${f.name}|${f.brand}|${i}`}
-              label={foodLabel(f) + (f.partial ? " · 탄·지 추정" : "")}
+              label={foodLabel(f)}
               n={scaleNutrients(f.per100, listGrams(f) / 100)}
               suffix={`${listGrams(f)}g`}
               selected={choice?.id === `db${i}`}

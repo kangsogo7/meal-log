@@ -22,29 +22,76 @@ const median = (a: number[]) => {
 };
 
 /**
- * 프랜차이즈 메뉴 상당수는 식약처 DB에 칼로리·단백질·당류·나트륨만 있고 탄수화물·지방이 비어 있음.
- * 칼로리에서 단백질 몫을 뺀 나머지를, 같은 종류(대표식품명, 예: 햄버거) 음식들의 평균 탄수화물:지방 칼로리 비율로 나눠 채움.
+ * 원본 DB에 탄수화물·지방이 비어 있는 음식(대부분 프랜차이즈: 의무 표시 항목이 아님)을 그 음식 값에 맞게 추정해 채움.
+ * - 칼로리·단백질·당류·포화지방은 원본 값 그대로 씀
+ * - 지방: ① 포화지방 ÷ (같은 종류 음식의 "포화지방/지방" 비율)과 ② 같은 종류 음식의 지방 칼로리 비율을 평균.
+ *   원본 값이 틀린 경우(포화지방이 비정상적으로 큰 등)에 휘둘리지 않게, 같은 종류 음식들의 흔한 범위(20~80%) 안으로 맞춤
+ * - 탄수화물: 칼로리에서 단백질·지방 몫을 뺀 나머지 (당류보다 적지 않게)
+ * 추정한 음식은 이름 끝에 "(추정)"을 붙임
  */
-function fillMissingMacros(list: Food[]) {
-  const ratios = new Map<string, number[]>();
-  const all: number[] = [];
+function fillMissingMacros(list: Food[], sat: Map<Food, number>) {
+  const satRatio = new Map<string, number[]>();
+  const fatShare = new Map<string, number[]>();
+  const allSat: number[] = [];
+  const allShare: number[] = [];
+  const add = (m: Map<string, number[]>, k: string, v: number) => {
+    if (!m.has(k)) m.set(k, []);
+    m.get(k)!.push(v);
+  };
   for (const f of list) {
-    const c = f.per100.carb * 4, ft = f.per100.fat * 9;
-    if (f.partial || f.per100.kcal <= 50 || c + ft <= 0) continue;
-    const share = ft / (c + ft);
-    all.push(share);
-    if (!ratios.has(f.group)) ratios.set(f.group, []);
-    ratios.get(f.group)!.push(share);
+    const { kcal, carb, fat } = f.per100;
+    if (f.partial || kcal <= 50) continue;
+    if (carb * 4 + fat * 9 > 0) {
+      const share = (fat * 9) / (carb * 4 + fat * 9);
+      add(fatShare, f.group, share);
+      allShare.push(share);
+    }
+    const sf = sat.get(f) ?? -1;
+    if (sf > 0 && fat > 0 && sf <= fat) {
+      add(satRatio, f.group, sf / fat);
+      allSat.push(sf / fat);
+    }
   }
-  const global = all.length ? median(all) : 0.45;
+  const pick = (m: Map<string, number[]>, k: string, fallback: number) => {
+    const g = m.get(k);
+    return g && g.length >= 3 ? median(g) : fallback;
+  };
+  /** 같은 종류 음식의 지방 칼로리 비율 범위 (하위 20% ~ 상위 20%) */
+  const shareRange = (k: string): [number, number] => {
+    const g = fatShare.get(k);
+    if (!g || g.length < 5) return [0.25, 0.65];
+    const s = [...g].sort((a, b) => a - b);
+    return [s[Math.floor(s.length * 0.2)], s[Math.floor(s.length * 0.8)]];
+  };
+  const globalSat = allSat.length ? median(allSat) : 0.35;
+  const globalShare = allShare.length ? median(allShare) : 0.45;
+  const r1 = (v: number) => Math.round(Math.max(0, v) * 10) / 10;
+
   for (const f of list) {
     if (!f.partial) continue;
-    const g = ratios.get(f.group);
-    const fatShare = g && g.length >= 3 ? median(g) : global;
-    const rest = Math.max(0, f.per100.kcal - f.per100.protein * 4);
-    const r1 = (v: number) => Math.round(v * 10) / 10;
-    f.per100.fat = r1((rest * fatShare) / 9);
-    f.per100.carb = r1(Math.max(f.per100.sugar ?? 0, (rest * (1 - fatShare)) / 4));
+    const n = f.per100;
+    const sugar = n.sugar ?? 0;
+    const sf = Math.max(0, sat.get(f) ?? -1);
+    const rest = Math.max(0, n.kcal - n.protein * 4); // 탄수화물+지방 몫의 칼로리
+    let carb = n.carb;
+    let fat = n.fat;
+    if (carb >= 0 && fat < 0) fat = Math.max(sf, (rest - carb * 4) / 9);
+    else if (fat >= 0 && carb < 0) carb = Math.max(sugar, (rest - fat * 9) / 4);
+    else {
+      const byShare = (rest * pick(fatShare, f.group, globalShare)) / 9;
+      fat = sf > 0 ? (sf / pick(satRatio, f.group, globalSat) + byShare) / 2 : byShare;
+      const [lo, hi] = shareRange(f.group);
+      fat = Math.min(Math.max(fat, (rest * lo) / 9), (rest * hi) / 9);
+      fat = Math.min(Math.max(fat, sf), (rest * 0.95) / 9);
+      carb = (rest - fat * 9) / 4;
+      if (carb < sugar) {
+        carb = sugar;
+        fat = Math.max(sf, (rest - carb * 4) / 9);
+      }
+    }
+    n.carb = r1(carb);
+    n.fat = r1(fat);
+    f.name += " (추정)";
   }
 }
 let loading: Promise<Food[]> | null = null;
@@ -61,22 +108,26 @@ export function loadFoodDb(): Promise<Food[]> {
     .then((data: { foods: (string | number)[][] }) => {
       const seen = new Set<string>();
       const list: Food[] = [];
+      const sat = new Map<Food, number>();
       for (const r of data.foods) {
-        const [name, kind, brand, kcal, carb, protein, fat, sugar, sodium, serving, group] = r as [
-          string, 0 | 1, string, number, number, number, number, number, number, number, string,
+        const [name, kind, brand, kcal, carb, protein, fat, sugar, sodium, serving, group, satFat = -1] = r as [
+          string, 0 | 1, string, number, number, number, number, number, number, number, string, number?,
         ];
         if (!kcal) continue;
         const dup = `${name}|${brand}`;
         if (seen.has(dup)) continue; // 같은 이름은 첫 번째 값만 사용
         seen.add(dup);
-        list.push({
+        const food: Food = {
           name, kind, brand, serving, group,
           per100: { kcal, carb, protein, fat, sugar, sodium },
-          partial: !!brand && carb === 0 && fat === 0 && kcal > 50,
+          // 원본에 탄수화물·지방이 없음(-1). 예전 형식 DB는 둘 다 0인 외식 메뉴
+          partial: carb < 0 || fat < 0 || (!!brand && carb === 0 && fat === 0 && kcal > 50),
           norm: norm(name),
-        });
+        };
+        sat.set(food, satFat);
+        list.push(food);
       }
-      fillMissingMacros(list);
+      fillMissingMacros(list, sat);
       foods = list;
       return list;
     })
@@ -252,7 +303,7 @@ export function searchFoods(list: Food[], query: string, opts: SearchOptions = {
     if (hit === 0 || (hasCore && !coreHit)) continue;
 
     let s = hit * 15 - (tokens.length - hit) * 20;
-    const parts = f.name.split("_").map(norm);
+    const parts = f.name.replace(/ (추정)$/, "").split("_").map(norm);
     if (f.norm === whole || parts.includes(whole)) s += 60;
     if (parts[0] === tokens[0]) s += 35;
     if (norm(f.group) === tokens[0]) s += 20;
