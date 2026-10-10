@@ -151,6 +151,27 @@ export function NutrientLine({ n }: { n: Nutrients }) {
 }
 const fmt = (v: number) => `${Math.round(v * 10) / 10}g`;
 
+/** 영양성분 한눈에: 칼로리 크게 + 탄·단·지(색 점)·나트륨 칸 */
+export function NutrientGrid({ n }: { n: Nutrients }) {
+  const cell = (cls: string, label: string, value: string) => (
+    <div className={`ng-cell ${cls}`}>
+      <span className="ng-label"><i aria-hidden />{label}</span>
+      <b>{value}</b>
+    </div>
+  );
+  return (
+    <div className="ngrid-sum">
+      <div className="ng-kcal"><b>{Math.round(n.kcal).toLocaleString()}</b><span className="muted"> kcal</span></div>
+      <div className="ng-cells">
+        {cell("carb", "탄수화물", fmt(n.carb))}
+        {cell("protein", "단백질", fmt(n.protein))}
+        {cell("fat", "지방", fmt(n.fat))}
+        {cell("sodium", "나트륨", `${Math.round(n.sodium ?? 0).toLocaleString()}mg`)}
+      </div>
+    </div>
+  );
+}
+
 /** 목표 대비 진행 막대 */
 export function Progress({ label, value, target, unit, className }: { label: string; value: number; target?: number | null; unit: string; className?: string }) {
   const pct = target ? Math.min(100, (value / target) * 100) : 0;

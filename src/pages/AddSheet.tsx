@@ -123,9 +123,15 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
             음식 검색 (가게·메뉴·식품)
           </button>
-          <div className="quick-links">
-            <button className="link small" onClick={() => setMode("home")}>재료로 직접 (조리)</button>
-            <button className="link small" onClick={() => setMode("manual")}>숫자로 직접 입력</button>
+          <div className="quick-modes">
+            <button onClick={() => setMode("home")}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
+              <span><b>재료로 직접</b><small>집밥·요리 재료 입력</small></span>
+            </button>
+            <button onClick={() => setMode("manual")}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2" /></svg>
+              <span><b>숫자로 입력</b><small>칼로리·탄단지 직접</small></span>
+            </button>
           </div>
           {extras.length > 0 && (
             <div className="cart-extras">

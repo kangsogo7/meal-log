@@ -1,45 +1,13 @@
-// 기록하기 첫 화면: 자주 먹는 것·즐겨찾기 폴더·세트·최근을 카드로. 한 번 누르면 담기, 길게 누르면 양 조절
-import { useRef, useState } from "react";
+// 기록하기 첫 화면: 자주 먹는 것·즐겨찾기 폴더·세트·최근을 카드로. 카드를 누르면 양·영양성분을 보고 담기, 모서리 +는 바로 담기
+import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, folderEmoji, type SavedFood } from "../db";
-import { NutrientLine, Sheet } from "../components/ui";
+import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
+import { NutrientGrid, Sheet } from "../components/ui";
 import { AmountEditor, portionNutrients, storedPortion, type Portion } from "../portion";
 import { FolderScreen, FoodEditScreen, savedDraft, servingLine, SetEditScreen, type CartItem } from "./FavoritesTab";
 import { SavedFoodEditSheet, SetComposeScreen } from "./FavEditors";
 
 type Source = { kind: "often" } | { kind: "group"; id: number } | { kind: "sets" } | { kind: "recent" };
-
-const LONG_PRESS_MS = 450;
-
-/** 누르면 담기, 길게 누르면 onLong (스크롤하려고 움직이면 취소) */
-function usePress(onTap: () => void, onLong: () => void) {
-  const timer = useRef<number>(0);
-  const fired = useRef(false);
-  const start = useRef<{ x: number; y: number } | null>(null);
-  const cancel = () => {
-    clearTimeout(timer.current);
-    start.current = null;
-  };
-  return {
-    onPointerDown: (e: React.PointerEvent) => {
-      fired.current = false;
-      start.current = { x: e.clientX, y: e.clientY };
-      timer.current = window.setTimeout(() => {
-        fired.current = true;
-        onLong();
-      }, LONG_PRESS_MS);
-    },
-    onPointerMove: (e: React.PointerEvent) => {
-      if (start.current && Math.abs(e.clientX - start.current.x) + Math.abs(e.clientY - start.current.y) > 10) cancel();
-    },
-    onPointerUp: () => clearTimeout(timer.current),
-    onPointerCancel: cancel,
-    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
-    onClick: () => {
-      if (!fired.current) onTap();
-    },
-  };
-}
 
 export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; toggle: (c: CartItem) => void; put: (c: CartItem) => void }) {
   const groups = useLiveQuery(() => db.groups.orderBy("order").toArray(), [], []);
@@ -50,6 +18,7 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
   const [manage, setManage] = useState<"" | "folders" | "foods" | "sets">("");
   const [editFood, setEditFood] = useState<SavedFood | null>(null);
   const [composeSet, setComposeSet] = useState<number | null>(null);
+  const [openSet, setOpenSet] = useState<MealSet | null>(null);
 
   const foods: SavedFood[] =
     src.kind === "often"
@@ -90,8 +59,8 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
                   sub={`${s.entries.length}개 · ${s.entries.map((e) => e.title).join(", ")}`}
                   kcal={Math.round(s.total.kcal)}
                   on={on}
-                  onTap={() => toggle({ id, drafts: s.entries })}
-                  onLong={() => setComposeSet(s.id!)}
+                  onOpen={() => setOpenSet(s)}
+                  onQuick={() => toggle({ id, drafts: s.entries })}
                 />
               );
             })}
@@ -119,33 +88,59 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
                   kcal={Math.round(portionNutrients(portion).kcal)}
                   on={!!inCart}
                   badge={inCart && portion.k !== 1 ? `×${(Math.round(portion.k * 10) / 10).toFixed(1)}` : inCart ? "✓" : ""}
-                  onTap={() => (inCart ? toggle(inCart) : put({ id, drafts: [savedDraft(s, portion)], portion }))}
-                  onLong={() => setAmountOf({ food: s, portion })}
+                  onOpen={() => setAmountOf({ food: s, portion })}
+                  onQuick={() => (inCart ? toggle(inCart) : put({ id, drafts: [savedDraft(s, portion)], portion }))}
                 />
               );
             })}
           </div>
-          {foods.length > 0 && <p className="muted small quick-hint">한 번 누르면 담기, 길게 누르면 양 조절·수정</p>}
+          {foods.length > 0 && <p className="muted small quick-hint">카드를 누르면 양을 정해 담고, 모서리 +는 바로 담아요</p>}
           {group && <button className="link small quick-manage" onClick={() => setManage("foods")}>음식 편집</button>}
         </>
       )}
 
       {amountOf && (
         <Sheet title={amountOf.food.title} onClose={() => setAmountOf(null)}>
-          <div className="form">
+          <div className="form food-detail">
+            <NutrientGrid n={portionNutrients(amountOf.portion)} />
             <AmountEditor portion={amountOf.portion} onChange={(p) => setAmountOf({ ...amountOf, portion: p })} />
-            <NutrientLine n={portionNutrients(amountOf.portion)} />
-            <button className="primary block" onClick={() => {
+            <button className="primary block big" onClick={() => {
               const s = amountOf.food;
               put({ id: `fav:${s.key}`, drafts: [savedDraft(s, amountOf.portion)], portion: amountOf.portion });
               setAmountOf(null);
             }}>
               {cart.some((c) => c.id === `fav:${amountOf.food.key}`) ? "이 양으로 변경" : "이 양으로 담기"}
             </button>
-            <button className="link small" onClick={() => { setEditFood(amountOf.food); setAmountOf(null); }}>이름·1회 제공량·영양성분 수정</button>
+            <div className="row-between detail-links">
+              <button className="text-btn muted" onClick={() => { setEditFood(amountOf.food); setAmountOf(null); }}>음식 정보 수정</button>
+              {cart.some((c) => c.id === `fav:${amountOf.food.key}`) && (
+                <button className="text-btn danger-text" onClick={() => { toggle(cart.find((c) => c.id === `fav:${amountOf.food.key}`)!); setAmountOf(null); }}>담은 것 빼기</button>
+              )}
+            </div>
           </div>
         </Sheet>
       )}
+      {openSet && (() => {
+        const id = `set:${openSet.id}`;
+        const on = cart.some((c) => c.id === id);
+        return (
+          <Sheet title={openSet.name} onClose={() => setOpenSet(null)}>
+            <div className="form food-detail">
+              <NutrientGrid n={openSet.total} />
+              <ul className="mini-list">
+                {openSet.entries.map((e, i) => (
+                  <li key={i}><span>{e.place && <b>{e.place} </b>}{e.title}</span><span className="muted">{Math.round(sumNutrients(e.items.map((x) => x.nutrients)).kcal)}kcal</span></li>
+                ))}
+              </ul>
+              <button className="primary block big" onClick={() => { if (!on) toggle({ id, drafts: openSet.entries }); setOpenSet(null); }}>{on ? "담겨 있어요" : "세트 담기"}</button>
+              <div className="row-between detail-links">
+                <button className="text-btn muted" onClick={() => { setComposeSet(openSet.id!); setOpenSet(null); }}>구성 수정</button>
+                {on && <button className="text-btn danger-text" onClick={() => { toggle({ id, drafts: openSet.entries }); setOpenSet(null); }}>담은 것 빼기</button>}
+              </div>
+            </div>
+          </Sheet>
+        );
+      })()}
       {editFood && <SavedFoodEditSheet food={editFood} onClose={() => setEditFood(null)} />}
       {manage === "folders" && (
         <FolderScreen onClose={() => setManage("")} onOpen={(id) => { setSrc({ kind: "group", id }); setManage(""); }} />
@@ -159,28 +154,24 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
   );
 }
 
-function FoodCard({ title, sub, kcal, on, badge, onTap, onLong }: {
-  title: string; sub: string; kcal: number; on: boolean; badge: string; onTap: () => void; onLong: () => void;
+/** 카드: 누르면 상세(양·영양성분), 모서리 +는 바로 담기/빼기 */
+function FoodCard({ title, sub, kcal, on, badge, onOpen, onQuick }: {
+  title: string; sub: string; kcal: number; on: boolean; badge: string; onOpen: () => void; onQuick: () => void;
 }) {
-  const press = usePress(onTap, onLong);
   return (
-    <button className={`quick-card ${on ? "on" : ""}`} aria-pressed={on} {...press}>
-      {badge && <span className="quick-badge">{badge}</span>}
-      <b className="quick-title">{title}</b>
-      <span className="muted small quick-sub">{sub}</span>
-      <b className="quick-kcal">{kcal.toLocaleString()}<span className="muted"> kcal</span></b>
-    </button>
+    <div className={`quick-card ${on ? "on" : ""}`}>
+      <button className="quick-open" onClick={onOpen} aria-label={`${title} 양 정하기`}>
+        <b className="quick-title">{title}</b>
+        <span className="muted small quick-sub">{sub}</span>
+        <b className="quick-kcal">{kcal.toLocaleString()}<span className="muted"> kcal</span></b>
+      </button>
+      <button className={`quick-add ${on ? "on" : ""}`} onClick={onQuick} aria-pressed={on} aria-label={on ? `${title} 빼기` : `${title} 바로 담기`}>
+        {on ? badge || "✓" : "+"}
+      </button>
+    </div>
   );
 }
 
-function SetCard({ name, sub, kcal, on, onTap, onLong }: { name: string; sub: string; kcal: number; on: boolean; onTap: () => void; onLong: () => void }) {
-  const press = usePress(onTap, onLong);
-  return (
-    <button className={`quick-card ${on ? "on" : ""}`} aria-pressed={on} {...press}>
-      {on && <span className="quick-badge">✓</span>}
-      <b className="quick-title">{name}</b>
-      <span className="muted small quick-sub">{sub}</span>
-      <b className="quick-kcal">{kcal.toLocaleString()}<span className="muted"> kcal</span></b>
-    </button>
-  );
+function SetCard({ name, sub, kcal, on, onOpen, onQuick }: { name: string; sub: string; kcal: number; on: boolean; onOpen: () => void; onQuick: () => void }) {
+  return <FoodCard title={name} sub={sub} kcal={kcal} on={on} badge="✓" onOpen={onOpen} onQuick={onQuick} />;
 }
