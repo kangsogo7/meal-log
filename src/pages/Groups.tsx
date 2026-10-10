@@ -1,6 +1,6 @@
 // 그룹: 멤버를 초대해 서로의 식단을 날짜별로 보고 댓글을 남김
-import { useEffect, useState } from "react";
-import { addDays, formatDate, todayStr } from "../db";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { addDays, formatDate, MEALS, todayStr, type Meal } from "../db";
 import { BackIcon, flash, Screen, Sheet } from "../components/ui";
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
@@ -8,7 +8,7 @@ import { openSharedFood } from "../foodShare";
 import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isNativeApp, isStandalone, kakaoExternalLink, onInvite, pendingInvite, type Invite } from "../invite";
 import {
   addComment, createGroup, createMe, deleteComment, joinGroup, leaveAll, leaveGroup, loadMe, renameGroup, renameMe,
-  watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchMemberDay, watchMemberWeek, watchTodayCount,
+  getMyPhoto, makePhoto, setMyPhoto, watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchMemberDay, watchMemberWeek, watchTodayCount,
   type Comment, type Group, type Me, type SharedDay, type SharedWeek,
 } from "../share";
 
@@ -22,13 +22,79 @@ const errText = (e: unknown) => {
 
 /** 멤버 동그라미 (이름 첫 글자, 사람마다 다른 진하기) */
 const SHADES = ["#2c4a40", "#4f6a61", "#7c958b", "#9aa8a3", "#c3ccc8"];
-function Avatar({ uid, name, size = 32 }: { uid: string; name: string; size?: number }) {
+/** 멤버 프로필 사진 (그룹 화면 안에서 uid → 사진) */
+const PhotosCtx = createContext<Record<string, string>>({});
+
+function Avatar({ uid, name, size = 32, photo }: { uid: string; name: string; size?: number; photo?: string }) {
+  const photos = useContext(PhotosCtx);
+  const src = photo ?? photos[uid];
+  if (src) return <img className="avatar photo" src={src} width={size} height={size} alt="" />;
   const i = [...uid].reduce((a, c) => a + c.charCodeAt(0), 0) % SHADES.length;
   return (
     <span className="avatar" style={{ width: size, height: size, background: SHADES[i], color: i < 3 ? "#f4f4f6" : "#2c4a40" }} aria-hidden>
       {[...name][0] ?? "?"}
     </span>
   );
+}
+
+/** 지금 시간에 맞는 끼니 */
+function mealNow(): Meal {
+  const h = new Date().getHours();
+  return h < 10 ? "breakfast" : h < 15 ? "lunch" : h < 17 ? "snack" : "dinner";
+}
+
+/** 내 프로필 사진: 누르면 사진 고르기 (정사각형으로 잘라 작게 저장), 있으면 바꾸기·지우기 */
+function MyPhoto({ me }: { me: Me }) {
+  const [photo, setPhoto] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    getMyPhoto().then(setPhoto);
+  }, []);
+  const apply = async (next: string | null) => {
+    setBusy(true);
+    try {
+      await setMyPhoto(me, next);
+      setPhoto(next ?? "");
+      flash(next ? "프로필 사진을 바꿨어요" : "프로필 사진을 지웠어요");
+    } catch (e) {
+      flash(errText(e));
+    } finally {
+      setBusy(false);
+      setMenu(false);
+    }
+  };
+  return (
+    <>
+      <button className="my-photo" onClick={() => (photo ? setMenu(true) : input.current?.click())} disabled={busy} aria-label="프로필 사진 바꾸기">
+        <Avatar uid={me.uid} name={me.name} size={48} photo={photo || undefined} />
+        <span className="my-photo-cam" aria-hidden>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+        </span>
+      </button>
+      <input ref={input} type="file" accept="image/*" hidden onChange={async (e) => {
+        const f = e.target.files?.[0];
+        e.target.value = "";
+        if (f) await apply(await makePhoto(f));
+      }} />
+      {menu && (
+        <Sheet title="프로필 사진" onClose={() => setMenu(false)}>
+          <div className="form">
+            <button className="block" onClick={() => input.current?.click()}>다른 사진 고르기</button>
+            <button className="block danger" onClick={() => apply(null)}>사진 지우기</button>
+          </div>
+        </Sheet>
+      )}
+    </>
+  );
+}
+
+/** 한 끼니에 대한 👍·댓글 (그날 기록 문서의 댓글 중 그 끼니 것만) */
+function MealComments({ me, gid, dayId, owner, meal }: { me: Me; gid: string; dayId: string; owner: string; meal: string }) {
+  const [list, setList] = useState<Comment[]>([]);
+  useEffect(() => watchComments(gid, "days", dayId, setList), [gid, dayId]);
+  return <Comments me={me} gid={gid} kind="days" id={dayId} owner={owner} meal={meal} list={list.filter((c) => c.meal === meal)} />;
 }
 
 export default function Groups() {
@@ -184,7 +250,8 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
         </section>
       )}
 
-      <section className="card row-between">
+      <section className="card row-between me-card">
+        <MyPhoto me={me} />
         {renaming ? (
           <div className="input-with-star" style={{ flex: 1 }}>
             <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="닉네임" />
@@ -246,7 +313,7 @@ function GroupCard({ g, onOpen }: { g: Group; onOpen: () => void }) {
     <li className="food-card" onClick={onOpen}>
       <div className="fc-main">
         <div className="row-between"><b className="fc-name">{g.name}</b><span className="muted small">멤버 {g.members.length}명</span></div>
-        <div className="avatars">{g.members.slice(0, 6).map((m) => <Avatar key={m} uid={m} name={g.names[m] ?? "?"} size={28} />)}</div>
+        <div className="avatars">{g.members.slice(0, 6).map((m) => <Avatar key={m} uid={m} name={g.names[m] ?? "?"} size={28} photo={g.photos[m]} />)}</div>
         <span className="muted small">{today == null ? "" : `오늘 ${today}명 기록`}</span>
       </div>
     </li>
@@ -292,6 +359,9 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
   const [weeks, setWeeks] = useState<SharedWeek[]>([]);
   const [members, setMembers] = useState(false);
   const [view, setView] = useState<{ uid: string; tab: "day" | "week" } | null>(null);
+  // 날짜 아래 끼니 탭: 처음엔 지금 시간에 맞는 끼니
+  const [meal, setMeal] = useState<Meal>(mealNow);
+  const mealOf = (uid: string) => days.find((d) => d.uid === uid)?.meals.find((m) => m.meal === meal);
   const start = weekStartOf(date);
 
   useEffect(() => watchGroup(gid, setGroup), [gid]);
@@ -309,6 +379,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
   const ranked = weeks.filter((w) => group.members.includes(w.uid) && w.score != null).sort((a, b) => b.score! - a.score!);
 
   return (
+    <PhotosCtx.Provider value={group.photos}>
     <Screen
       left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
       title={group.name}
@@ -320,41 +391,54 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
         <button className="ghost" onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</button>
       </div>
 
-      <ul className="food-cards">
-        {order.map((uid) => {
-          const d = days.find((x) => x.uid === uid && x.meals.length);
-          const name = group.names[uid] ?? "멤버";
-          if (!d) {
-            return (
-              <li key={uid} className="food-card empty-member" onClick={() => setView({ uid, tab: "day" })}>
-                <Avatar uid={uid} name={name} />
-                <b className="fc-name">{name}{uid === me.uid && <span className="muted small"> 나</span>}</b>
-                <span className="muted small">기록 없음</span>
-              </li>
-            );
-          }
-          const ratio = d.target?.kcal ? d.total.kcal / d.target.kcal : 0;
+      <div className="meal-tabs" role="tablist">
+        {MEALS.map((m) => {
+          const n = days.filter((d) => group.members.includes(d.uid) && d.meals.some((x) => x.meal === m.key)).length;
           return (
-            <li key={uid} className="food-card stack member-card" onClick={() => setView({ uid, tab: "day" })}>
-              <div className="member-head">
-                <Avatar uid={uid} name={name} />
+            <button key={m.key} role="tab" aria-selected={meal === m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>
+              {m.label}<small>{n ? `${n}명` : "-"}</small>
+            </button>
+          );
+        })}
+      </div>
+
+      <ul className="food-cards">
+        {order.filter((uid) => mealOf(uid)).map((uid) => {
+          const d = days.find((x) => x.uid === uid)!;
+          const m = mealOf(uid)!;
+          const name = group.names[uid] ?? "멤버";
+          return (
+            <li key={uid} className="food-card stack meal-member">
+              <button className="mm-head" onClick={() => setView({ uid, tab: "day" })} aria-label={`${name}의 하루 보기`}>
+                <Avatar uid={uid} name={name} size={34} />
                 <b className="fc-name">{name}{uid === me.uid && <span className="muted small"> 나</span>}</b>
-                <span className="small"><b>{d.total.kcal.toLocaleString()}</b>{d.target && <span className="muted"> / {d.target.kcal.toLocaleString()}kcal</span>}</span>
+                {m.grade && <span className={`grade-chip ${m.grade}`}>{GRADE_LABEL[m.grade as Grade]}</span>}
+                <b className="mm-kcal">{m.kcal.toLocaleString()}<span className="muted"> kcal</span></b>
+              </button>
+              <div className="mm-items">
+                {m.items.map((it, i) => (
+                  <div key={i} className="mm-item">
+                    <div className="mm-item-text">
+                      <span>{it.place && <b>{it.place} </b>}{it.title}</span>
+                      <span className="muted small">
+                        {it.ing && it.ing.join(", ") !== it.title ? `재료: ${it.ing.join(" · ")}` : `탄 ${Math.round(it.carb)}g · 단 ${Math.round(it.protein)}g · 지 ${Math.round(it.fat)}g`}
+                      </span>
+                    </div>
+                    {uid !== me.uid && it.d && <button className="me-too" onClick={() => openSharedFood({ ...it.d!, from: name })}>나도 기록</button>}
+                  </div>
+                ))}
               </div>
-              {d.target && (
-                <div className="progress"><div className={ratio > 1.05 ? "over" : ""} style={{ width: `${Math.min(100, ratio * 100)}%` }} /></div>
-              )}
-              <div className="meal-chips">
-                {d.meals.map((m) => <span key={m.meal}>{m.grade && <i className={`grade-dot ${m.grade}`} aria-hidden />} {m.label}</span>)}
-              </div>
-              <div className="row-between muted small">
-                <span>단 {Math.round(d.total.protein)}g · 탄 {Math.round(d.total.carb)}g · 지 {Math.round(d.total.fat)}g</span>
-                <CommentCount gid={gid} id={d.id} />
-              </div>
+              <MealComments me={me} gid={gid} dayId={d.id} owner={uid} meal={m.meal} />
             </li>
           );
         })}
       </ul>
+      {order.every((uid) => !mealOf(uid)) && <p className="muted small empty-note">아직 {MEALS.find((x) => x.key === meal)!.label}을 기록한 멤버가 없어요</p>}
+      {order.some((uid) => !mealOf(uid)) && order.some((uid) => mealOf(uid)) && (
+        <p className="muted small not-yet">
+          {MEALS.find((x) => x.key === meal)!.label} 아직 안 남긴 멤버: {order.filter((uid) => !mealOf(uid)).map((uid) => group.names[uid] ?? "멤버").join(", ")}
+        </p>
+      )}
 
       <section className="card group-week">
         <div className="row-between"><h2>이번 주 그룹 점수</h2><span className="muted small">{weekLabel(start)}</span></div>
@@ -376,17 +460,10 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
       {members && <MembersSheet me={me} group={group} onClose={() => setMembers(false)} />}
       {view && <MemberScreen me={me} gid={gid} group={group} uid={view.uid} initialDate={date} initialTab={view.tab} onClose={() => setView(null)} />}
     </Screen>
+    </PhotosCtx.Provider>
   );
 }
 
-function CommentCount({ gid, id }: { gid: string; id: string }) {
-  const [list, setList] = useState<Comment[]>([]);
-  useEffect(() => watchComments(gid, "days", id, setList), [gid, id]);
-  const likes = list.filter((c) => c.text === "👍").length;
-  const talk = list.length - likes;
-  if (!list.length) return null;
-  return <span>{[likes && `👍 ${likes}`, talk && `댓글 ${talk}`].filter(Boolean).join(" · ")}</span>;
-}
 
 function MembersSheet({ me, group, onClose }: { me: Me; group: Group; onClose: () => void }) {
   const [renaming, setRenaming] = useState(false);

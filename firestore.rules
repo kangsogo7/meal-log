@@ -27,18 +27,18 @@ service cloud.firestore {
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.members == [request.auth.uid];
       allow update: if signedIn() && (
-        // 멤버가 그룹 이름·멤버 이름·목표 수정
+        // 멤버가 그룹 이름·멤버 이름·목표·프로필 사진 수정
         (request.auth.uid in resource.data.members
           && request.resource.data.members == resource.data.members
-          && changed().hasOnly(['name', 'names', 'goals']))
+          && changed().hasOnly(['name', 'names', 'goals', 'photos']))
         // 초대 코드로 참여: 자기 자신만 추가
         || (!(request.auth.uid in resource.data.members)
           && request.resource.data.members.toSet() == resource.data.members.toSet().union([request.auth.uid].toSet())
-          && changed().hasOnly(['members', 'names', 'goals']))
+          && changed().hasOnly(['members', 'names', 'goals', 'photos']))
         // 나가기: 자기 자신만 빠짐 (방장이면 다른 멤버에게 넘김)
         || (request.auth.uid in resource.data.members
           && request.resource.data.members.toSet() == resource.data.members.toSet().difference([request.auth.uid].toSet())
-          && changed().hasOnly(['members', 'names', 'goals', 'owner']))
+          && changed().hasOnly(['members', 'names', 'goals', 'photos', 'owner']))
       );
       // 마지막 멤버가 나가면 그룹 삭제
       allow delete: if signedIn() && request.auth.uid in resource.data.members && resource.data.members.size() <= 1;

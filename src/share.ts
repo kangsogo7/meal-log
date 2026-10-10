@@ -63,6 +63,30 @@ export async function renameMe(me: Me, name: string) {
   await Promise.all(groups.docs.map((g) => updateDoc(g.ref, { [`names.${me.uid}`]: name })));
 }
 
+// ---------- 프로필 사진 ----------
+/** 내 프로필 사진 (폰에 저장, 그룹에는 작은 사본) */
+export const getMyPhoto = async () => {
+  const v = await getKV<unknown>("myPhoto", "");
+  return typeof v === "string" ? v : "";
+};
+
+/** 사진을 정사각형으로 잘라 작게 줄임 (그룹 정보에 같이 저장하므로 128px JPEG) */
+export async function makePhoto(file: File): Promise<string> {
+  const bmp = await createImageBitmap(file);
+  const side = Math.min(bmp.width, bmp.height);
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  c.getContext("2d")!.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, 128, 128);
+  return c.toDataURL("image/jpeg", 0.8);
+}
+
+/** 사진 바꾸기·지우기: 들어가 있는 모든 그룹에 반영 */
+export async function setMyPhoto(me: Me, photo: string | null) {
+  await setKV("myPhoto", photo ?? "");
+  const groups = await getDocs(query(collection(fs, "groups"), where("members", "array-contains", me.uid)));
+  await Promise.all(groups.docs.map((g) => updateDoc(g.ref, { [`photos.${me.uid}`]: photo ?? deleteField() })));
+}
+
 // ---------- 그룹 ----------
 export interface Group {
   id: string;
@@ -72,6 +96,8 @@ export interface Group {
   members: string[];
   names: Record<string, string>;
   goals: Record<string, string>;
+  /** 멤버 프로필 사진 (작은 JPEG data URL) */
+  photos: Record<string, string>;
 }
 
 const toGroup = (id: string, d: Record<string, unknown>): Group => ({
@@ -82,6 +108,7 @@ const toGroup = (id: string, d: Record<string, unknown>): Group => ({
   members: (d.members as string[]) ?? [],
   names: (d.names as Record<string, string>) ?? {},
   goals: (d.goals as Record<string, string>) ?? {},
+  photos: (d.photos as Record<string, string>) ?? {},
 });
 
 const myGoalLabel = async () => GOALS[(await getKV("profile", DEFAULT_PROFILE)).goal]?.label ?? "";
@@ -101,7 +128,8 @@ export async function createGroup(me: Me, name: string): Promise<string> {
   const b = writeBatch(fs);
   b.set(ref, {
     name, code, owner: me.uid, members: [me.uid],
-    names: { [me.uid]: me.name }, goals: { [me.uid]: await myGoalLabel() }, createdAt: serverTimestamp(),
+    names: { [me.uid]: me.name }, goals: { [me.uid]: await myGoalLabel() },
+    photos: (await getMyPhoto()) ? { [me.uid]: await getMyPhoto() } : {}, createdAt: serverTimestamp(),
   });
   b.set(doc(fs, "codes", code), { gid: ref.id });
   await b.commit();
@@ -119,6 +147,7 @@ export async function joinGroup(me: Me, rawCode: string): Promise<{ id: string; 
     members: arrayUnion(me.uid),
     [`names.${me.uid}`]: me.name,
     [`goals.${me.uid}`]: await myGoalLabel(),
+    ...((await getMyPhoto()) ? { [`photos.${me.uid}`]: await getMyPhoto() } : {}),
   });
   await afterMembershipChange();
   const g = await getDoc(doc(fs, "groups", gid));
@@ -145,6 +174,7 @@ export async function leaveGroup(me: Me, g: Group) {
       members: arrayRemove(me.uid),
       [`names.${me.uid}`]: deleteField(),
       [`goals.${me.uid}`]: deleteField(),
+      [`photos.${me.uid}`]: deleteField(),
       ...(g.owner === me.uid ? { owner: g.members.find((m) => m !== me.uid)! } : {}),
     });
   }
