@@ -31,7 +31,11 @@ export function formatTrace(t: TraceStep[]) {
 /** 생각하기 최소 설정을 거절한 모델 (다음부터는 바로 빼고 보냄) */
 const noFastThinking = new Set<string>();
 
-export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+// 3.7 Flash → 3.8, 3.5 Flash → 3.6으로 통합됨 (2026-10 구글 안내). 같은 모델로 다시 물어봐야 한도만 쓰므로 목록에서 뺌
+/** 없어진 모델 → 넘어간 모델 */
+const RENAMED: Record<string, string> = { "gemini-3.7-flash": "gemini-3.8-flash", "gemini-3.5-flash": "gemini-3.6-flash" };
+
+export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -88,7 +92,8 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
   // 서버가 붐비면(5xx) 처음 모델은 한 번 더 기다렸다가, 그래도 안 되면 다음 모델로.
   const trace: TraceStep[] = [];
   lastTrace = trace;
-  const models = [settings.geminiModel, ...GEMINI_MODELS.filter((m) => m !== settings.geminiModel)];
+  const first = RENAMED[settings.geminiModel] ?? settings.geminiModel;
+  const models = [first, ...GEMINI_MODELS.filter((m) => m !== first)];
   const call = async (model: string) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const post = async (body: string) => {
