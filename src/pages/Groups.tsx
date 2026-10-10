@@ -2,12 +2,12 @@
 import { useEffect, useState } from "react";
 import { addDays, formatDate, todayStr } from "../db";
 import { BackIcon, flash, Screen, Sheet } from "../components/ui";
-import { GRADE_EMOJI, type Grade } from "../nutrition";
-import { weekLabel, weekStartOf } from "../weekly";
+import { GRADE_LABEL, type Grade } from "../nutrition";
+import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isNativeApp, isStandalone, kakaoExternalLink, onInvite, pendingInvite, type Invite } from "../invite";
 import {
   addComment, createGroup, createMe, deleteComment, joinGroup, leaveAll, leaveGroup, loadMe, renameGroup, renameMe,
-  watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchTodayCount,
+  watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchMemberDay, watchMemberWeek, watchTodayCount,
   type Comment, type Group, type Me, type SharedDay, type SharedWeek,
 } from "../share";
 
@@ -290,7 +290,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
   const [days, setDays] = useState<SharedDay[]>([]);
   const [weeks, setWeeks] = useState<SharedWeek[]>([]);
   const [members, setMembers] = useState(false);
-  const [detail, setDetail] = useState<SharedDay | null>(null);
+  const [view, setView] = useState<{ uid: string; tab: "day" | "week" } | null>(null);
   const start = weekStartOf(date);
 
   useEffect(() => watchGroup(gid, setGroup), [gid]);
@@ -325,7 +325,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
           const name = group.names[uid] ?? "멤버";
           if (!d) {
             return (
-              <li key={uid} className="food-card empty-member">
+              <li key={uid} className="food-card empty-member" onClick={() => setView({ uid, tab: "day" })}>
                 <Avatar uid={uid} name={name} />
                 <b className="fc-name">{name}{uid === me.uid && <span className="muted small"> 나</span>}</b>
                 <span className="muted small">기록 없음</span>
@@ -334,7 +334,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
           }
           const ratio = d.target?.kcal ? d.total.kcal / d.target.kcal : 0;
           return (
-            <li key={uid} className="food-card stack member-card" onClick={() => setDetail(d)}>
+            <li key={uid} className="food-card stack member-card" onClick={() => setView({ uid, tab: "day" })}>
               <div className="member-head">
                 <Avatar uid={uid} name={name} />
                 <b className="fc-name">{name}{uid === me.uid && <span className="muted small"> 나</span>}</b>
@@ -344,7 +344,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
                 <div className="progress"><div className={ratio > 1.05 ? "over" : ""} style={{ width: `${Math.min(100, ratio * 100)}%` }} /></div>
               )}
               <div className="meal-chips">
-                {d.meals.map((m) => <span key={m.meal}>{m.label} {m.grade ? GRADE_EMOJI[m.grade as Grade] : ""}</span>)}
+                {d.meals.map((m) => <span key={m.meal}>{m.grade && <i className={`grade-dot ${m.grade}`} aria-hidden />} {m.label}</span>)}
               </div>
               <div className="row-between muted small">
                 <span>단 {Math.round(d.total.protein)}g · 탄 {Math.round(d.total.carb)}g · 지 {Math.round(d.total.fat)}g</span>
@@ -360,10 +360,10 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
         {ranked.length ? (
           <ol className="rank">
             {ranked.map((w, i) => (
-              <li key={w.uid}>
+              <li key={w.uid} onClick={() => setView({ uid: w.uid, tab: "week" })}>
                 <span className="muted">{i + 1}</span>
                 <span>{group.names[w.uid] ?? "멤버"}{w.uid === me.uid && <span className="muted small"> 나</span>}</span>
-                <span>{w.grade ? GRADE_EMOJI[w.grade as Grade] : ""} <b>{w.score}점</b></span>
+                <span>{w.grade && <span className={`grade-chip ${w.grade}`}>{GRADE_LABEL[w.grade as Grade]}</span>} <b>{w.score}점</b> <span className="muted">›</span></span>
               </li>
             ))}
           </ol>
@@ -373,7 +373,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
       </section>
 
       {members && <MembersSheet me={me} group={group} onClose={() => setMembers(false)} />}
-      {detail && <MemberDay me={me} gid={gid} day={detail} name={group.names[detail.uid] ?? "멤버"} goal={group.goals[detail.uid]} onClose={() => setDetail(null)} />}
+      {view && <MemberScreen me={me} gid={gid} group={group} uid={view.uid} initialDate={date} initialTab={view.tab} onClose={() => setView(null)} />}
     </Screen>
   );
 }
@@ -472,50 +472,187 @@ ${link}
 }
 
 // ---------------------------------------------------------------------------
-// 멤버 하루 식단 + 👍·댓글
+// 멤버 화면: 하루 식단(끼니별 카드 + 끼니마다 👍·댓글) | 주간 평가(AI 한줄평·코멘트 + 응원)
 // ---------------------------------------------------------------------------
-function MemberDay({ me, gid, day, name, goal, onClose }: { me: Me; gid: string; day: SharedDay; name: string; goal?: string; onClose: () => void }) {
-  const ratio = day.target?.kcal ? day.total.kcal / day.target.kcal : 0;
+const MEAL_ORDER = ["breakfast", "lunch", "snack", "dinner"];
+const MEAL_NAME: Record<string, string> = { breakfast: "아침", lunch: "점심", snack: "간식", dinner: "저녁" };
+
+function MemberScreen({ me, gid, group, uid, initialDate, initialTab, onClose }: {
+  me: Me; gid: string; group: Group; uid: string; initialDate: string; initialTab: "day" | "week"; onClose: () => void;
+}) {
+  const [tab, setTab] = useState(initialTab);
+  const [date, setDate] = useState(initialDate);
+  const [start, setStart] = useState(weekStartOf(initialDate));
+  const [day, setDay] = useState<SharedDay | null | undefined>(undefined);
+  const [week, setWeek] = useState<SharedWeek | null | undefined>(undefined);
+  const [comments, setComments] = useState<Comment[]>([]);
+  useEffect(() => {
+    setDay(undefined);
+    return watchMemberDay(gid, uid, date, setDay);
+  }, [gid, uid, date]);
+  useEffect(() => {
+    setWeek(undefined);
+    return watchMemberWeek(gid, uid, start, setWeek);
+  }, [gid, uid, start]);
+  useEffect(() => {
+    if (!day) {
+      setComments([]);
+      return;
+    }
+    return watchComments(gid, "days", day.id, setComments);
+  }, [gid, day?.id]);
+  const name = group.names[uid] ?? "멤버";
+  const goal = group.goals[uid];
+  const isMe = uid === me.uid;
+  const meals = day?.meals ?? [];
+  const missing = MEAL_ORDER.filter((k) => !meals.some((m) => m.meal === k)).map((k) => MEAL_NAME[k]);
+  const ratio = day?.target?.kcal ? day.total.kcal / day.target.kcal : 0;
+
   return (
     <Screen
       left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
-      title={<span className="title-2line"><b>{name}</b><span className="muted small">{formatDate(day.date)}{goal ? ` · ${goal}` : ""}</span></span>}
+      title={<span className="title-2line"><b>{isMe ? "나의 하루" : `${name}의 하루`}</b>{goal && <span className="muted small">{goal}</span>}</span>}
     >
-      <section className="card">
-        <div className="row-between">
-          <span className="muted">칼로리</span>
-          <span><b className="big-num">{day.total.kcal.toLocaleString()}</b>{day.target && <span className="muted small"> / {day.target.kcal.toLocaleString()}kcal</span>}</span>
-        </div>
-        {day.target && <div className="progress"><div className={ratio > 1.05 ? "over" : ""} style={{ width: `${Math.min(100, ratio * 100)}%` }} /></div>}
-        <p className="muted small">탄 {day.total.carb}g · 단 {day.total.protein}g · 지 {day.total.fat}g · 나 {(day.total.sodium ?? 0).toLocaleString()}mg</p>
-      </section>
+      <div className="member-tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "day"} className={tab === "day" ? "on" : ""} onClick={() => setTab("day")}>하루 식단</button>
+        <button role="tab" aria-selected={tab === "week"} className={tab === "week" ? "on" : ""} onClick={() => setTab("week")}>주간 평가</button>
+      </div>
 
-      <section className="card">
-        {day.meals.map((m) => (
-          <div key={m.meal} className="member-meal">
-            <div className="row-between"><b>{m.label} {m.grade ? GRADE_EMOJI[m.grade as Grade] : ""}</b><span className="muted small">{m.kcal}kcal</span></div>
-            <ul className="mini-list">
+      {tab === "day" ? (
+        <>
+          <section className="member-hero">
+            <div className="hero-date">
+              <button onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
+              <b>{formatDate(date)}</b>
+              <button onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</button>
+            </div>
+            {day && meals.length ? (
+              <>
+                <div className="row-between hero-kcal">
+                  <b>{day.total.kcal.toLocaleString()}{day.target && <span> / {day.target.kcal.toLocaleString()} kcal</span>}</b>
+                  {day.target && (
+                    <span className="hero-pill">
+                      {day.target.kcal >= day.total.kcal ? `${(day.target.kcal - day.total.kcal).toLocaleString()} 남음` : `${(day.total.kcal - day.target.kcal).toLocaleString()} 초과`}
+                    </span>
+                  )}
+                </div>
+                {day.target && <div className="hero-bar"><div style={{ width: `${Math.min(100, ratio * 100)}%` }} /></div>}
+                <div className="hero-macros">
+                  <span>탄 {Math.round(day.total.carb)}g</span><span>단 {Math.round(day.total.protein)}g</span>
+                  <span>지 {Math.round(day.total.fat)}g</span><span>나 {(day.total.sodium ?? 0).toLocaleString()}mg</span>
+                </div>
+              </>
+            ) : (
+              <p className="hero-empty">{day === undefined ? "불러오는 중..." : "이 날은 기록이 없어요"}</p>
+            )}
+          </section>
+
+          {day && meals.map((m) => (
+            <article key={m.meal} className="card meal-post">
+              <div className="post-head">
+                <i className={`grade-dot ${m.grade ?? ""}`} aria-hidden />
+                <b>{m.label}{m.grade ? ` · ${GRADE_LABEL[m.grade as Grade]}` : ""}</b>
+                <span className="muted small">{m.kcal}kcal</span>
+              </div>
               {m.items.map((it, i) => (
-                <li key={i}><span>{it.place && <b>{it.place} </b>}{it.title}</span><span className="muted">{it.kcal}</span></li>
+                <div key={i} className="post-item">
+                  <span>{it.place && <b>{it.place} </b>}{it.title}</span>
+                  <span className="muted small">
+                    {it.ing && it.ing.join(", ") !== it.title ? `재료: ${it.ing.join(" · ")}` : `탄 ${Math.round(it.carb)}g · 단 ${Math.round(it.protein)}g · 지 ${Math.round(it.fat)}g`}
+                  </span>
+                </div>
               ))}
-            </ul>
-          </div>
-        ))}
-      </section>
-
-      <section className="card">
-        <Comments me={me} gid={gid} kind="days" id={day.id} owner={day.uid} />
-      </section>
+              <Comments me={me} gid={gid} kind="days" id={day.id} owner={uid} meal={m.meal} list={comments.filter((c) => c.meal === m.meal)} />
+            </article>
+          ))}
+          {meals.length > 0 && missing.length > 0 && <p className="muted small missing-meals">{missing.join(" · ")}은 기록이 없어요</p>}
+          {day && comments.some((c) => !c.meal) && (
+            <section className="card">
+              <p className="small muted">하루 전체 댓글</p>
+              <Comments me={me} gid={gid} kind="days" id={day.id} owner={uid} list={comments.filter((c) => !c.meal)} />
+            </section>
+          )}
+        </>
+      ) : (
+        <MemberWeek me={me} gid={gid} uid={uid} name={name} week={week} start={start} setStart={setStart} />
+      )}
     </Screen>
   );
 }
 
-function Comments({ me, gid, kind, id, owner }: { me: Me; gid: string; kind: "days" | "weeks"; id: string; owner: string }) {
-  const [list, setList] = useState<Comment[]>([]);
-  const [text, setText] = useState("");
-  const [error, setError] = useState("");
-  useEffect(() => watchComments(gid, kind, id, setList), [gid, kind, id]);
+const DOW = ["월", "화", "수", "목", "금", "토", "일"];
 
+function MemberWeek({ me, gid, uid, name, week, start, setStart }: {
+  me: Me; gid: string; uid: string; name: string; week: SharedWeek | null | undefined; start: string; setStart: (s: string) => void;
+}) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  useEffect(() => {
+    if (!week) {
+      setComments([]);
+      return;
+    }
+    return watchComments(gid, "weeks", week.id, setComments);
+  }, [gid, week?.id]);
+  return (
+    <>
+      <div className="group-date">
+        <button className="ghost" onClick={() => setStart(addDays(start, -7))} aria-label="지난주">◀</button>
+        <span className="muted">{weekLabel(start)}</span>
+        <button className="ghost" onClick={() => setStart(addDays(start, 7))} aria-label="다음 주" disabled={addDays(start, 7) > todayStr()}>▶</button>
+      </div>
+      {week === undefined && <p className="muted small">불러오는 중...</p>}
+      {week === null && <p className="muted small">이 주에는 공유된 평가가 없어요</p>}
+      {week && (
+        <>
+          <section className="card member-week">
+            <div className="week-score">
+              {week.grade && <span className={`grade-chip ${week.grade}`}>{GRADE_LABEL[week.grade as Grade]}</span>}
+              <b>{week.score != null ? `${week.score}점` : "점수 없음"}</b>
+              <span className="muted small">기록한 {week.scoredDays}일 평균</span>
+            </div>
+            <div className="mw-days">
+              {week.days.map((d, i) => (
+                <span key={d.date}>
+                  {DOW[i]}
+                  <i className={`wd-dot ${d.status === "scored" && d.grade ? d.grade : d.status === "today" ? "today" : "none"}`} aria-hidden />
+                  <small>{d.status === "scored" ? d.score : d.status === "today" ? "오늘" : ""}</small>
+                </span>
+              ))}
+            </div>
+            {week.scoredDays > 0 && (
+              <div className="mw-sum">
+                {CRITERIA_ORDER.map((c) => (
+                  <span key={c} className={`mw-cell ${c}`}><i aria-hidden />{CRITERIA[c].label} <b>{week.summary[c].good}/{week.scoredDays}일</b></span>
+                ))}
+              </div>
+            )}
+          </section>
+          <section className="card ai-card">
+            <div className="ai-head"><span className="ai-badge">AI</span><b>이번 주 한줄평</b></div>
+            {week.ai ? <p>{week.ai}</p> : <p className="muted small">아직 AI 한줄평을 받지 않았어요</p>}
+            {week.memo && (
+              <div className="memo-box">
+                <span className="muted small">{uid === me.uid ? "내 코멘트" : `${name}의 코멘트`}</span>
+                <p>{week.memo}</p>
+              </div>
+            )}
+          </section>
+          <section className="card">
+            <Comments me={me} gid={gid} kind="weeks" id={week.id} owner={uid} list={comments} placeholder="이번 주 응원 남기기" />
+          </section>
+        </>
+      )}
+    </>
+  );
+}
+
+/** 👍와 댓글. list는 보여 줄 댓글(끼니별로 나눈 것). 끼니 댓글은 💬를 눌러야 입력칸이 열림 */
+function Comments({ me, gid, kind, id, owner, meal, list, placeholder = "댓글 남기기" }: {
+  me: Me; gid: string; kind: "days" | "weeks"; id: string; owner: string; meal?: string; list: Comment[]; placeholder?: string;
+}) {
+  const [text, setText] = useState("");
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
   const likes = list.filter((c) => c.text === "👍");
   const talk = list.filter((c) => c.text !== "👍");
   const myLike = likes.find((c) => c.uid === me.uid);
@@ -524,30 +661,37 @@ function Comments({ me, gid, kind, id, owner }: { me: Me; gid: string; kind: "da
     if (!t.trim()) return;
     setError("");
     try {
-      await addComment(me, gid, kind, id, t.trim());
+      await addComment(me, gid, kind, id, t.trim(), meal);
       setText("");
     } catch (e) {
       setError(errText(e));
     }
   };
   const toggleLike = () => (myLike ? deleteComment(gid, kind, id, myLike.id).catch((e) => setError(errText(e))) : send("👍"));
+  const showInput = open || !meal;
 
   return (
     <div className="comments">
-      {likes.length > 0 && <p className="small"><span className="like-count">👍 {likes.length}</span> <span className="muted">{likes.map((c) => c.name).join(", ")}</span></p>}
+      <div className="react-row">
+        <button className={`react-btn ${myLike ? "on" : ""}`} onClick={toggleLike} aria-pressed={!!myLike} aria-label={myLike ? "좋아요 취소" : "좋아요"}>👍 {likes.length || ""}</button>
+        {meal && <button className="react-btn" onClick={() => setOpen(!open)} aria-expanded={open}>💬 {talk.length || "댓글"}</button>}
+        {likes.length > 0 && <span className="muted small">{likes.map((c) => c.name).join(", ")}</span>}
+      </div>
       {talk.map((c) => (
-        <div key={c.id} className="comment">
-          <span><b>{c.name}</b> {c.text}</span>
+        <div key={c.id} className="bubble-row">
+          <Avatar uid={c.uid} name={c.name} size={26} />
+          <div className="bubble"><b>{c.name}</b><span>{c.text}</span></div>
           {(c.uid === me.uid || owner === me.uid) && (
             <button className="text-btn muted" onClick={() => deleteComment(gid, kind, id, c.id).catch((e) => setError(errText(e)))}>삭제</button>
           )}
         </div>
       ))}
-      <div className="comment-input">
-        <button className={`like-btn ${myLike ? "on" : ""}`} onClick={toggleLike} aria-label={myLike ? "좋아요 취소" : "좋아요"} aria-pressed={!!myLike}>👍</button>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="댓글 남기기" maxLength={500} enterKeyHint="send" onKeyDown={(e) => e.key === "Enter" && send(text)} aria-label="댓글" />
-        <button className="primary" onClick={() => send(text)} disabled={!text.trim()}>등록</button>
-      </div>
+      {showInput && (
+        <div className="comment-input">
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} maxLength={500} enterKeyHint="send" onKeyDown={(e) => e.key === "Enter" && send(text)} aria-label="댓글" />
+          <button className="primary" onClick={() => send(text)} disabled={!text.trim()}>등록</button>
+        </div>
+      )}
       {error && <p className="error small">{error}</p>}
     </div>
   );

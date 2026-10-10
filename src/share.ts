@@ -173,7 +173,7 @@ async function afterMembershipChange() {
 }
 
 // ---------- 공유 데이터 ----------
-export interface SharedItem { title: string; place?: string; kcal: number; carb: number; protein: number; fat: number }
+export interface SharedItem { title: string; place?: string; kcal: number; carb: number; protein: number; fat: number; ing?: string[] }
 export interface SharedDay {
   id: string;
   uid: string;
@@ -208,6 +208,8 @@ function dayDoc(uid: string, date: string, entries: Entry[], target: Nutrients |
       items: list.map((e) => ({
         title: e.title, ...(e.place ? { place: e.place } : {}),
         kcal: Math.round(e.total.kcal), carb: r1(e.total.carb), protein: r1(e.total.protein), fat: r1(e.total.fat),
+        // 조리(재료 여러 개)는 재료 이름도 같이
+        ...(e.items.length > 1 ? { ing: e.items.slice(0, 8).map((i) => i.name) } : {}),
       })),
       kcal: Math.round(sub.kcal),
       grade: target && list.length ? evaluateMeal(m.key, sub, target, goal).grade : null,
@@ -306,6 +308,14 @@ export function watchGroupWeek(gid: string, start: string, cb: (list: SharedWeek
   );
 }
 
+/** 멤버 한 명의 그날 식단 / 그 주 평가 (없으면 null) */
+export function watchMemberDay(gid: string, uid: string, date: string, cb: (d: SharedDay | null) => void): Unsubscribe {
+  return onSnapshot(doc(fs, "groups", gid, "days", `${uid}_${date}`), (d) => cb(d.exists() ? { ...(d.data() as Omit<SharedDay, "id">), id: d.id } : null), () => cb(null));
+}
+export function watchMemberWeek(gid: string, uid: string, start: string, cb: (w: SharedWeek | null) => void): Unsubscribe {
+  return onSnapshot(doc(fs, "groups", gid, "weeks", `${uid}_${start}`), (d) => cb(d.exists() ? { ...(d.data() as Omit<SharedWeek, "id">), id: d.id } : null), () => cb(null));
+}
+
 /** 오늘 기록한 멤버 수 (그룹 목록용) */
 export function watchTodayCount(gid: string, cb: (n: number) => void): Unsubscribe {
   return onSnapshot(query(collection(fs, "groups", gid, "days"), where("date", "==", todayStr())), (snap) =>
@@ -314,19 +324,20 @@ export function watchTodayCount(gid: string, cb: (n: number) => void): Unsubscri
 }
 
 // ---------- 댓글 ----------
-export interface Comment { id: string; uid: string; name: string; text: string; at: Date | null }
+/** meal: 끼니에 단 댓글이면 그 끼니 (없으면 하루·주 전체) */
+export interface Comment { id: string; uid: string; name: string; text: string; at: Date | null; meal?: string }
 
 export function watchComments(gid: string, kind: "days" | "weeks", id: string, cb: (list: Comment[]) => void): Unsubscribe {
   return onSnapshot(query(collection(fs, "groups", gid, kind, id, "comments"), orderBy("at", "asc")), (snap) =>
     cb(snap.docs.map((d) => {
       const x = d.data();
-      return { id: d.id, uid: x.uid, name: x.name, text: x.text, at: x.at?.toDate?.() ?? null };
+      return { id: d.id, uid: x.uid, name: x.name, text: x.text, at: x.at?.toDate?.() ?? null, ...(x.meal ? { meal: x.meal as string } : {}) };
     })),
   );
 }
 
-export async function addComment(me: Me, gid: string, kind: "days" | "weeks", id: string, text: string) {
-  await addDoc(collection(fs, "groups", gid, kind, id, "comments"), { uid: me.uid, name: me.name, text: text.slice(0, 500), at: serverTimestamp() });
+export async function addComment(me: Me, gid: string, kind: "days" | "weeks", id: string, text: string, meal?: string) {
+  await addDoc(collection(fs, "groups", gid, kind, id, "comments"), { uid: me.uid, name: me.name, text: text.slice(0, 500), at: serverTimestamp(), ...(meal ? { meal } : {}) });
 }
 
 export async function deleteComment(gid: string, kind: "days" | "weeks", id: string, cid: string) {

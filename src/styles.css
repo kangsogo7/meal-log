@@ -670,3 +670,52 @@ input.missing { border-color: var(--over); }
 .food-detail { display: flex; flex-direction: column; gap: 14px; }
 .food-detail .amount-row { gap: 10px; }
 .detail-links { margin-top: -4px; }
+
+/* ---------- 그룹 멤버 화면 (하루 식단 피드 + 주간 평가) ---------- */
+.member-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 -16px 12px; border-bottom: 1px solid var(--border); }
+.member-tabs button { border: none; border-radius: 0; background: none; color: var(--muted); min-height: 46px; border-bottom: 2.5px solid transparent; font-size: 0.95rem; }
+.member-tabs button.on { color: var(--text); font-weight: 700; border-bottom-color: var(--accent); }
+.member-hero { background: var(--accent); color: var(--accent-ink); border-radius: 20px; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.hero-date { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; text-align: center; }
+.hero-date button { width: 36px; height: 36px; min-height: 36px; padding: 0; border: none; border-radius: 50%; background: color-mix(in srgb, var(--accent-ink) 18%, transparent); color: var(--accent-ink); }
+.hero-kcal b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.hero-kcal b span { font-size: 0.8rem; font-weight: 500; opacity: 0.85; }
+.hero-pill { font-size: 0.75rem; background: color-mix(in srgb, var(--accent-ink) 20%, transparent); border-radius: 999px; padding: 3px 9px; }
+.hero-bar { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--accent-ink) 28%, transparent); overflow: hidden; }
+.hero-bar > div { height: 100%; border-radius: 4px; background: var(--accent-ink); }
+.hero-macros { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.78rem; opacity: 0.92; }
+.hero-empty { margin: 4px 0; opacity: 0.9; }
+.meal-post { display: flex; flex-direction: column; gap: 10px; }
+.post-head { display: flex; align-items: center; gap: 8px; }
+.post-head .muted { margin-left: auto; }
+.post-head .grade-dot { width: 10px; height: 10px; }
+.post-item { display: flex; flex-direction: column; gap: 2px; }
+.missing-meals { margin: 4px 4px 12px; }
+.react-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 10px; }
+.react-btn { border: none; background: var(--inset); color: var(--text); border-radius: 999px; padding: 6px 12px; min-height: 34px; font-size: 0.82rem; }
+.react-btn.on { background: var(--accent-soft); color: var(--text); font-weight: 700; }
+.bubble-row { display: flex; align-items: flex-start; gap: 8px; }
+.bubble { background: var(--inset); border-radius: 4px 14px 14px 14px; padding: 7px 10px; font-size: 0.88rem; display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.bubble b { font-size: 0.75rem; }
+.member-week { display: flex; flex-direction: column; gap: 12px; }
+.member-week .week-score b { font-size: 1.6rem; }
+.mw-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 0.72rem; color: var(--muted); }
+.mw-days span { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.mw-days small { min-height: 1em; font-variant-numeric: tabular-nums; }
+.wd-dot.none { background: var(--track); }
+.wd-dot.today { border: 2px solid var(--accent); }
+.mw-sum { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.mw-cell { display: flex; align-items: center; gap: 5px; background: var(--inset); border-radius: 10px; padding: 7px 9px; font-size: 0.78rem; }
+.mw-cell b { margin-left: auto; }
+.mw-cell i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+.mw-cell.carb i { background: var(--carb); }
+.mw-cell.protein i { background: var(--protein); }
+.mw-cell.fat i { background: var(--fat); }
+.ai-card { display: flex; flex-direction: column; gap: 10px; }
+.ai-card p { margin: 0; line-height: 1.6; }
+.ai-head { display: flex; align-items: center; gap: 6px; }
+.ai-badge { font-size: 0.68rem; font-weight: 700; color: var(--accent-ink); background: var(--accent); border-radius: 6px; padding: 2px 6px; }
+.memo-box { background: var(--inset); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.memo-box p { font-size: 0.9rem; }
+.rank li { cursor: pointer; }
+.meal-chips span { display: inline-flex; align-items: center; gap: 4px; }
