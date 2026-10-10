@@ -2,12 +2,19 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
-import { NutrientGrid, Sheet } from "../components/ui";
-import { AmountEditor, portionNutrients, storedPortion, type Portion } from "../portion";
+import { flash, NutrientGrid, Sheet } from "../components/ui";
+import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
+import { shareFood, type SharedFood } from "../foodShare";
 import { FolderScreen, FoodEditScreen, savedDraft, servingLine, SetEditScreen, type CartItem } from "./FavoritesTab";
 import { SavedFoodEditSheet, SetComposeScreen } from "./FavEditors";
 
 type Source = { kind: "often" } | { kind: "group"; id: number } | { kind: "sets" } | { kind: "recent" };
+
+/** 음식을 링크로 보내기 (받은 사람은 링크를 누르면 바로 기록) */
+export async function shareOut(f: SharedFood) {
+  const r = await shareFood(f);
+  if (r === "copied") flash("공유 링크를 복사했어요");
+}
 
 export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; toggle: (c: CartItem) => void; put: (c: CartItem) => void }) {
   const groups = useLiveQuery(() => db.groups.orderBy("order").toArray(), [], []);
@@ -113,6 +120,7 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
             </button>
             <div className="row-between detail-links">
               <button className="text-btn muted" onClick={() => { setEditFood(amountOf.food); setAmountOf(null); }}>음식 정보 수정</button>
+              <button className="text-btn muted" onClick={() => shareOut({ kind: amountOf.food.kind, title: amountOf.food.title, place: amountOf.food.place, items: portionItems(amountOf.food, amountOf.portion), k: amountOf.portion.k })}>공유</button>
               {cart.some((c) => c.id === `fav:${amountOf.food.key}`) && (
                 <button className="text-btn danger-text" onClick={() => { toggle(cart.find((c) => c.id === `fav:${amountOf.food.key}`)!); setAmountOf(null); }}>담은 것 빼기</button>
               )}

@@ -3,6 +3,7 @@ import { db, KIND_LABEL, MEALS, sumNutrients, type Entry, type EntryKind } from 
 import { NutrientEditor, NutrientLine, Sheet } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
+import { shareOut } from "./QuickAdd";
 
 export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const [e, setE] = useState<Entry>(entry);
@@ -34,6 +35,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
       footer={
         <>
           <button className="danger" onClick={remove}>삭제</button>
+          <button onClick={() => shareOut({ kind: current.kind, title: current.title, place: current.place, items: current.items, k: current.k })}>공유</button>
           <span className="spacer" />
           <button onClick={onClose}>취소</button>
           <button className="primary" onClick={save}>저장</button>

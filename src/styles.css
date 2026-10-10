@@ -719,3 +719,8 @@ input.missing { border-color: var(--over); }
 .memo-box p { font-size: 0.9rem; }
 .rank li { cursor: pointer; }
 .meal-chips span { display: inline-flex; align-items: center; gap: 4px; }
+/* 음식 공유 */
+.post-title { gap: 8px; align-items: flex-start; }
+.me-too { flex: none; border: 1px solid var(--accent); background: none; color: var(--accent); border-radius: 999px; padding: 4px 10px; min-height: 30px; font-size: 0.78rem; font-weight: 700; }
+.receive-head { display: flex; flex-direction: column; gap: 4px; }
+.receive-head b { font-size: 1.1rem; }

@@ -11,6 +11,7 @@ import { addDays, db, getKV, MEALS, setKV, sumNutrients, todayStr, type Entry, t
 import { resolveTarget } from "./hooks";
 import { DEFAULT_PROFILE, evaluateMeal, GOALS } from "./nutrition";
 import { evaluateDay, evaluateWeek, weekDays, weekStartOf } from "./weekly";
+import { slimFood, type SharedFood } from "./foodShare";
 
 // 공개용 설정값 (앱 코드에 들어가도 되는 값. 실제 접근 권한은 firestore.rules로 막음)
 const app = initializeApp({
@@ -173,7 +174,8 @@ async function afterMembershipChange() {
 }
 
 // ---------- 공유 데이터 ----------
-export interface SharedItem { title: string; place?: string; kcal: number; carb: number; protein: number; fat: number; ing?: string[] }
+/** d: 다른 멤버가 "나도 기록"할 때 쓰는 음식 정보 */
+export interface SharedItem { title: string; place?: string; kcal: number; carb: number; protein: number; fat: number; ing?: string[]; d?: SharedFood }
 export interface SharedDay {
   id: string;
   uid: string;
@@ -210,6 +212,7 @@ function dayDoc(uid: string, date: string, entries: Entry[], target: Nutrients |
         kcal: Math.round(e.total.kcal), carb: r1(e.total.carb), protein: r1(e.total.protein), fat: r1(e.total.fat),
         // 조리(재료 여러 개)는 재료 이름도 같이
         ...(e.items.length > 1 ? { ing: e.items.slice(0, 8).map((i) => i.name) } : {}),
+        d: slimFood({ kind: e.kind, title: e.title, place: e.place, items: e.items, k: e.k }),
       })),
       kcal: Math.round(sub.kcal),
       grade: target && list.length ? evaluateMeal(m.key, sub, target, goal).grade : null,

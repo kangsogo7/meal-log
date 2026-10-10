@@ -24,6 +24,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="meallog" android:host="join" />
+                <data android:scheme="meallog" android:host="food" />
             </intent-filter>
         </activity>
 

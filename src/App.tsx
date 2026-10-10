@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, getKV, todayStr } from "./db";
 import { onInvite, pendingInvite } from "./invite";
+import { clearFood, onFood, pendingFood, type SharedFood } from "./foodShare";
+import ReceiveFood from "./pages/ReceiveFood";
 import Today from "./pages/Today";
 import Activity from "./pages/Activity";
 import Goals from "./pages/Goals";
@@ -45,6 +47,9 @@ export default function App() {
   // 그룹 초대 링크로 열었으면 그룹 탭부터
   const [tab, setTab] = useState<Tab>(() => (pendingInvite() ? "groups" : "today"));
   useEffect(() => onInvite(() => setTab("groups")), []);
+  // 공유받은 음식(링크·그룹의 나도 기록) → 바로 기록하는 창
+  const [food, setFood] = useState<SharedFood | null>(pendingFood);
+  useEffect(() => onFood(setFood), []);
   useShareSync();
   return (
     <div className="app">
@@ -55,6 +60,7 @@ export default function App() {
         {tab === "goals" && <Goals />}
         {tab === "settings" && <SettingsPage />}
       </main>
+      {food && <ReceiveFood food={food} from={food.from} onClose={() => { clearFood(); setFood(null); }} />}
       <nav className="tabbar">
         {TABS.map((t) => (
           <button key={t.key} className={tab === t.key ? "active" : ""} onClick={() => setTab(t.key)}>

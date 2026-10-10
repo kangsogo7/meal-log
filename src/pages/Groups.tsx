@@ -4,6 +4,7 @@ import { addDays, formatDate, todayStr } from "../db";
 import { BackIcon, flash, Screen, Sheet } from "../components/ui";
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
+import { openSharedFood } from "../foodShare";
 import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isNativeApp, isStandalone, kakaoExternalLink, onInvite, pendingInvite, type Invite } from "../invite";
 import {
   addComment, createGroup, createMe, deleteComment, joinGroup, leaveAll, leaveGroup, loadMe, renameGroup, renameMe,
@@ -556,7 +557,10 @@ function MemberScreen({ me, gid, group, uid, initialDate, initialTab, onClose }:
               </div>
               {m.items.map((it, i) => (
                 <div key={i} className="post-item">
-                  <span>{it.place && <b>{it.place} </b>}{it.title}</span>
+                  <div className="row-between post-title">
+                    <span>{it.place && <b>{it.place} </b>}{it.title}</span>
+                    {!isMe && it.d && <button className="me-too" onClick={() => openSharedFood({ ...it.d!, from: name })}>나도 기록</button>}
+                  </div>
                   <span className="muted small">
                     {it.ing && it.ing.join(", ") !== it.title ? `재료: ${it.ing.join(" · ")}` : `탄 ${Math.round(it.carb)}g · 단 ${Math.round(it.protein)}g · 지 ${Math.round(it.fat)}g`}
                   </span>
