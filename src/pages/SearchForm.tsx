@@ -32,8 +32,10 @@ const COPY = {
 interface AiSaved { est: MenuEstimate; place?: string; title: string; time: string; at: number }
 const aiKey = (kind: string, q: string, search: boolean) => `aiMenu:${kind}|${q.trim().replace(/s+/g, " ").toLowerCase()}|${search ? 1 : 0}`;
 
-export default function SearchForm({ kind, onSave, initialQuery = "", onQueryChange }: {
-  kind: "out" | "food"; onSave: (d: Draft) => void; initialQuery?: string; onQueryChange?: (q: string) => void;
+export default function SearchForm({ kind, onSave, initialQuery = "", onQueryChange, actionLabel = "저장", autoFocus }: {
+  kind: "out" | "food"; onSave: (d: Draft) => void; initialQuery?: string; onQueryChange?: (q: string) => void; actionLabel?: string;
+  /** 사용자가 검색칸을 눌러 들어온 경우에만 바로 입력 */
+  autoFocus?: boolean;
 }) {
   const settings = useSettings();
   const [query, setQuery] = useState(initialQuery);
@@ -213,6 +215,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
         onChange={(e) => { setQuery(e.target.value); setChoice(null); setError(""); }}
         placeholder={copy.placeholder}
         enterKeyHint="search"
+        autoFocus={autoFocus}
       />
       {kind === "out" && split.brand && q && <p className="muted small">상호 <b>{split.brand}</b> · 메뉴 <b>{split.rest || "—"}</b></p>}
       {error && <p className="error">{error}</p>}
@@ -257,7 +260,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
           )}
           <AmountEditor portion={choice.portion} onChange={(portion) => setChoice({ ...choice, portion })} />
           <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, portion: withNutrients(choice.portion, n) })} />
-          <button className="primary block" onClick={save}>저장</button>
+          <button className="primary block" onClick={save}>{actionLabel}</button>
         </div>
       )}
     </div>

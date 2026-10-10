@@ -620,3 +620,33 @@ input.missing { border-color: var(--over); }
 .grade-dot.ok, .wd-dot.ok { background: var(--ok); }
 .grade-dot.bad, .wd-dot.bad { background: var(--bad); }
 .wd-dot { display: inline-block; width: 22px; height: 22px; border-radius: 50%; }
+
+/* ---------- 기록하기 (C안: 검색칸 + 자주 먹는 것 카드) ---------- */
+.search-fake { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--inset); color: var(--muted); font-size: 1rem; text-align: left; margin: 10px 0 6px; }
+.quick-links { display: flex; gap: 16px; margin: 0 2px 10px; }
+.quick-links .link { color: var(--muted); }
+.search-head { margin: 10px 0 6px; }
+.seg.mini { margin: 0; }
+.seg.mini button { padding: 6px 14px; min-height: 34px; }
+.cart-extras { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.cart-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-soft); color: var(--text); border-radius: 999px; padding: 4px 4px 4px 12px; font-size: 0.85rem; }
+.cart-chip button { min-height: 28px; width: 28px; padding: 0; border: none; background: none; color: var(--muted); }
+.quick-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px 12px; padding: 0 16px; }
+.quick-chips::-webkit-scrollbar { display: none; }
+.quick-chips button { flex: none; border: none; background: var(--inset); color: var(--text); border-radius: 999px; padding: 8px 14px; min-height: 36px; font-size: 0.85rem; white-space: nowrap; }
+.quick-chips button.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.quick-chips .chip-manage { width: 36px; padding: 0; font-size: 1.1rem; }
+.quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.quick-card { position: relative; border: 2px solid transparent; background: var(--inset); color: var(--text); border-radius: 16px; padding: 12px; min-height: 104px; text-align: left; display: flex; flex-direction: column; gap: 4px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.quick-card.on { border-color: var(--accent); background: var(--card); }
+.quick-badge { position: absolute; top: 8px; right: 8px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: 0.72rem; font-weight: 700; }
+.quick-title { font-size: 0.95rem; padding-right: 30px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.quick-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-kcal { margin-top: auto; font-variant-numeric: tabular-nums; }
+.quick-kcal .muted { font-size: 0.72rem; font-weight: 400; }
+.quick-hint, .quick-empty { margin: 10px 2px; }
+.quick-manage { display: block; margin: 4px auto 8px; color: var(--muted); }
+.cart-foot { display: flex; align-items: center; gap: 12px; width: 100%; }
+.cart-sum { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cart-go { min-height: 50px; border-radius: 999px; padding: 0 24px; font-size: 1rem; }
+.kb-open .sheet-foot:has(.cart-foot) { display: none; }

@@ -26,7 +26,7 @@ function rowNutrients(r: Row): Nutrients {
   return r.manual;
 }
 
-export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
+export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (d: Draft) => void; actionLabel?: string }) {
   const settings = useSettings();
   const [dish, setDish] = useState("");
   const [text, setText] = useState("");
@@ -151,7 +151,7 @@ export default function HomeForm({ onSave }: { onSave: (d: Draft) => void }) {
             <FavStar getDraft={() => (missingGrams ? null : { kind: "home", title: dish.trim() || items.map((i) => i.name).join(", "), items })} />
           </div>
           {missingGrams && <p className="error">g 입력 필요: {missing.join(", ")}</p>}
-          <button className="primary block" onClick={save} disabled={missingGrams}>저장</button>
+          <button className="primary block" onClick={save} disabled={missingGrams}>{actionLabel}</button>
         </>
       )}
     </div>

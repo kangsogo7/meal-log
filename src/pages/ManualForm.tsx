@@ -4,7 +4,7 @@ import { NutrientEditor } from "../components/ui";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
 
-export default function ManualForm({ onSave }: { onSave: (d: Draft) => void }) {
+export default function ManualForm({ onSave, actionLabel = "저장" }: { onSave: (d: Draft) => void; actionLabel?: string }) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [n, setN] = useState<Nutrients>({ ...ZERO });
@@ -29,7 +29,7 @@ export default function ManualForm({ onSave }: { onSave: (d: Draft) => void }) {
       </label>
       <NutrientEditor n={n} onChange={setN} />
       {tried && !title.trim() && <p className="error">음식 이름을 입력해 주세요</p>}
-      <button className="primary block" onClick={save}>저장</button>
+      <button className="primary block" onClick={save}>{actionLabel}</button>
     </div>
   );
 }

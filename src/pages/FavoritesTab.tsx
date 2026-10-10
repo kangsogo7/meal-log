@@ -18,12 +18,12 @@ export interface CartItem {
 const basePortion = (s: SavedFood) => storedPortion(s);
 
 /** 즐겨찾기 음식을 고른 양만큼의 기록 내용으로 */
-function savedDraft(s: SavedFood, p: Portion): Draft {
+export function savedDraft(s: SavedFood, p: Portion): Draft {
   return { kind: s.kind, title: s.title, place: s.place, items: portionItems(s, p), k: p.k };
 }
 
 /** "교촌치킨 · 150g" 같은 한 줄 설명 */
-function servingLine(s: { place?: string; items: SavedFood["items"] }) {
+export function servingLine(s: { place?: string; items: SavedFood["items"] }) {
   const amount =
     s.items.length > 1 ? `재료 ${s.items.length}개` : s.items[0]?.grams ? `${Math.round(s.items[0].grams)}g` : s.items[0]?.amountText ?? "";
   return { place: s.place ?? "", amount };
@@ -214,7 +214,7 @@ export function SetsTab({ cart, toggle }: { cart: CartItem[]; toggle: (c: CartIt
 // ---------------------------------------------------------------------------
 // 음식 편집: 골라서 삭제 / 다른 폴더로 이동
 // ---------------------------------------------------------------------------
-function FoodEditScreen({ group, onClose }: { group: FavGroup; onClose: () => void }) {
+export function FoodEditScreen({ group, onClose }: { group: FavGroup; onClose: () => void }) {
   const items = useLiveQuery(() => db.saved.filter((s) => s.groupId === group.id).toArray(), [group.id], []);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState(false);
@@ -286,7 +286,7 @@ function FoodEditScreen({ group, onClose }: { group: FavGroup; onClose: () => vo
 // ---------------------------------------------------------------------------
 // 식사 세트 편집: 골라서 삭제
 // ---------------------------------------------------------------------------
-function SetEditScreen({ sets, onClose }: { sets: MealSet[]; onClose: () => void }) {
+export function SetEditScreen({ sets, onClose }: { sets: MealSet[]; onClose: () => void }) {
   const [sel, setSel] = useState<Set<number>>(new Set());
   const all = sets.length > 0 && sets.every((s) => sel.has(s.id!));
   const toggle = (id: number) => setSel((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -327,7 +327,7 @@ function SetEditScreen({ sets, onClose }: { sets: MealSet[]; onClose: () => void
 // ---------------------------------------------------------------------------
 // 내 폴더: 목록 → 편집(삭제·이름 수정·순서 바꾸기)
 // ---------------------------------------------------------------------------
-function FolderScreen({ onClose, onOpen }: { onClose: () => void; onOpen: (id: number) => void }) {
+export function FolderScreen({ onClose, onOpen }: { onClose: () => void; onOpen: (id: number) => void }) {
   const groups = useLiveQuery(() => db.groups.orderBy("order").toArray(), [], []);
   const favs = useLiveQuery(() => db.saved.filter((s) => s.groupId != null).toArray(), [], []);
   const [mode, setMode] = useState<"list" | "new" | "edit">("list");
