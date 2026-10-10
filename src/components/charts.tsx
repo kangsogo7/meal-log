@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 /** 최근 7일 막대 + 목표선. 막대를 누르면 그 날짜로 이동 */
 export function WeekChart({
@@ -53,6 +53,26 @@ export function WeekChart({
 function roundedTop(x: number, y: number, w: number, h: number, r: number) {
   if (h <= 0) return "";
   return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`;
+}
+
+/** 원형 진행 그래프 (가운데 내용은 children). 목표를 넘으면 --over 색 */
+export function Ring({ value, max, size = 132, stroke = 13, label, children }: { value: number; max: number; size?: number; stroke?: number; label: string; children?: ReactNode }) {
+  const r = (size - stroke) / 2;
+  const len = 2 * Math.PI * r;
+  const ratio = max > 0 ? value / max : 0;
+  const over = ratio > 1.05;
+  return (
+    <div className="ring" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="ring-track" strokeWidth={stroke} />
+        {ratio > 0 && <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" className={over ? "ring-bar over" : "ring-bar"} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={`${Math.min(1, ratio) * len} ${len}`} transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />}
+      </svg>
+      <div className="ring-center">{children}</div>
+    </div>
+  );
 }
 
 /** 체중 추이 꺾은선. 점을 누르면 값 표시 */

@@ -49,6 +49,8 @@ export const MEAL_SHARE: Record<Meal, number> = { breakfast: 0.25, lunch: 0.35, 
 
 export type Grade = "bad" | "ok" | "good";
 export const GRADE_EMOJI: Record<Grade, string> = { bad: "😡", ok: "😀", good: "☺️" };
+/** 평가 글자 (색과 함께 표시: --good / --ok / --bad) */
+export const GRADE_LABEL: Record<Grade, string> = { good: "좋음", ok: "보통", bad: "아쉬움" };
 
 // 목표별로 끼니 칼로리가 끼니 몫의 몇 배면 좋은지/괜찮은지
 const KCAL_RANGE: Record<Goal, { good: [number, number]; ok: [number, number] }> = {

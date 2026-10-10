@@ -17,7 +17,7 @@ export function applyTheme(t: Theme) {
   else root.dataset.theme = t;
   // 상태 표시줄 색도 배경에 맞춤
   const dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#262628" : "#e8e8eb");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#16181c" : "#efedf6");
 }
 
 export function setTheme(t: Theme) {

@@ -1,71 +1,100 @@
-/* 미니멀 모노톤: 연회색 바탕 + 포레스트 그린 글자(라이트), 포인트(--point)는 링크·선택 표시에만 조금 */
+/* 라이트: 라벤더 + 피치 / 다크: 다크 네온. 탄수화물·단백질·지방과 평가(좋음·보통·아쉬움)는 각자 색이 있음 */
 :root {
   /* 화면 위·아래 시스템 영역(아이폰 홈 표시줄, 안드로이드 내비게이션 바). 안드로이드 앱은 Capacitor가 --safe-area-inset-* 를 넣어 줌 */
   --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
-  --bg: #e8e8eb;
-  --card: #f4f4f6;
-  --inset: #ebebee;
-  --text: #2c4a40;
-  --muted: #6d7f78;
-  --border: #dadade;
-  --accent: #2c4a40; /* 주 버튼 */
-  --accent-ink: #f4f4f6;
-  --accent-soft: #e2e2e6;
-  --point: #3f6f60;
-  --over: #c2410c; /* 목표 초과 등 상태 표시에만 */
-  --carb: #9aa8a3;
-  --protein: #2c4a40;
-  --fat: #4f6a61;
-  --track: #e2e2e6;
+  --bg: #efedf6;
+  --card: #faf9fd;
+  --inset: #f1eff8;
+  --text: #2c2747;
+  --muted: #6a6585;
+  --border: #dedaea;
+  --accent: #6b5bd6; /* 주 버튼·원형 그래프·선택 표시 */
+  --accent-ink: #ffffff;
+  --accent-soft: #e5e1fa;
+  --point: #6b5bd6;
+  --over: #d9485f; /* 목표 초과 */
+  /* 영양소별 색 */
+  --carb: #f2a25a;
+  --protein: #6b5bd6;
+  --fat: #ea6e8c;
+  --track: #e3e0ee;
+  /* 평가 색 (좋음·보통·아쉬움) */
+  --good: #6b5bd6;
+  --ok: #f2a25a;
+  --bad: #ea6e8c;
+  --good-bg: #e5e1fa;
+  --good-ink: #43369c;
+  --ok-bg: #fbe9d8;
+  --ok-ink: #7a4a17;
+  --bad-bg: #fbe1e7;
+  --bad-ink: #9c2945;
   --tag-out-bg: transparent;
-  --tag-out-ink: #6d7f78;
+  --tag-out-ink: #6a6585;
   --tag-food-bg: transparent;
-  --tag-food-ink: #6d7f78;
+  --tag-food-ink: #6a6585;
   color-scheme: light;
 }
 
 /* 다크 모드: 설정이 "시스템"이면 휴대폰 설정을 따르고, "다크"면 항상 */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #262628;
-    --card: #313134;
-    --inset: #3a3a3d;
-    --text: #e8f3ee;
-    --muted: #93b6a7;
-    --border: #434346;
-    --accent: #e8f3ee;
-    --accent-ink: #1f2d28;
-    --accent-soft: #434346;
-    --point: #8fc2b1;
-    --over: #fb923c;
-    --carb: #5f7d71;
-    --protein: #e8f3ee;
-    --fat: #b2d0c3;
-    --track: #434346;
-    --tag-out-ink: #93b6a7;
-    --tag-food-ink: #93b6a7;
+    --bg: #16181c;
+    --card: #22252b;
+    --inset: #2b2e35;
+    --text: #eef0f3;
+    --muted: #9aa1ad;
+    --border: #30343b;
+    --accent: #4ade80;
+    --accent-ink: #0e1a12;
+    --accent-soft: #1f3d2b;
+    --point: #4ade80;
+    --over: #ff8a5c;
+    --carb: #fcc95a;
+    --protein: #4ade80;
+    --fat: #fb7a8f;
+    --track: #30343b;
+    --good: #4ade80;
+    --ok: #fcc95a;
+    --bad: #fb7a8f;
+    --good-bg: #1f3d2b;
+    --good-ink: #86efac;
+    --ok-bg: #3d321a;
+    --ok-ink: #fde68a;
+    --bad-bg: #3f1f27;
+    --bad-ink: #fda4af;
+    --tag-out-ink: #9aa1ad;
+    --tag-food-ink: #9aa1ad;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #262628;
-  --card: #313134;
-  --inset: #3a3a3d;
-  --text: #e8f3ee;
-  --muted: #93b6a7;
-  --border: #434346;
-  --accent: #e8f3ee;
-  --accent-ink: #1f2d28;
-  --accent-soft: #434346;
-  --point: #8fc2b1;
-  --over: #fb923c;
-  --carb: #5f7d71;
-  --protein: #e8f3ee;
-  --fat: #b2d0c3;
-  --track: #434346;
-  --tag-out-ink: #93b6a7;
-  --tag-food-ink: #93b6a7;
+  --bg: #16181c;
+  --card: #22252b;
+  --inset: #2b2e35;
+  --text: #eef0f3;
+  --muted: #9aa1ad;
+  --border: #30343b;
+  --accent: #4ade80;
+  --accent-ink: #0e1a12;
+  --accent-soft: #1f3d2b;
+  --point: #4ade80;
+  --over: #ff8a5c;
+  --carb: #fcc95a;
+  --protein: #4ade80;
+  --fat: #fb7a8f;
+  --track: #30343b;
+  --good: #4ade80;
+  --ok: #fcc95a;
+  --bad: #fb7a8f;
+  --good-bg: #1f3d2b;
+  --good-ink: #86efac;
+  --ok-bg: #3d321a;
+  --ok-ink: #fde68a;
+  --bad-bg: #3f1f27;
+  --bad-ink: #fda4af;
+  --tag-out-ink: #9aa1ad;
+  --tag-food-ink: #9aa1ad;
   color-scheme: dark;
 }
 
@@ -551,3 +580,43 @@ input.missing { border-color: var(--over); }
 .invite-open { display: flex; flex-direction: column; gap: 8px; }
 .invite-open .btn-link { margin-top: 0; }
 .btn-link.outline { border: 1px solid var(--border); background: var(--inset); color: var(--text); }
+
+/* ---------- 식단 홈 (C안: 원형 그래프 + 끼니 타일) ---------- */
+.today-summary { display: flex; align-items: center; gap: 18px; padding: 18px; border-radius: 22px; }
+.ring { position: relative; flex: none; }
+.ring-track { stroke: var(--track); }
+.ring-bar { stroke: var(--accent); transition: stroke-dasharray 0.4s; }
+.ring-bar.over { stroke: var(--over); }
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-num { font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.macro-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; font-size: 0.82rem; }
+.macro-row { display: flex; flex-direction: column; gap: 4px; }
+.macro-row .progress { height: 6px; }
+.macro-name { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.macro-name i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.macro-row.carb { --c: var(--carb); }
+.macro-row.protein { --c: var(--protein); }
+.macro-row.fat { --c: var(--fat); }
+.macro-row .progress > div:not(.over) { background: var(--c); }
+.macro-row b { font-variant-numeric: tabular-nums; }
+.macro-row b .muted { font-weight: 400; }
+.sodium-line { font-variant-numeric: tabular-nums; }
+.over-text { color: var(--over); font-weight: 600; }
+.meal-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.meal-tile { border: none; background: var(--card); color: var(--text); border-radius: 18px; padding: 14px; min-height: 118px; text-align: left; display: flex; flex-direction: column; gap: 6px; }
+.meal-tile .row-between { width: 100%; }
+.tile-name { font-size: 1rem; }
+.tile-kcal { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.tile-kcal .muted { font-size: 0.75rem; font-weight: 400; }
+.tile-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+.meal-tile.add { background: transparent; border: 1.5px dashed var(--accent); align-items: center; justify-content: center; text-align: center; gap: 2px; }
+.meal-tile.add .plus { font-size: 1.6rem; color: var(--accent); line-height: 1; }
+.grade-chip { display: inline-block; font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
+.grade-chip.good { background: var(--good-bg); color: var(--good-ink); }
+.grade-chip.ok { background: var(--ok-bg); color: var(--ok-ink); }
+.grade-chip.bad { background: var(--bad-bg); color: var(--bad-ink); }
+.grade-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; }
+.grade-dot.good, .wd-dot.good { background: var(--good); }
+.grade-dot.ok, .wd-dot.ok { background: var(--ok); }
+.grade-dot.bad, .wd-dot.bad { background: var(--bad); }
+.wd-dot { display: inline-block; width: 22px; height: 22px; border-radius: 50%; }

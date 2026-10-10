@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useProfile, useTargets } from "../hooks";
-import { DateNav, NutrientLine, Progress } from "../components/ui";
-import { evaluateMeal, GOALS, GRADE_EMOJI, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
+import { DateNav, NutrientLine, Sheet } from "../components/ui";
+import { Ring } from "../components/charts";
+import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
@@ -32,65 +33,112 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
   const [date, setDate] = useState(restore?.date ?? todayStr());
   const [adding, setAdding] = useState<Meal | null>(restore?.meal ?? null);
   const [editing, setEditing] = useState<Entry | null>(null);
-  const [openEval, setOpenEval] = useState<Meal | null>(null);
+  // 끼니 타일을 누르면 그 끼니 기록을 시트로
+  const [openMeal, setOpenMeal] = useState<Meal | null>(null);
   const { target } = useTargets(date);
   const profile = useProfile();
 
   const entries = useLiveQuery(() => db.entries.where("date").equals(date).sortBy("createdAt"), [date], []);
   const total = sumNutrients(entries.map((e) => e.total));
+  const remain = target ? target.kcal - total.kcal : 0;
+  const macro = (key: "carb" | "protein" | "fat", label: string) => {
+    const t = target?.[key] ?? 0;
+    return (
+      <div className={`macro-row ${key}`}>
+        <div className="row-between">
+          <span className="macro-name"><i aria-hidden />{label}</span>
+          <b>{Math.round(total[key])}{t ? <span className="muted">/{Math.round(t)}g</span> : "g"}</b>
+        </div>
+        <div className="progress"><div className={t && total[key] > t * 1.05 ? "over" : ""} style={{ width: `${t ? Math.min(100, (total[key] / t) * 100) : 0}%` }} /></div>
+      </div>
+    );
+  };
+  const meal = openMeal ? MEALS.find((m) => m.key === openMeal)! : null;
+
   return (
     <>
       <DateNav date={date} onChange={setDate} />
 
-      <section className="card">
-        <Progress label="칼로리" value={total.kcal} target={target?.kcal} unit="kcal" className="big" />
-        <div className="macro-grid">
-          <Progress label="탄수화물" value={total.carb} target={target?.carb} unit="g" className="carb" />
-          <Progress label="단백질" value={total.protein} target={target?.protein} unit="g" className="protein" />
-          <Progress label="지방" value={total.fat} target={target?.fat} unit="g" className="fat" />
+      <section className="card today-summary">
+        <Ring value={total.kcal} max={target?.kcal ?? 0} label={`칼로리 ${Math.round(total.kcal)} / ${target?.kcal ?? "-"}kcal`}>
+          {target ? (
+            <>
+              <b className="ring-num">{Math.abs(Math.round(remain)).toLocaleString()}</b>
+              <span className="muted small">{remain >= 0 ? "kcal 남음" : "kcal 초과"}</span>
+            </>
+          ) : (
+            <>
+              <b className="ring-num">{Math.round(total.kcal).toLocaleString()}</b>
+              <span className="muted small">kcal</span>
+            </>
+          )}
+        </Ring>
+        <div className="macro-list">
+          {macro("carb", "탄수화물")}
+          {macro("protein", "단백질")}
+          {macro("fat", "지방")}
+          <div className="row-between sodium-line muted small">
+            <span>나트륨</span>
+            <span className={(total.sodium ?? 0) > (target?.sodium ?? SODIUM_LIMIT) ? "over-text" : ""}>
+              {Math.round(total.sodium ?? 0).toLocaleString()} / {(target?.sodium ?? SODIUM_LIMIT).toLocaleString()}mg
+            </span>
+          </div>
+          {!target && <button className="link small" onClick={onGoToGoals}>목표 설정하기 →</button>}
         </div>
-        <Progress label="나트륨" value={total.sodium ?? 0} target={target?.sodium ?? SODIUM_LIMIT} unit="mg" className="sodium" />
-        {target ? (
-          <p className="muted small remain">
-            {total.kcal <= target.kcal
-              ? `${(target.kcal - total.kcal).toLocaleString()} kcal 더 먹을 수 있어요`
-              : `목표보다 ${(total.kcal - target.kcal).toLocaleString()} kcal 더 먹었어요`}
-          </p>
-        ) : (
-          <button className="link small" onClick={onGoToGoals}>목표 설정하기 →</button>
-        )}
       </section>
 
-      {MEALS.map((m) => {
-        const list = entries.filter((e) => e.meal === m.key);
+      <div className="meal-tiles">
+        {MEALS.map((m) => {
+          const list = entries.filter((e) => e.meal === m.key);
+          if (!list.length) {
+            return (
+              <button key={m.key} className="meal-tile add" onClick={() => setAdding(m.key)}>
+                <b className="plus" aria-hidden>+</b>
+                <b>{m.label} 기록</b>
+                {target && <span className="muted small">{Math.max(0, Math.round(remain)).toLocaleString()}kcal 남음</span>}
+              </button>
+            );
+          }
+          const sub = sumNutrients(list.map((e) => e.total));
+          const ev = target && profile ? evaluateMeal(m.key, sub, target, profile.goal) : null;
+          return (
+            <button key={m.key} className="meal-tile" onClick={() => setOpenMeal(m.key)}>
+              <span className="row-between">
+                <b className="tile-name">{m.label}</b>
+                {ev && <span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>}
+              </span>
+              <b className="tile-kcal">{Math.round(sub.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
+              <span className="muted small tile-sub">{list[0].title}{list.length > 1 ? ` 외 ${list.length - 1}개` : ""}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {meal && (() => {
+        const list = entries.filter((e) => e.meal === meal.key);
         const sub = sumNutrients(list.map((e) => e.total));
-        const ev = target && profile && list.length > 0 ? evaluateMeal(m.key, sub, target, profile.goal) : null;
-        const open = openEval === m.key;
+        const ev = target && profile && list.length ? evaluateMeal(meal.key, sub, target, profile.goal) : null;
         return (
-          <section className="card meal" key={m.key}>
-            <div className="meal-head">
-              <h2>
-                {m.label}
-                {list.length > 0 && <span className="muted meal-kcal">{sub.kcal} kcal</span>}
-              </h2>
-              <div className="meal-actions">
-                {ev && (
-                  <button className="grade" onClick={() => setOpenEval(open ? null : m.key)} aria-label="끼니 평가 보기">
-                    {GRADE_EMOJI[ev.grade]}
-                  </button>
-                )}
-                <button className="chip primary" onClick={() => setAdding(m.key)}>+ 기록</button>
-              </div>
-            </div>
-            {ev && open && (
+          <Sheet
+            title={`${meal.label} · ${Math.round(sub.kcal).toLocaleString()}kcal`}
+            onClose={() => setOpenMeal(null)}
+            footer={
+              <>
+                {list.length > 0 && <button onClick={() => saveAsSet(meal.label, list)}>식사 세트로 저장</button>}
+                <span className="spacer" />
+                <button className="primary" onClick={() => { setOpenMeal(null); setAdding(meal.key); }}>+ 추가</button>
+              </>
+            }
+          >
+            {ev && (
               <div className="eval">
-                <p className="small muted">{GOALS[profile!.goal].label} · 하루 목표의 {Math.round(MEAL_SHARE[m.key] * 100)}% 기준</p>
+                <p className="small muted"><span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span> {GOALS[profile!.goal].label} · 하루 목표의 {Math.round(MEAL_SHARE[meal.key] * 100)}% 기준</p>
                 <ul className="small">
-                  {ev.reasons.map((r) => <li key={r.text}>{GRADE_EMOJI[r.grade]} {r.text}</li>)}
+                  {ev.reasons.map((r) => <li key={r.text}><i className={`grade-dot ${r.grade}`} aria-hidden /> {r.text}</li>)}
                 </ul>
               </div>
             )}
-            {list.length > 0 && (
+            {list.length ? (
               <ul className="entries">
                 {list.map((e) => (
                   <li key={e.id} onClick={() => setEditing(e)} className="entry-row">
@@ -105,13 +153,12 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
                   </li>
                 ))}
               </ul>
+            ) : (
+              <p className="muted small">기록이 없어요</p>
             )}
-            {list.length > 0 && (
-              <button className="link small set-save" onClick={() => saveAsSet(m.label, list)}>+ 식사 세트로 저장</button>
-            )}
-          </section>
+          </Sheet>
         );
-      })}
+      })()}
 
       <WeeklyCard date={date} onSelect={setDate} />
 

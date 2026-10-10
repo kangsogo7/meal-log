@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, getKV, MEALS, setKV } from "../db";
 import { useProfile, useSettings, useTargetsFor } from "../hooks";
-import { GOALS, GRADE_EMOJI } from "../nutrition";
+import { GOALS, GRADE_LABEL } from "../nutrition";
 import { WeekChart } from "../components/charts";
 import { GeminiError, weeklyComment } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
@@ -43,7 +43,7 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
 
       {week.score != null ? (
         <div className="week-score">
-          <span className="emoji">{GRADE_EMOJI[week.grade!]}</span>
+          <span className={`grade-chip ${week.grade}`}>{GRADE_LABEL[week.grade!]}</span>
           <b>{week.score}점</b>
           <span className="muted small">기록한 {week.scored.length}일 평균</span>
         </div>
@@ -56,7 +56,7 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
           <button key={d.date} className={`wd ${d.date === date ? "sel" : ""}`} onClick={() => onSelect(d.date)}>
             <span className="muted">{DOW[i]}</span>
             <span className={`wd-mark ${d.status === "today" ? "txt" : ""}`}>
-              {d.status === "scored" ? GRADE_EMOJI[d.grade!] : d.status === "today" ? "오늘" : d.status === "none" ? "–" : ""}
+              {d.status === "scored" ? <i className={`wd-dot ${d.grade}`} aria-label={GRADE_LABEL[d.grade!]} /> : d.status === "today" ? "오늘" : d.status === "none" ? "–" : ""}
             </span>
             <span className="wd-score">{d.status === "scored" ? d.score : ""}</span>
           </button>
