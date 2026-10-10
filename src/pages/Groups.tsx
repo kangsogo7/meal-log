@@ -372,9 +372,9 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
   }, [group]);
 
   if (!group) return null;
-  // 나를 맨 위에, 그다음 기록한 사람, 기록 없는 사람 순
+  // 다른 멤버는 이름순, 나는 맨 아래
   const order = [...group.members].sort((a, b) =>
-    Number(b === me.uid) - Number(a === me.uid) || Number(!!days.find((d) => d.uid === b)?.meals.length) - Number(!!days.find((d) => d.uid === a)?.meals.length),
+    Number(a === me.uid) - Number(b === me.uid) || (group.names[a] ?? "").localeCompare(group.names[b] ?? "", "ko"),
   );
   const ranked = weeks.filter((w) => group.members.includes(w.uid) && w.score != null).sort((a, b) => b.score! - a.score!);
 
