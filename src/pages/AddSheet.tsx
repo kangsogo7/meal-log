@@ -170,14 +170,14 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
 
       {mode === "home" && (
         <>
-          <div className="row-between">{back}<b>재료로 직접</b></div>
+          <div className="row-between search-head">{back}<b>재료로 직접</b></div>
           <HomeForm onSave={addDraft} actionLabel="담기" />
         </>
       )}
 
       {mode === "manual" && (
         <>
-          <div className="row-between">{back}<b>숫자로 직접 입력</b></div>
+          <div className="row-between search-head">{back}<b>숫자로 직접 입력</b></div>
           <ManualForm onSave={addDraft} actionLabel="담기" />
         </>
       )}
