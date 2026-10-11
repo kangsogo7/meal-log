@@ -253,9 +253,11 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
   const [tip, setTip] = useState<AdjustSuggestion | null>(null);
   const save = async () => {
     if (!r.weight) return;
+    // put이 새 기록에 id를 채워 넣어서(값을 안 고쳤으면 record와 같은 객체) 저장 전에 새 기록인지 확인
+    const isNew = !record.id;
     await db.body.put(r);
     // 새 기록이면 2주 이상 전 기록과 비교해서 칼로리 조정 제안
-    const next = profile && !record.id ? suggestAdjust(profile.goal, r, await db.body.toArray(), profile.kcalAdjust) : null;
+    const next = profile && isNew ? suggestAdjust(profile.goal, r, await db.body.toArray(), profile.kcalAdjust) : null;
     // 컷팅 중 기초대사량 아래로 내려가는 제안은 하지 않음
     const floor = next && next.delta < 0 && !profile?.override && calc && target && target.kcal + next.delta < calc.bmr;
     if (next?.delta && target && !floor) return setTip(next);
