@@ -377,12 +377,3 @@ export async function deleteComment(gid: string, kind: "days" | "weeks", id: str
   await deleteDoc(doc(fs, "groups", gid, kind, id, "comments", cid));
 }
 
-/** 그룹 기능 그만 쓰기: 모든 그룹에서 나가고 내 정보를 지우고 로그아웃 */
-export async function leaveAll(me: Me) {
-  const groups = await getDocs(query(collection(fs, "groups"), where("members", "array-contains", me.uid)));
-  for (const g of groups.docs) await leaveGroup(me, toGroup(g.id, g.data()));
-  await deleteDoc(doc(fs, "users", me.uid));
-  await setKV("shareOn", false);
-  await setKV("shareSigs", {});
-  await auth.signOut();
-}

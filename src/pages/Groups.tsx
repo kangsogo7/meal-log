@@ -7,7 +7,7 @@ import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { openSharedFood } from "../foodShare";
 import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isNativeApp, isStandalone, kakaoExternalLink, onInvite, pendingInvite, type Invite } from "../invite";
 import {
-  addComment, createGroup, createMe, deleteComment, joinGroup, leaveAll, leaveGroup, loadMe, renameGroup, renameMe,
+  addComment, createGroup, createMe, deleteComment, joinGroup, leaveGroup, loadMe, renameGroup, renameMe,
   getMyPhoto, makePhoto, setMyPhoto, watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchMemberDay, watchMemberWeek, watchTodayCount,
   type Comment, type Group, type Me, type SharedDay, type SharedWeek,
 } from "../share";
@@ -291,14 +291,6 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
         </label>
         {error && <p className="error small">{error}</p>}
       </section>
-
-      <button className="link small leave-btn" onClick={() => {
-        if (!confirm("그룹 기능을 그만 쓸까요? 모든 그룹에서 나가고 올린 기록이 지워져요. 폰에 있는 기록은 그대로예요.")) return;
-        run("leave", async () => {
-          await leaveAll(me);
-          setMe(null);
-        });
-      }}>그룹 기능 그만 쓰기</button>
 
       {creating && <NewGroupSheet me={me} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); setOpen(id); }} />}
       {open && <GroupScreen me={me} gid={open} onClose={() => setOpen(null)} />}
