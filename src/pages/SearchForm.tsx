@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, getKV, savedKey, setKV, scaleNutrients, type ItemSource, type Nutrients } from "../db";
-import { foodLabel, listGrams, loadFoodDb, loadProductDb, parseSize, searchFoods, splitBrand, type Food } from "../foodDb";
-import { estimateMenu, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
+import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBrand, type Food } from "../foodDb";
+import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
 import { NutrientEditor, NutrientLine } from "../components/ui";
@@ -29,7 +29,7 @@ const COPY = {
 };
 
 /** AI 결과는 검색어별로 저장 (요청 중에 화면을 떠났다 와도, 앱이 다시 시작돼도 결과가 남아 있게) */
-interface AiSaved { est: MenuEstimate; place?: string; title: string; time: string; at: number }
+interface AiSaved { est: MenuEstimate; place?: string; title: string; time: string; at: number; prompt?: string }
 const aiKey = (kind: string, q: string, search: boolean) => `aiMenu:${kind}|${q.trim().replace(/s+/g, " ").toLowerCase()}|${search ? 1 : 0}`;
 
 export default function SearchForm({ kind, onSave, initialQuery = "", onQueryChange, actionLabel = "저장", autoFocus }: {
@@ -45,6 +45,8 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
   const [choice, setChoice] = useState<Choice | null>(null);
   const [busy, setBusy] = useState<"" | "db">("");
   const [error, setError] = useState("");
+  // AI에게 보낼 질문 (null이면 질문칸을 닫은 상태). 처음엔 검색어로 채워 줌
+  const [prompt, setPrompt] = useState<string | null>(null);
   // AI 요청은 뒤에서 진행 (홈 화면에 갔다 오거나 폰을 잠가도 돌아오면 이어서)
   const fastJob = useJob(aiKey(kind, query, false));
   const verifyJob = useJob(aiKey(kind, query, true));
@@ -53,7 +55,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
   const aiSaved = verifySaved ?? fastSaved ?? null;
   const aiChoice = useMemo<Choice | null>(
     () => aiSaved ? {
-      id: "ai", label: `AI 추정 · ${aiSaved.est.name}`, title: aiSaved.title, place: aiSaved.place, source: "ai",
+      id: "ai", label: `AI 답 · ${aiSaved.est.name}`, title: aiSaved.title, place: aiSaved.place, source: "ai",
       verified: !!verifySaved, portion: makePortion(aiSaved.est.nutrients, aiSaved.est.grams), note: aiSaved.est.note,
     } : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,20 +150,20 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
 
   /** search: 구글 검색으로 공식 영양정보 확인 (느림). 기본은 빠른 답 */
   const runAi = (search = false) => {
+    const text = (search ? aiSaved?.prompt : prompt)?.trim() || query.trim();
+    if (!text) return;
     setError("");
+    setPrompt(null);
     askedAt.current = Date.now();
     const key = aiKey(kind, query, search);
     const { place, title } = placeAndTitle();
-    // 사이즈는 메뉴 이름에서 떼어 "먹은 양"으로 (예: "아이스말차 L사이즈" → 메뉴 "아이스말차", 양 "L 사이즈 1잔")
-    const { label: size, text: menu } = parseSize(title);
-    const amount = size ? `${size} 사이즈 1잔` : copy.amount;
     runInBackground(
       key,
       async () => {
         const t0 = performance.now();
-        const est = await estimateMenu(settings, place ?? "", menu || title, amount, kind, search);
+        const est = await askFood(settings, text, search);
         const time = `총 ${((performance.now() - t0) / 1000).toFixed(1)}초 (${formatTrace(getLastTrace())})`;
-        await setKV(key, { est, place, title, time, at: Date.now() } satisfies AiSaved);
+        await setKV(key, { est, place, title, time, at: Date.now(), prompt: text } satisfies AiSaved);
       },
       { done: "AI 검색 결과가 도착했어요", fail: (e) => (e instanceof GeminiError ? e.message : "AI 추정에 실패했어요.") },
     );
@@ -212,7 +214,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
       <input
         className="search-input"
         value={query}
-        onChange={(e) => { setQuery(e.target.value); setChoice(null); setError(""); }}
+        onChange={(e) => { setQuery(e.target.value); setChoice(null); setError(""); setPrompt(null); }}
         placeholder={copy.placeholder}
         enterKeyHint="search"
         autoFocus={autoFocus}
@@ -237,11 +239,19 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
             />
           ))}
           {!busy && results.length === 0 && !aiChoice && <p className="muted small">{copy.empty}</p>}
-          {!aiChoice && settings.geminiKey && (
-            <button className="block" onClick={() => runAi()} disabled={fastJob.running}>
-              {fastJob.running ? "AI가 찾는 중... (다른 앱을 써도 돼요)" : "AI로 찾기"}
-            </button>
-          )}
+          {settings.geminiKey && (fastJob.running ? (
+            <button className="block" disabled>AI가 답하는 중... (다른 앱을 써도 돼요)</button>
+          ) : prompt !== null ? (
+            <div className="ai-ask">
+              <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="AI에게 물어볼 내용" autoFocus />
+              <div className="btn-row">
+                <button onClick={() => setPrompt(null)}>취소</button>
+                <button className="primary" onClick={() => runAi()} disabled={!prompt.trim()}>보내기</button>
+              </div>
+            </div>
+          ) : (
+            <button className="block" onClick={() => setPrompt(aiSaved?.prompt ?? q)}>{aiChoice ? "AI에게 다시 묻기" : "AI에게 묻기"}</button>
+          ))}
         </div>
       )}
 

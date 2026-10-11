@@ -242,57 +242,33 @@ export interface MenuEstimate {
   note: string;
 }
 
-export async function estimateMenu(
-  settings: Settings,
-  place: string,
-  menu: string,
-  amount: string,
-  kind: "out" | "food" = "out",
-  /** true면 구글 검색으로 공식 영양정보를 확인 (정확하지만 느림) */
-  search = false,
-): Promise<MenuEstimate> {
-  const rules = `규칙:
-1. 입력한 이름 그대로의 메뉴를 찾아. 이름이 비슷한 다른 메뉴로 바꾸지 마. (예: "아이스 말차" ≠ "아이스 말차 라떼", "아메리카노" ≠ "카페 라떼". 우유가 들어가는지 같은 차이가 칼로리를 크게 바꿈)
-2. 그 가게/제조사의 공식 영양정보(홈페이지·앱·포장지)를 구글 검색으로 확인해서 그 값을 써. (검색을 못 하면 정확히 아는 경우에만) 사이즈가 있으면 그 사이즈 값을 써.
-3. 공식 값을 못 찾았을 때만, 같은 종류 메뉴의 일반적인 레시피로 추정해.
-4. name: 공식 메뉴 이름 (사이즈 포함). 그 가게에 정확히 그 메뉴가 없으면 입력한 이름 그대로.
-5. note: 근거를 한국어로 짧게. 공식 값이면 "투썸 공식 영양정보 · L 473ml"처럼, 추정이면 "공식 정보 없음 · 말차+물 473ml 기준 추정"처럼 무엇을 가정했는지.
-6. 칼로리는 탄수화물×4 + 단백질×4 + 지방×9 와 크게 어긋나지 않게.`;
-  const prompt =
-    kind === "out"
-      ? `너는 정확한 정보를 찾는 정보 검색 전문가야. 지금은 한국 외식·카페 메뉴의 영양 정보를 찾고 있어.
-가게: ${place || "(모름)"}
-메뉴: ${menu}
-먹은 양: ${amount || "1인분"}
-이 가게의 이 메뉴를 "먹은 양"만큼 먹었을 때의 영양성분을 알려줘.
-${rules}`
-      : `너는 정확한 정보를 찾는 정보 검색 전문가야. 지금은 한국에서 파는 식품(편의점·마트 제품, 과일, 유제품 등)의 영양 정보를 찾고 있어.
-식품: ${[place, menu].filter(Boolean).join(" ")}
-먹은 양: ${amount || "1개 (1회 제공량)"}
-이 식품을 "먹은 양"만큼 먹었을 때의 영양성분을 알려줘. 시판 제품이면 포장지 영양정보 기준.
-${rules}`;
-
+/**
+ * 사용자가 쓴 질문을 그대로 보냄 (앱이 덧붙이는 지시 없음).
+ * 숫자를 칸에 채우려고 답의 형식(JSON 스키마)만 정해 줌. 검색 모드는 형식을 강제할 수 없어서 형식 안내 한 줄이 붙음.
+ */
+export async function askFood(settings: Settings, question: string, search = false): Promise<MenuEstimate> {
   const schema = {
     type: "object",
     properties: {
-      name: { type: "string", description: "메뉴 이름" },
-      grams: { type: "number", description: "먹은 양의 추정 중량(g)" },
+      name: { type: "string", description: "음식 이름" },
+      grams: { type: "number", description: "중량(g)" },
       nutrients: { type: "object", properties: NUTRIENT_PROPS, required: NUTRIENT_REQ },
-      note: { type: "string" },
+      note: { type: "string", description: "답변" },
     },
     required: ["name", "grams", "nutrients", "note"],
   };
+  const parts = [{ text: question }];
   let res: MenuEstimate;
   if (search) {
     try {
-      res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema, { search: true });
+      res = await generateJson<MenuEstimate>(settings, parts, schema, { search: true });
       if (!res?.nutrients) throw new GeminiError("형식 오류");
     } catch {
       // 검색을 못 쓰는 경우(한도 등)엔 검색 없이
-      res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema);
+      res = await generateJson<MenuEstimate>(settings, parts, schema);
     }
   } else {
-    res = await generateJson<MenuEstimate>(settings, [{ text: prompt }], schema);
+    res = await generateJson<MenuEstimate>(settings, parts, schema);
   }
   return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients) };
 }

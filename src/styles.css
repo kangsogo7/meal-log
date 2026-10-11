@@ -759,3 +759,6 @@ input.missing { border-color: var(--over); }
 .dialog-actions button { min-height: 48px; }
 @keyframes pop { from { opacity: 0; transform: scale(0.94); } }
 @media (prefers-reduced-motion: reduce) { .dialog, .dialog-backdrop { animation: none; } }
+
+.ai-ask { display: flex; flex-direction: column; gap: 8px; }
+.ai-ask .btn-row { justify-content: flex-end; }
