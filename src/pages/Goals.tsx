@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Nutrients, type Profile } from "../db";
-import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, suggestAdjust, type AdjustSuggestion } from "../nutrition";
+import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion } from "../nutrition";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
 import { flash, NumInput, Sheet } from "../components/ui";
@@ -267,6 +267,12 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
   };
   if (tip && profile && target) {
     const cut = tip.delta < 0;
+    // 바뀌는 탄수화물·지방 (직접 정한 목표는 탄수화물만, 계산값은 지방이 칼로리의 25%라 같이 조금 바뀜)
+    const before = calcTargets(profile, r)?.target;
+    const after = calcTargets({ ...profile, kcalAdjust: (profile.kcalAdjust ?? 0) + tip.delta }, r)?.target;
+    const dFat = profile.override || !before || !after ? 0 : after.fat - before.fat;
+    const dCarb = profile.override || !before || !after ? Math.round(tip.delta / 4) : after.carb - before.carb;
+    const g = (v: number) => `${v > 0 ? "+" : ""}${v}g`;
     const accept = async () => {
       // 목표를 직접 정한 경우엔 그 값에서 탄수화물로 조정, 아니면 계산값에 더함
       if (profile.override) {
@@ -297,7 +303,7 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
           <p className="adjust-preview">
             <span className="muted">{target.kcal.toLocaleString()}</span> → <b>{(target.kcal + tip.delta).toLocaleString()} kcal</b>
           </p>
-          <p className="muted small">탄수화물에서 {Math.round(Math.abs(tip.delta) / 4)}g {cut ? "빠져요" : "더해져요"}. 단백질은 그대로예요.</p>
+          <p className="muted small">탄수화물 {g(dCarb)}{dFat ? ` · 지방 ${g(dFat)}` : ""} · 단백질은 그대로예요.</p>
         </div>
       </Sheet>
     );
