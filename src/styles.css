@@ -762,3 +762,50 @@ input.missing { border-color: var(--over); }
 
 .ai-ask { display: flex; flex-direction: column; gap: 8px; }
 .ai-ask .btn-row { justify-content: flex-end; }
+
+/* 홈 화면 색(탄수화물·단백질·지방)을 다른 화면의 항목 색으로 */
+.chart .bar.tone-carb { fill: var(--carb); }
+.chart .bar.tone-protein { fill: var(--protein); }
+.chart .bar.tone-fat { fill: var(--fat); }
+.tone-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.tone-tile { border-radius: 18px; padding: 14px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tone-tile > span, .tone-tile small { font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tone-tile b { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.tone-tile.carb { background: var(--ok-bg); color: var(--ok-ink); }
+.tone-tile.protein { background: var(--good-bg); color: var(--good-ink); }
+.tone-tile.fat { background: var(--bad-bg); color: var(--bad-ink); }
+.chart-head h2 { margin: 0; }
+.chart-head { margin-bottom: 8px; }
+.workout-list .wo-icon { width: 38px; height: 38px; border-radius: 12px; background: var(--good-bg); color: var(--good-ink); display: grid; place-items: center; font-size: 0.75rem; font-weight: 700; flex: none; }
+.workout-list .wo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.workout-list .wo-kcal { color: var(--bad-ink); white-space: nowrap; }
+
+/* 목표·체중 */
+.target-kcal { margin: 6px 0 10px; }
+.target-kcal b { font-size: 2.2rem; font-variant-numeric: tabular-nums; }
+.macro-bar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 12px; }
+.macro-bar .carb { background: var(--carb); }
+.macro-bar .protein { background: var(--protein); }
+.macro-bar .fat { background: var(--fat); }
+.tone-tiles.in-card { margin-bottom: 12px; gap: 8px; }
+.tone-tiles.in-card .tone-tile { border-radius: 14px; padding: 12px; }
+.tone-tile b small { font-size: 0.75rem; font-weight: 400; margin-left: 1px; }
+.goal-row { display: flex; align-items: center; gap: 8px; background: var(--inset); border-radius: 12px; padding: 8px 12px; min-height: 44px; margin-bottom: 8px; }
+.goal-row .muted { flex: 1; min-width: 0; }
+.goal-row .link { white-space: nowrap; }
+.goal-chip { flex: none; font-size: 0.75rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; background: var(--card); color: var(--muted); }
+.goal-chip.cut { background: var(--bad-bg); color: var(--bad-ink); }
+.goal-chip.leanbulk, .goal-chip.bulk { background: var(--good-bg); color: var(--good-ink); }
+.body-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; text-align: center; margin-top: 4px; }
+.body-stat { border-top: 3px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+.body-stat.protein { border-color: var(--protein); }
+.body-stat.fat { border-color: var(--fat); }
+.body-stat.carb { border-color: var(--carb); }
+.body-stat b { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.body-stat b small { font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-left: 1px; }
+.body-diff { font-size: 0.78rem; color: var(--muted); }
+.body-diff.good { color: var(--good-ink); }
+.body-diff.bad { color: var(--bad-ink); }
+.body-compare { text-align: center; margin: 8px 0 4px; }
+.body-btns { margin-top: 4px; }
+.body-btns button { flex: 1; min-height: 48px; }

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Nutrients, type Profile } from "../db";
+import { addDays, db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Goal, type Nutrients, type Profile } from "../db";
 import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion } from "../nutrition";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
@@ -23,22 +23,28 @@ export default function Goals() {
       <header className="page-head"><h1>목표 · 체중</h1></header>
 
       <section className="card">
-        <h2>하루 목표 영양성분</h2>
+        <h2>하루 목표</h2>
         {target ? (
           <>
-            <div className="target-grid">
-              <div><span className="muted small">칼로리</span><b>{target.kcal.toLocaleString()}</b><em>kcal</em></div>
-              <div className="carb"><span className="muted small">탄수화물</span><b>{target.carb}</b><em>g</em></div>
-              <div className="protein"><span className="muted small">단백질</span><b>{target.protein}</b><em>g</em></div>
-              <div className="fat"><span className="muted small">지방</span><b>{target.fat}</b><em>g</em></div>
+            <p className="target-kcal"><b>{target.kcal.toLocaleString()}</b> <span className="muted">kcal</span></p>
+            <MacroBar n={target} />
+            <div className="tone-tiles in-card">
+              <div className="tone-tile carb"><span>탄수화물</span><b>{target.carb}<small>g</small></b></div>
+              <div className="tone-tile protein"><span>단백질</span><b>{target.protein}<small>g</small></b></div>
+              <div className="tone-tile fat"><span>지방</span><b>{target.fat}<small>g</small></b></div>
+            </div>
+            <div className="goal-row">
+              <span className={`goal-chip ${profile.goal}`}>{GOALS[profile.goal].label}</span>
+              <span className="muted small">
+                {profile.override
+                  ? "직접 정한 목표"
+                  : profile.kcalAdjust
+                    ? `체성분 변화로 ${profile.kcalAdjust > 0 ? "+" : ""}${profile.kcalAdjust}kcal 조정 중`
+                    : GOALS[profile.goal].desc}
+              </span>
+              {!profile.override && !!profile.kcalAdjust && <button className="link small" onClick={() => set({ kcalAdjust: 0 })}>되돌리기</button>}
             </div>
             <p className="muted small">나트륨 {(target.sodium ?? SODIUM_LIMIT).toLocaleString()}mg 이하</p>
-            {!profile.override && !!profile.kcalAdjust && (
-              <p className="muted small row-between">
-                체성분 변화로 {profile.kcalAdjust > 0 ? "+" : ""}{profile.kcalAdjust}kcal 조정 중
-                <button className="link small" onClick={() => set({ kcalAdjust: 0 })}>되돌리기</button>
-              </p>
-            )}
           </>
         ) : !saved ? (
           <>
@@ -91,21 +97,12 @@ export default function Goals() {
         <div className="row-between">
           <h2>체중 · 인바디</h2>
         </div>
-        {latest ? (
-          <p className="body-latest">
-            <b>{latest.weight}kg</b>
-            {latest.bodyFat ? ` · 체지방 ${latest.bodyFat}%` : ""}
-            {latest.muscle ? ` · 골격근 ${latest.muscle}kg` : ""}
-            <span className="muted small"> ({latest.date}{latest.source === "inbody" ? ", 인바디" : ""})</span>
-          </p>
-        ) : (
-          <p className="muted small">아직 기록이 없어요.</p>
-        )}
-        <div className="btn-row">
+        {latest ? <BodyStats latest={latest} records={records} goal={profile.goal} /> : <p className="muted small">아직 기록이 없어요.</p>}
+        <WeightChart points={records.map((r) => ({ date: r.date, weight: r.weight }))} />
+        <div className="btn-row body-btns">
           <button className="primary" onClick={() => setBodyForm({ date: todayStr(), weight: latest?.weight ?? 0, source: "manual" })}>체중 기록</button>
           <InBodyButton onRead={setBodyForm} />
         </div>
-        <WeightChart points={records.map((r) => ({ date: r.date, weight: r.weight }))} />
         {records.length > 0 && (
           <details>
             <summary className="small">전체 기록 보기</summary>
@@ -173,6 +170,67 @@ export default function Goals() {
       </section>
 
       {bodyForm && <BodyForm record={bodyForm} onClose={() => setBodyForm(null)} />}
+    </>
+  );
+}
+
+/** 목표 칼로리의 탄수화물·단백질·지방 비율 막대 */
+function MacroBar({ n }: { n: Nutrients }) {
+  const kc = [n.carb * 4, n.protein * 4, n.fat * 9];
+  const sum = kc.reduce((a, b) => a + b, 0) || 1;
+  const pct = (v: number) => Math.round((v / sum) * 100);
+  return (
+    <div className="macro-bar" role="img" aria-label={`탄수화물 ${pct(kc[0])}%, 단백질 ${pct(kc[1])}%, 지방 ${pct(kc[2])}%`}>
+      <span className="carb" style={{ flexGrow: kc[0] }} />
+      <span className="protein" style={{ flexGrow: kc[1] }} />
+      <span className="fat" style={{ flexGrow: kc[2] }} />
+    </div>
+  );
+}
+
+type Metric = "weight" | "bodyFat" | "muscle";
+/** 목표에 맞는 쪽으로 변했으면 good, 반대면 bad, 작은 변화나 유지 목표는 색 없이 */
+function judge(m: Metric, diff: number, goal: Goal): "good" | "bad" | "" {
+  const small = { weight: 0.2, bodyFat: 0.3, muscle: 0.2 }[m];
+  if (Math.abs(diff) < small || goal === "maintain") return "";
+  const up = diff > 0;
+  if (m === "bodyFat") return up ? "bad" : "good";
+  if (m === "muscle") return up ? "good" : "bad";
+  return goal === "cut" ? (up ? "bad" : "good") : up ? "good" : "bad";
+}
+
+/** 최신 체중·체지방률·골격근과, 2주 넘게 지난 기록(없으면 첫 기록)과의 차이 */
+function BodyStats({ latest, records, goal }: { latest: BodyRecord; records: BodyRecord[]; goal: Goal }) {
+  const limit = addDays(latest.date, -14);
+  const older = records.filter((r) => r.date < latest.date);
+  const base = [...older].reverse().find((r) => r.date <= limit) ?? older[0];
+  const cell = (m: Metric, label: string, unit: string, tone: string, diffUnit = unit) => {
+    const v = latest[m];
+    const b = base?.[m];
+    const diff = v != null && b != null ? Math.round((v - b) * 10) / 10 : null;
+    return (
+      <div className={`body-stat ${tone}`}>
+        <span className="muted small">{label}</span>
+        <b>{v ?? "—"}<small>{v != null ? unit : ""}</small></b>
+        <span className={`body-diff ${diff != null ? judge(m, diff, goal) : ""}`}>
+          {diff == null ? "\u00a0" : diff === 0 ? "그대로" : `${diff > 0 ? "+" : ""}${diff}${diffUnit}`}
+        </span>
+      </div>
+    );
+  };
+  const md = (d: string) => d.slice(5).split("-").map(Number).join("/");
+  const days = base ? Math.round((+new Date(latest.date) - +new Date(base.date)) / 86400000) : 0;
+  return (
+    <>
+      <div className="body-stats">
+        {cell("weight", "체중", "kg", "protein")}
+        {cell("bodyFat", "체지방률", "%", "fat", "%p")}
+        {cell("muscle", "골격근", "kg", "carb")}
+      </div>
+      <p className="muted small body-compare">
+        {md(latest.date)}{latest.source === "inbody" ? " 인바디" : ""}
+        {base ? ` · ${days}일 전(${md(base.date)})과 비교` : ""}
+      </p>
     </>
   );
 }

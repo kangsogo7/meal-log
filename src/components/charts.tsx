@@ -1,12 +1,17 @@
 import { useState, type ReactNode } from "react";
 
 /** 최근 7일 막대 + 목표선. 막대를 누르면 그 날짜로 이동 */
+/** 항목 색: 홈 화면의 탄수화물(노랑)·단백질(초록)·지방(분홍) 색 */
+export type Tone = "carb" | "protein" | "fat";
+
 export function WeekChart({
-  days, values, goal, selected, onSelect, label = "최근 7일 섭취 칼로리", unit = "kcal", showAll = false,
+  days, values, goal, selected, onSelect, label = "최근 7일 섭취 칼로리", unit = "kcal", showAll = false, tone,
 }: {
   days: string[]; values: number[]; goal: number | null; selected: string; onSelect: (d: string) => void; label?: string; unit?: string;
   /** 모든 막대 위에 값 표시 (기본은 고른 날만) */
   showAll?: boolean;
+  /** 막대 색 (없으면 기본 강조색) */
+  tone?: Tone;
 }) {
   const W = 340, H = 150, top = 18, bottom = 24, gap = 10;
   const plotH = H - top - bottom;
@@ -30,7 +35,7 @@ export function WeekChart({
             <rect x={x} y={top} width={bw} height={plotH + bottom} fill="transparent" />
             <path
               d={roundedTop(x + bw * 0.15, top + plotH - h, bw * 0.7, h, Math.min(4, h))}
-              className={over ? "bar over" : "bar"}
+              className={over ? "bar over" : `bar${tone ? " tone-" + tone : ""}`}
               opacity={sel ? 1 : 0.55}
             />
             {(sel || showAll) && v > 0 && (

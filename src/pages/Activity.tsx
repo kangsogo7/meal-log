@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, todayStr, type DayActivity } from "../db";
 import { DateNav, flash } from "../components/ui";
-import { WeekChart } from "../components/charts";
+import { WeekChart, type Tone } from "../components/charts";
 import { HealthError, healthMode, importShortcutText, openHealthSettings, syncFromHealth } from "../health";
 
 export const APK_URL = "https://github.com/kangsogo7/meal-log/releases/download/android/meal-log.apk";
@@ -29,18 +29,28 @@ export default function Activity() {
   const byDate = (d: string) => week.find((w) => w.date === d);
   // 운동 시간: 아이폰 "운동하기 시간"이 있으면 그것, 없으면 운동 기록 합계
   const workoutMin = day?.exerciseMin ?? day?.workouts.reduce((s, w) => s + w.minutes, 0) ?? 0;
+  // 7일 평균 (기록이 있는 날만, 고른 날은 빼고 비교)
+  const avgOf = (key: "steps" | "activeKcal", skip?: string) => {
+    const vs = week.filter((w) => w.date !== skip && w[key] != null).map((w) => w[key] as number);
+    return vs.length ? Math.round(vs.reduce((a, b) => a + b, 0) / vs.length) : null;
+  };
+  const vsAvg = (key: "steps" | "activeKcal") => {
+    const v = day?.[key];
+    const avg = avgOf(key, date);
+    if (v == null || avg == null) return "";
+    const d = v - avg;
+    return `평균보다 ${d >= 0 ? "+" : ""}${d.toLocaleString()}`;
+  };
 
   return (
     <>
       <DateNav date={date} onChange={setDate} />
 
-      <section className="card">
-        <div className="stat-grid">
-          <Stat label="걸음" value={day?.steps} unit="보" />
-          <Stat label="활동 칼로리" value={day?.activeKcal} unit="kcal" />
-          <Stat label="운동" value={day ? workoutMin : undefined} unit="분" />
-        </div>
-      </section>
+      <div className="tone-tiles">
+        <Stat tone="carb" label="걸음" value={day?.steps} sub={vsAvg("steps")} />
+        <Stat tone="fat" label="활동 칼로리" value={day?.activeKcal} sub={vsAvg("activeKcal")} />
+        <Stat tone="protein" label="운동" value={day ? workoutMin : undefined} sub={day ? `분 · ${day.workouts.length}회` : ""} />
+      </div>
 
       <section className="card">
         <h2>운동 기록</h2>
@@ -48,11 +58,12 @@ export default function Activity() {
           <ul className="workout-list">
             {day.workouts.map((w, i) => (
               <li key={i}>
-                <div>
+                <span className="wo-icon" aria-hidden>{w.type.slice(0, 2)}</span>
+                <div className="wo-text">
                   <b>{w.type}</b>
-                  {w.start && <span className="muted small"> {timeOf(w.start)}</span>}
+                  <span className="muted small">{[timeOf(w.start), `${w.minutes}분`].filter(Boolean).join(" · ")}</span>
                 </div>
-                <span className="muted">{w.minutes}분{w.kcal ? ` · ${w.kcal}kcal` : ""}</span>
+                {!!w.kcal && <b className="wo-kcal">{w.kcal.toLocaleString()}<span className="muted small"> kcal</span></b>}
               </li>
             ))}
           </ul>
@@ -62,12 +73,12 @@ export default function Activity() {
       </section>
 
       <section className="card">
-        <h2>최근 7일 걸음</h2>
-        <WeekChart days={days} values={days.map((d) => byDate(d)?.steps ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 걸음 수" unit="보" showAll />
+        <ChartHead title="최근 7일 걸음" avg={avgOf("steps")} />
+        <WeekChart days={days} values={days.map((d) => byDate(d)?.steps ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 걸음 수" unit="보" showAll tone="carb" />
       </section>
       <section className="card">
-        <h2>최근 7일 활동 칼로리</h2>
-        <WeekChart days={days} values={days.map((d) => byDate(d)?.activeKcal ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 활동 칼로리" showAll />
+        <ChartHead title="최근 7일 활동 칼로리" avg={avgOf("activeKcal")} />
+        <WeekChart days={days} values={days.map((d) => byDate(d)?.activeKcal ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 활동 칼로리" showAll tone="fat" />
       </section>
 
       <SyncCard mode={mode} lastSync={last?.syncedAt} />
@@ -75,12 +86,22 @@ export default function Activity() {
   );
 }
 
-function Stat({ label, value, unit }: { label: string; value?: number; unit: string }) {
+/** 홈 화면 색을 쓴 숫자 타일 */
+function Stat({ tone, label, value, sub }: { tone: Tone; label: string; value?: number; sub: string }) {
   return (
-    <div className="stat">
-      <span className="muted small">{label}</span>
+    <div className={`tone-tile ${tone}`}>
+      <span>{label}</span>
       <b>{value != null ? value.toLocaleString() : "—"}</b>
-      <em>{unit}</em>
+      <small>{sub || " "}</small>
+    </div>
+  );
+}
+
+function ChartHead({ title, avg }: { title: string; avg: number | null }) {
+  return (
+    <div className="row-between chart-head">
+      <h2>{title}</h2>
+      {avg != null && <span className="muted small">평균 {avg.toLocaleString()}</span>}
     </div>
   );
 }
