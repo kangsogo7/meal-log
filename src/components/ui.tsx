@@ -49,6 +49,21 @@ export function Sheet({ title, onClose, children, footer, tall }: { title: strin
   );
 }
 
+/** 화면 가운데 뜨는 팝업 (꼭 봐야 하는 확인·제안). 바깥을 눌러도 닫히지 않음 */
+export function Dialog({ title, children, actions }: { title: string; children: ReactNode; actions: ReactNode }) {
+  const z = useLayer();
+  return createPortal(
+    <div className="dialog-backdrop" style={{ zIndex: z }}>
+      <div className="dialog" role="alertdialog" aria-label={title}>
+        <h2>{title}</h2>
+        <div className="dialog-body">{children}</div>
+        <div className="dialog-actions">{actions}</div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 /** 화면 전체를 덮는 페이지 (음식 편집, 내 폴더 등) */
 export function Screen({ title, left, right, footer, children }: { title: ReactNode; left: ReactNode; right?: ReactNode; footer?: ReactNode; children: ReactNode }) {
   const z = useLayer();

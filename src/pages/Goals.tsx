@@ -4,7 +4,7 @@ import { db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Nutrients
 import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion } from "../nutrition";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
-import { flash, NumInput, Sheet } from "../components/ui";
+import { Dialog, flash, NumInput, Sheet } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
 export default function Goals() {
@@ -284,12 +284,10 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
       onClose();
     };
     return (
-      <Sheet
+      <Dialog
         title="목표 칼로리 조정"
-        onClose={onClose}
-        footer={
+        actions={
           <>
-            <span className="spacer" />
             <button onClick={onClose}>그대로</button>
             <button className="primary" onClick={accept}>{cut ? "줄이기" : "늘리기"}</button>
           </>
@@ -305,7 +303,7 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
           </p>
           <p className="muted small">탄수화물 {g(dCarb)}{dFat ? ` · 지방 ${g(dFat)}` : ""} · 단백질은 그대로예요.</p>
         </div>
-      </Sheet>
+      </Dialog>
     );
   }
   const remove = async () => {

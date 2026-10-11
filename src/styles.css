@@ -749,3 +749,13 @@ input.missing { border-color: var(--over); }
 .not-yet, .empty-note { margin: 4px 4px 12px; }
 
 .adjust-preview { font-size: 1.25rem; margin: 4px 0; }
+
+/* 가운데 팝업 */
+.dialog-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; padding: 24px; animation: dim 0.2s ease-out; }
+.dialog { background: var(--card); width: 100%; max-width: 360px; border-radius: 20px; padding: 22px 20px 16px; animation: pop 0.2s ease-out; }
+.dialog h2 { margin: 0 0 10px; }
+.dialog-body .form { gap: 6px; }
+.dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+.dialog-actions button { min-height: 48px; }
+@keyframes pop { from { opacity: 0; transform: scale(0.94); } }
+@media (prefers-reduced-motion: reduce) { .dialog, .dialog-backdrop { animation: none; } }
