@@ -60,7 +60,7 @@ export interface AdjustSuggestion {
  */
 export function suggestAdjust(goal: Goal, now: BodyRecord, history: BodyRecord[], currentAdjust = 0): AdjustSuggestion | null {
   const cut = goal === "cut";
-  if (!cut && goal !== "leanbulk" && goal !== "bulk") return null;
+  if (!cut && goal !== "leanbulk" && goal !== "bulk") return { delta: 0, text: "목표가 유지라서 칼로리 조정은 제안하지 않아요" };
   const limit = new Date(now.date + "T00:00:00").getTime() - 14 * 86400000;
   // 2주 이상 전 기록 중 가장 최근 것 (같은 지표가 있는 기록을 우선)
   const older = history.filter((r) => r.id !== now.id && new Date(r.date + "T00:00:00").getTime() <= limit).sort((a, b) => b.date.localeCompare(a.date));
