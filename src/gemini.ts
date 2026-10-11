@@ -37,6 +37,8 @@ const RENAMED: Record<string, string> = { "gemini-3.7-flash": "gemini-3.8-flash"
 
 export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 
+const LITE_MODELS = GEMINI_MODELS.filter((m) => m.endsWith("-lite"));
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** 구글이 보낸 오류 설명 (화면에 같이 보여 주기 위해) */
@@ -66,7 +68,7 @@ function extractJson(text: string): string {
  * search: 구글 검색으로 공식 영양정보를 찾아보게 함.
  * 검색 도구를 쓰면 응답 형식(responseSchema)을 강제할 수 없어서, 형식은 글로 알려 주고 JSON만 골라 읽음.
  */
-async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean } = {}): Promise<T> {
+async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[] } = {}): Promise<T> {
   const apiKey = cleanKey(settings.geminiKey);
   if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
   // 검색 없는 요청은 "생각하기"를 최소로 해서 빨리 답하게 (모델이 이 설정을 모르면 빼고 다시 보냄)
@@ -93,7 +95,9 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
   const trace: TraceStep[] = [];
   lastTrace = trace;
   const first = RENAMED[settings.geminiModel] ?? settings.geminiModel;
-  const models = [first, ...GEMINI_MODELS.filter((m) => m !== first)];
+  // prefer: 간단한 작업은 설정한 모델 대신 가벼운 모델부터 (한도가 차면 나머지 모델로)
+  const order = [...(opts.prefer ?? []), first, ...GEMINI_MODELS];
+  const models = order.filter((m, i) => order.indexOf(m) === i);
   const call = async (model: string) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const post = async (body: string) => {
@@ -315,7 +319,8 @@ export async function readInBody(settings: Settings, image: { mimeType: string; 
     properties: { date: { type: "string", nullable: true }, weight: num, bodyFat: num, muscle: num, bmr: num },
     required: ["date", "weight", "bodyFat", "muscle", "bmr"],
   };
-  return generateJson<InBodyResult>(settings, [{ inlineData: image }, { text: prompt }], schema);
+  // 결과지 숫자 읽기는 간단한 작업이라 Lite 모델로 (빠르고 한도도 넉넉함)
+  return generateJson<InBodyResult>(settings, [{ inlineData: image }, { text: prompt }], schema, { prefer: LITE_MODELS });
 }
 
 /** API 키 확인용 */

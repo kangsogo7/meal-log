@@ -43,6 +43,45 @@ export const SODIUM_LIMIT = 2000;
 /** 탄단지로 칼로리 계산 (탄수화물·단백질 4kcal/g, 지방 9kcal/g) */
 export const kcalFromMacros = (carb: number, protein: number, fat: number) => Math.round(carb * 4 + protein * 4 + fat * 9);
 
+// ---------- 체성분 변화 → 칼로리 조정 제안 ----------
+/** 한 번에 조정하는 칼로리, 누적 한도 */
+export const ADJUST_STEP = 150;
+const ADJUST_MAX = 450;
+
+export interface AdjustSuggestion {
+  delta: number; // +150 / -150
+  text: string; // "2주 전(9월 27일)보다 체지방률이 0.2%p 줄었어요"
+}
+
+/**
+ * 새 기록을 2주 이상 전 기록과 비교해서, 목표 쪽으로 변화가 없으면 칼로리 조정을 제안.
+ * 컷팅: 체지방률(없으면 체중)이 0.5%p(0.3kg) 넘게 줄지 않았으면 줄이기
+ * 린매스업·벌크업: 골격근량(없으면 체중)이 0.3kg 넘게 늘지 않았으면 늘리기
+ */
+export function suggestAdjust(goal: Goal, now: BodyRecord, history: BodyRecord[], currentAdjust = 0): AdjustSuggestion | null {
+  const cut = goal === "cut";
+  if (!cut && goal !== "leanbulk" && goal !== "bulk") return null;
+  const limit = new Date(now.date + "T00:00:00").getTime() - 14 * 86400000;
+  // 2주 이상 전 기록 중 가장 최근 것 (같은 지표가 있는 기록을 우선)
+  const older = history.filter((r) => r.id !== now.id && new Date(r.date + "T00:00:00").getTime() <= limit).sort((a, b) => b.date.localeCompare(a.date));
+  const key = cut ? "bodyFat" : "muscle";
+  const withKey = now[key] != null ? older.find((r) => r[key] != null) : undefined;
+  const base = withKey ?? older[0];
+  if (!base) return null;
+  const useKey = !!withKey;
+  const diff = useKey ? (now[key] as number) - (base[key] as number) : now.weight - base.weight;
+  const label = useKey ? (cut ? "체지방률" : "골격근량") : "체중";
+  const unit = useKey && cut ? "%p" : "kg";
+  const progressed = cut ? diff < -(useKey ? 0.5 : 0.3) : diff > 0.3;
+  if (progressed) return null;
+  const delta = cut ? -ADJUST_STEP : ADJUST_STEP;
+  if (Math.abs(currentAdjust + delta) > ADJUST_MAX) return null;
+  const [, m, d] = base.date.split("-").map(Number);
+  const days = Math.round((new Date(now.date).getTime() - new Date(base.date).getTime()) / 86400000);
+  const change = Math.abs(diff) < 0.05 ? "그대로예요" : `${Math.abs(diff).toFixed(1)}${unit} ${diff > 0 ? "늘었어요" : "줄었어요"}`;
+  return { delta, text: `${days}일 전(${m}월 ${d}일)보다 ${label}이 ${change}` };
+}
+
 // ---------- 끼니 평가 ----------
 /** 하루 목표를 끼니별로 나눈 비율 */
 export const MEAL_SHARE: Record<Meal, number> = { breakfast: 0.25, lunch: 0.35, snack: 0.1, dinner: 0.3 };
@@ -162,6 +201,10 @@ export function calcTargets(p: Profile, body: BodyRecord | undefined, actual?: {
 
   const goal = GOALS[p.goal];
   let kcal = tdee * goal.kcal;
+  if (p.kcalAdjust) {
+    kcal += p.kcalAdjust;
+    notes.push(`체성분 변화를 보고 하루 ${Math.abs(p.kcalAdjust)}kcal ${p.kcalAdjust > 0 ? "늘렸어요" : "줄였어요"}.`);
+  }
   if (p.goal === "cut" && kcal < bmr) {
     kcal = bmr;
     notes.push("감량 중에도 기초대사량 아래로는 내려가지 않게 맞췄어요.");

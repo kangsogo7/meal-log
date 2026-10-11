@@ -185,6 +185,8 @@ export interface Profile {
   goal: Goal;
   override?: Nutrients | null; // 목표를 직접 지정한 경우
   useActualActivity?: boolean; // 건강 앱의 실제 활동 칼로리로 그날 목표 계산
+  /** 체성분 변화를 보고 받아들인 하루 칼로리 조정 (kcal, 계산값에 더함) */
+  kcalAdjust?: number;
 }
 
 export interface Settings {

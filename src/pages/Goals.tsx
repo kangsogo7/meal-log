@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Nutrients, type Profile } from "../db";
-import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT } from "../nutrition";
+import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, suggestAdjust, type AdjustSuggestion } from "../nutrition";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
 import { NumInput, Sheet } from "../components/ui";
@@ -33,6 +33,12 @@ export default function Goals() {
               <div className="fat"><span className="muted small">지방</span><b>{target.fat}</b><em>g</em></div>
             </div>
             <p className="muted small">나트륨 {(target.sodium ?? SODIUM_LIMIT).toLocaleString()}mg 이하</p>
+            {!profile.override && !!profile.kcalAdjust && (
+              <p className="muted small row-between">
+                체성분 변화로 {profile.kcalAdjust > 0 ? "+" : ""}{profile.kcalAdjust}kcal 조정 중
+                <button className="link small" onClick={() => set({ kcalAdjust: 0 })}>되돌리기</button>
+              </p>
+            )}
           </>
         ) : !saved ? (
           <>
@@ -242,11 +248,56 @@ function InBodyButton({ onRead }: { onRead: (r: BodyRecord) => void }) {
 
 function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void }) {
   const [r, setR] = useState<BodyRecord>(record);
+  const profile = useProfile();
+  const { target, calc } = useTargets();
+  const [tip, setTip] = useState<AdjustSuggestion | null>(null);
   const save = async () => {
     if (!r.weight) return;
     await db.body.put(r);
-    onClose();
+    // 새 기록이면 2주 이상 전 기록과 비교해서 칼로리 조정 제안
+    const next = profile && !record.id ? suggestAdjust(profile.goal, r, await db.body.toArray(), profile.kcalAdjust) : null;
+    // 컷팅 중 기초대사량 아래로 내려가는 제안은 하지 않음
+    const floor = next && next.delta < 0 && !profile?.override && calc && target && target.kcal + next.delta < calc.bmr;
+    if (next && target && !floor) setTip(next);
+    else onClose();
   };
+  if (tip && profile && target) {
+    const cut = tip.delta < 0;
+    const accept = async () => {
+      // 목표를 직접 정한 경우엔 그 값에서 탄수화물로 조정, 아니면 계산값에 더함
+      if (profile.override) {
+        const o = profile.override;
+        await setKV("profile", { ...profile, override: { ...o, kcal: o.kcal + tip.delta, carb: Math.max(0, o.carb + tip.delta / 4) } });
+      } else {
+        await setKV("profile", { ...profile, kcalAdjust: (profile.kcalAdjust ?? 0) + tip.delta });
+      }
+      onClose();
+    };
+    return (
+      <Sheet
+        title="목표 칼로리 조정"
+        onClose={onClose}
+        footer={
+          <>
+            <span className="spacer" />
+            <button onClick={onClose}>그대로</button>
+            <button className="primary" onClick={accept}>{cut ? "줄이기" : "늘리기"}</button>
+          </>
+        }
+      >
+        <div className="form">
+          <p>{tip.text}.</p>
+          <p className="muted small">
+            {GOALS[profile.goal].label} 중인데 변화가 더뎌요. 하루 목표를 {Math.abs(tip.delta)}kcal {cut ? "줄여" : "늘려"} 볼까요?
+          </p>
+          <p className="adjust-preview">
+            <span className="muted">{target.kcal.toLocaleString()}</span> → <b>{(target.kcal + tip.delta).toLocaleString()} kcal</b>
+          </p>
+          <p className="muted small">탄수화물에서 {Math.round(Math.abs(tip.delta) / 4)}g {cut ? "빠져요" : "더해져요"}. 단백질은 그대로예요.</p>
+        </div>
+      </Sheet>
+    );
+  }
   const remove = async () => {
     if (r.id && confirm("이 기록을 삭제할까요?")) {
       await db.body.delete(r.id);

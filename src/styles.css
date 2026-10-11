@@ -144,6 +144,9 @@ input, select, textarea {
   font-size: 16px; /* iOS 확대 방지 */
 }
 textarea { resize: vertical; }
+/* iOS 날짜칸은 기본 모양이 내용 폭을 고집해서 칸 밖으로 넘침 → 다른 입력칸과 같은 폭·높이로 */
+input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 44px; text-align: left; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 .muted { color: var(--muted); }
@@ -744,3 +747,5 @@ input.missing { border-color: var(--over); }
 .mm-item + .mm-item { border-top: 1px solid var(--border); }
 .mm-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .not-yet, .empty-note { margin: 4px 4px 12px; }
+
+.adjust-preview { font-size: 1.25rem; margin: 4px 0; }
