@@ -49,7 +49,7 @@ export const ADJUST_STEP = 150;
 const ADJUST_MAX = 450;
 
 export interface AdjustSuggestion {
-  delta: number; // +150 / -150
+  delta: number; // +150 / -150, 0이면 제안 없음 (text에 이유)
   text: string; // "2주 전(9월 27일)보다 체지방률이 0.2%p 줄었어요"
 }
 
@@ -67,19 +67,20 @@ export function suggestAdjust(goal: Goal, now: BodyRecord, history: BodyRecord[]
   const key = cut ? "bodyFat" : "muscle";
   const withKey = now[key] != null ? older.find((r) => r[key] != null) : undefined;
   const base = withKey ?? older[0];
-  if (!base) return null;
+  if (!base) return { delta: 0, text: "2주 넘게 지난 기록이 없어서 아직 비교할 수 없어요" };
   const useKey = !!withKey;
   const diff = useKey ? (now[key] as number) - (base[key] as number) : now.weight - base.weight;
   const label = useKey ? (cut ? "체지방률" : "골격근량") : "체중";
   const unit = useKey && cut ? "%p" : "kg";
   const progressed = cut ? diff < -(useKey ? 0.5 : 0.3) : diff > 0.3;
-  if (progressed) return null;
-  const delta = cut ? -ADJUST_STEP : ADJUST_STEP;
-  if (Math.abs(currentAdjust + delta) > ADJUST_MAX) return null;
   const [, m, d] = base.date.split("-").map(Number);
   const days = Math.round((new Date(now.date).getTime() - new Date(base.date).getTime()) / 86400000);
   const change = Math.abs(diff) < 0.05 ? "그대로예요" : `${Math.abs(diff).toFixed(1)}${unit} ${diff > 0 ? "늘었어요" : "줄었어요"}`;
-  return { delta, text: `${days}일 전(${m}월 ${d}일)보다 ${label}이 ${change}` };
+  const text = `${days}일 전(${m}월 ${d}일)보다 ${label}이 ${change}`;
+  if (progressed) return { delta: 0, text: `${text}. 잘 되고 있어서 목표는 그대로 둘게요` };
+  const delta = cut ? -ADJUST_STEP : ADJUST_STEP;
+  if (Math.abs(currentAdjust + delta) > ADJUST_MAX) return { delta: 0, text: `${text}. 이미 ${ADJUST_MAX}kcal까지 조정해서 더 바꾸지 않아요` };
+  return { delta, text };
 }
 
 // ---------- 끼니 평가 ----------

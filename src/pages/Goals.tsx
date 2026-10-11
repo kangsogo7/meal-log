@@ -4,7 +4,7 @@ import { db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Nutrients
 import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, suggestAdjust, type AdjustSuggestion } from "../nutrition";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
-import { NumInput, Sheet } from "../components/ui";
+import { flash, NumInput, Sheet } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
 export default function Goals() {
@@ -258,8 +258,10 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
     const next = profile && !record.id ? suggestAdjust(profile.goal, r, await db.body.toArray(), profile.kcalAdjust) : null;
     // 컷팅 중 기초대사량 아래로 내려가는 제안은 하지 않음
     const floor = next && next.delta < 0 && !profile?.override && calc && target && target.kcal + next.delta < calc.bmr;
-    if (next && target && !floor) setTip(next);
-    else onClose();
+    if (next?.delta && target && !floor) return setTip(next);
+    // 제안이 없을 때도 왜 없는지 알려 줌
+    if (next) flash(floor ? `${next.text}. 더 줄이면 기초대사량보다 낮아져서 그대로 둘게요` : next.text, 4000);
+    onClose();
   };
   if (tip && profile && target) {
     const cut = tip.delta < 0;
