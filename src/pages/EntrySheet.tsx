@@ -45,7 +45,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
       <div className="form">
         <div className="seg meal-seg">
           {MEALS.map((m) => (
-            <button key={m.key} className={e.meal === m.key ? "on" : ""} onClick={() => setE({ ...e, meal: m.key })}>{m.label}</button>
+            <button key={m.key} className={e.meal === m.key ? "on" : ""} onClick={() => setE({ ...e, meal: m.key })}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
           ))}
         </div>
         <div className="seg">

@@ -49,7 +49,7 @@ export function CheckTiles({ date, open, onOpen, onClose }: { date: string; open
       <div className="check-tiles">
         <div className="check-tile water">
           <button className="check-tile-head" onClick={onOpen}>
-            <span>물</span>
+            <span><span className="meal-ic" aria-hidden>💧</span>물</span>
             <span>{Math.min(filled, cups)} / {cups}잔</span>
           </button>
           {cups <= 12 ? (
@@ -63,7 +63,7 @@ export function CheckTiles({ date, open, onOpen, onClose }: { date: string; open
         </div>
         <button className="check-tile supp" onClick={onOpen}>
           <span className="check-tile-head">
-            <span>영양제</span>
+            <span><span className="meal-ic" aria-hidden>💊</span>영양제</span>
             {supps.length > 0 && <span className="supp-count">{taken.length} / {supps.length}</span>}
           </span>
           {supps.length ? (
@@ -101,7 +101,7 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
     <Sheet title="물 · 영양제" onClose={onClose}>
       <section className="check-section">
         <div className="row-between">
-          <b>물</b>
+          <b><span className="meal-ic" aria-hidden>💧</span>물</b>
           <span className="muted small">{day.waterMl.toLocaleString()} / {hyd.goalMl.toLocaleString()}ml · 한 잔 {hyd.cupMl}ml</span>
         </div>
         <div className="cup-grid">
@@ -118,7 +118,7 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
 
       <section className="check-section">
         <div className="row-between">
-          <b>영양제</b>
+          <b><span className="meal-ic" aria-hidden>💊</span>영양제</b>
           {supps.length > 0 && <span className="muted small">{supps.filter((s) => day.supps[s.id]).length} / {supps.length}</span>}
         </div>
         {supps.length === 0 && <p className="muted small">아래 버튼으로 먹는 영양제를 등록하면 여기서 체크할 수 있어요.</p>}
@@ -185,7 +185,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
   return (
     <Screen left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>} title="물 · 영양제">
       <section className="card form">
-        <h2>물</h2>
+        <h2><span className="meal-ic" aria-hidden>💧</span>물</h2>
         <div className="two">
           <label>하루 목표 (ml)<NumInput value={hyd.goalMl} onChange={(v) => v && saveHydration({ ...hyd, goalMl: v })} step="1" /></label>
           <label>한 잔 (ml)<NumInput value={hyd.cupMl} onChange={(v) => v && saveHydration({ ...hyd, cupMl: v })} step="1" /></label>
@@ -200,7 +200,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
 
       <section className="card">
         <div className="row-between">
-          <h2>영양제</h2>
+          <h2><span className="meal-ic" aria-hidden>💊</span>영양제</h2>
           <button className="chip-add" onClick={() => setForm({ id: newId(), name: "", when: "morning", count: 1 })}>+ 추가</button>
         </div>
         {supps.length ? (
@@ -337,19 +337,19 @@ export function CheckWeekCard({ date }: { date: string }) {
         <>
           <div className="tone-tiles in-card">
             <div className="tone-tile water">
-              <span>물 목표 달성</span>
+              <span>💧 물 목표 달성</span>
               <b>{waterDays}<small>/{n}일</small></b>
               <small>{drank.length ? `하루 평균 ${avgL}L` : "기록 없음"}</small>
             </div>
             <div className="tone-tile protein">
-              <span>영양제 다 먹은 날</span>
+              <span>💊 영양제 다 먹은 날</span>
               <b>{supps.length ? suppDays : "—"}<small>{supps.length ? `/${n}일` : ""}</small></b>
               <small>{supps.length ? (missed ? `빠뜨린 것 ${missed}번` : "빠뜨린 것 없음") : "등록한 영양제 없음"}</small>
             </div>
           </div>
 
           <div className="cw-block">
-            <span className="muted small">물</span>
+            <span className="muted small">💧 물</span>
             <div className="cw-bars" role="img" aria-label={`물 목표 ${hyd.goalMl}ml, ${days.map((_, i) => `${DOW[i]} ${checks[i].waterMl}ml`).join(", ")}`}>
               <div className="cw-goal" style={{ bottom: `${(hyd.goalMl / max) * 100}%` }} />
               {checks.map((c, i) => (
@@ -365,7 +365,7 @@ export function CheckWeekCard({ date }: { date: string }) {
 
           {supps.length > 0 && (
             <div className="cw-block">
-              <span className="muted small">영양제</span>
+              <span className="muted small">💊 영양제</span>
               <div className="cw-supps">
                 {supps.map((s) => (
                   <div key={s.id} className="cw-supp-row">

@@ -103,7 +103,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
             return (
               <button key={m.key} className="meal-tile add" onClick={() => setAdding(m.key)}>
                 <b className="plus" aria-hidden>+</b>
-                <b>{m.label} 기록</b>
+                <b><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label} 기록</b>
                 {target && <span className="muted small">{Math.max(0, Math.round(remain)).toLocaleString()}kcal 남음</span>}
               </button>
             );
@@ -113,7 +113,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
           return (
             <button key={m.key} className="meal-tile" onClick={() => setOpenMeal(m.key)}>
               <span className="row-between">
-                <b className="tile-name">{m.label}</b>
+                <b className="tile-name"><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</b>
                 {ev && <span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>}
               </span>
               <b className="tile-kcal">{Math.round(sub.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
@@ -131,7 +131,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
         const ev = target && profile && list.length ? evaluateMeal(meal.key, sub, target, profile.goal) : null;
         return (
           <Sheet
-            title={`${meal.label} · ${Math.round(sub.kcal).toLocaleString()}kcal`}
+            title={`${meal.icon} ${meal.label} · ${Math.round(sub.kcal).toLocaleString()}kcal`}
             onClose={() => setOpenMeal(null)}
             footer={
               <>

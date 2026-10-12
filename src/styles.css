@@ -889,3 +889,7 @@ input.missing { border-color: var(--over); }
 .quick-modes .mode-manual { background: var(--water-bg); border-color: transparent; }
 .quick-modes .mode-manual svg { color: var(--water); }
 .quick-modes .mode-manual small { color: var(--water-ink); opacity: 0.8; }
+
+/* 끼니·물·영양제 이모지 */
+.meal-ic { margin-right: 4px; font-weight: 400; }
+.meal-tile.add .meal-ic { margin-right: 3px; }

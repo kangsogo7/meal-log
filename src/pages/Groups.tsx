@@ -388,7 +388,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
           const n = days.filter((d) => group.members.includes(d.uid) && d.meals.some((x) => x.meal === m.key)).length;
           return (
             <button key={m.key} role="tab" aria-selected={meal === m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>
-              {m.label}<small>{n ? `${n}명` : "-"}</small>
+              <span><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</span><small>{n ? `${n}명` : "-"}</small>
             </button>
           );
         })}

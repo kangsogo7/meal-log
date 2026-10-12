@@ -113,7 +113,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
     <Sheet title="식단 기록" onClose={onClose} tall footer={cartFooter}>
       <div className="seg meal-seg">
         {MEALS.map((m) => (
-          <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>{m.label}</button>
+          <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
         ))}
       </div>
 
