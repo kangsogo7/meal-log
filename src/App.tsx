@@ -8,6 +8,7 @@ import Today from "./pages/Today";
 import Activity from "./pages/Activity";
 import Goals from "./pages/Goals";
 import SettingsPage from "./pages/Settings";
+import { rescheduleReminders, takeChecksRequest } from "./notify";
 // 그룹 탭은 Firebase 코드가 커서 열 때만 불러옴
 const Groups = lazy(() => import("./pages/Groups"));
 
@@ -26,6 +27,20 @@ const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
   { key: "goals", label: "목표·체중", icon: icon(<><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="0.8" fill="currentColor" /></>) },
   { key: "settings", label: "설정", icon: icon(<><circle cx="12" cy="12" r="3" /><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" /></>) },
 ];
+
+/** 물·영양제 목표·목록·알림 설정이나 오늘 체크가 바뀌면 알림 다시 예약 */
+function useReminderSync() {
+  const today = todayStr();
+  const sig = useLiveQuery(async () => {
+    const rows = await db.kv.where("key").anyOf(["hydration", "supplements", "reminders", `check:${today}`]).toArray();
+    return JSON.stringify(rows);
+  }, [today], "");
+  useEffect(() => {
+    if (!sig) return;
+    const t = setTimeout(() => rescheduleReminders(), 800);
+    return () => clearTimeout(t);
+  }, [sig]);
+}
 
 /** 그룹에 들어가 있으면, 최근 식단·주간 한줄평·코멘트가 바뀔 때마다 잠시 뒤 그룹에 반영 */
 function useShareSync() {
@@ -47,6 +62,19 @@ export default function App() {
   // 그룹 초대 링크로 열었으면 그룹 탭부터
   const [tab, setTab] = useState<Tab>(() => (pendingInvite() ? "groups" : "today"));
   useEffect(() => onInvite(() => setTab("groups")), []);
+  // 물·영양제 알림을 누르면 식단 탭에서 물·영양제 창 열기
+  const [checksReq, setChecksReq] = useState(0);
+  useEffect(() => {
+    const take = () => {
+      if (!takeChecksRequest()) return;
+      setTab("today");
+      setChecksReq((n) => n + 1);
+    };
+    take();
+    window.addEventListener("open-checks", take);
+    return () => window.removeEventListener("open-checks", take);
+  }, []);
+  useReminderSync();
   // 공유받은 음식(링크·그룹의 나도 기록) → 바로 기록하는 창
   const [food, setFood] = useState<SharedFood | null>(pendingFood);
   useEffect(() => onFood(setFood), []);
@@ -54,7 +82,7 @@ export default function App() {
   return (
     <div className="app">
       <main className="content">
-        {tab === "today" && <Today onGoToGoals={() => setTab("goals")} />}
+        {tab === "today" && <Today onGoToGoals={() => setTab("goals")} openChecks={checksReq} />}
         {tab === "activity" && <Activity />}
         {tab === "groups" && <Suspense fallback={<p className="muted small center-pad">불러오는 중...</p>}><Groups /></Suspense>}
         {tab === "goals" && <Goals />}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useProfile, useTargets } from "../hooks";
@@ -9,6 +9,7 @@ import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
+import { CheckTiles, WaterRow } from "./Checks";
 
 /** 끼니의 기록들을 식사 세트로 저장 (즐겨찾기 탭에서 한 번에 기록) */
 async function saveAsSet(mealLabel: string, list: Entry[]) {
@@ -27,7 +28,7 @@ async function saveAsSet(mealLabel: string, list: Entry[]) {
   }
 }
 
-export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
+export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: () => void; /** 늘어나면 물·영양제 창 열기 (알림을 누른 경우) */ openChecks?: number }) {
   // 쓰던 기록 창이 있으면(앱이 다시 시작된 경우) 그대로 다시 열기
   const [restore, setRestore] = useState<AddDraft | null>(loadAddDraft);
   const [date, setDate] = useState(restore?.date ?? todayStr());
@@ -35,6 +36,13 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
   const [editing, setEditing] = useState<Entry | null>(null);
   // 끼니 타일을 누르면 그 끼니 기록을 시트로
   const [openMeal, setOpenMeal] = useState<Meal | null>(null);
+  // 물·영양제 창 (알림을 눌러 들어오면 오늘 날짜로 열기)
+  const [checksOpen, setChecksOpen] = useState(false);
+  useEffect(() => {
+    if (!openChecks) return;
+    setDate(todayStr());
+    setChecksOpen(true);
+  }, [openChecks]);
   const { target } = useTargets(date);
   const profile = useProfile();
 
@@ -77,6 +85,7 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
           {macro("carb", "탄수화물")}
           {macro("protein", "단백질")}
           {macro("fat", "지방")}
+          <WaterRow date={date} />
           <div className="row-between sodium-line muted small">
             <span>나트륨</span>
             <span className={(total.sodium ?? 0) > (target?.sodium ?? SODIUM_LIMIT) ? "over-text" : ""}>
@@ -113,6 +122,8 @@ export default function Today({ onGoToGoals }: { onGoToGoals: () => void }) {
           );
         })}
       </div>
+
+      <CheckTiles date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
 
       {meal && (() => {
         const list = entries.filter((e) => e.meal === meal.key);
