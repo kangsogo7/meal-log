@@ -9,7 +9,7 @@ import type { CartItem } from "./FavoritesTab";
 import QuickAdd from "./QuickAdd";
 import { useTargets } from "../hooks";
 
-/** quick: 자주 먹는 것 카드 / search: 외식·식품 검색 / home: 재료로 직접(조리) / manual: 숫자로 입력 */
+/** quick: 자주 먹는 것 카드 / search: 외식·식품 검색 / home: 재료 입력(조리) / manual: 직접 입력(숫자) */
 type Mode = "quick" | "search" | "home" | "manual";
 type Kind = "out" | "food";
 
@@ -124,13 +124,13 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
             음식 검색 (가게·메뉴·식품)
           </button>
           <div className="quick-modes">
-            <button onClick={() => setMode("home")}>
+            <button className="mode-home" onClick={() => setMode("home")}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
-              <span><b>재료로 직접</b><small>집밥·요리 재료 입력</small></span>
+              <span><b>재료 입력</b><small>집밥·요리 재료로 계산</small></span>
             </button>
-            <button onClick={() => setMode("manual")}>
+            <button className="mode-manual" onClick={() => setMode("manual")}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2" /></svg>
-              <span><b>숫자로 입력</b><small>칼로리·탄단지 직접</small></span>
+              <span><b>직접 입력</b><small>칼로리·탄단지 숫자로</small></span>
             </button>
           </div>
           {extras.length > 0 && (
@@ -170,14 +170,14 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
 
       {mode === "home" && (
         <>
-          <div className="row-between search-head">{back}<b>재료로 직접</b></div>
+          <div className="row-between search-head">{back}<b>재료 입력</b></div>
           <HomeForm onSave={addDraft} actionLabel="담기" />
         </>
       )}
 
       {mode === "manual" && (
         <>
-          <div className="row-between search-head">{back}<b>숫자로 직접 입력</b></div>
+          <div className="row-between search-head">{back}<b>직접 입력</b></div>
           <ManualForm onSave={addDraft} actionLabel="담기" />
         </>
       )}

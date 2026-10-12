@@ -881,3 +881,11 @@ input.missing { border-color: var(--over); }
 .cw-dot.on { border: none; background: var(--good); }
 .cw-dot.future { border-style: dashed; opacity: 0.4; }
 .check-week .tone-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* 재료 입력(따뜻한 색) · 직접 입력(파랑)을 살짝 구분 */
+.quick-modes .mode-home { background: var(--ok-bg); border-color: transparent; }
+.quick-modes .mode-home svg { color: var(--carb); }
+.quick-modes .mode-home small { color: var(--ok-ink); opacity: 0.8; }
+.quick-modes .mode-manual { background: var(--water-bg); border-color: transparent; }
+.quick-modes .mode-manual svg { color: var(--water); }
+.quick-modes .mode-manual small { color: var(--water-ink); opacity: 0.8; }
