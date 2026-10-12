@@ -1,7 +1,10 @@
 // 물·영양제: 홈의 타일 2개, 누르면 열리는 체크 창, 목표·목록·알림 관리 화면
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { addDays, todayStr } from "../db";
+import { weekDays, weekLabel, weekStartOf } from "../weekly";
 import {
-  addWater, saveHydration, saveReminders, saveSupplements, setWater, sortSupps, toggleSupp, useDayCheck, useHydration, useReminders,
+  addWater, getDayCheck, saveHydration, saveReminders, saveSupplements, setWater, sortSupps, toggleSupp, useDayCheck, useHydration, useReminders,
   useSupplements, WHEN, whenLabel, type Supplement, type When,
 } from "../checks";
 import { askNotifyPermission, canNotify } from "../notify";
@@ -288,5 +291,96 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
         </Sheet>
       )}
     </Screen>
+  );
+}
+
+const DOW = ["월", "화", "수", "목", "금", "토", "일"];
+
+/** 물·영양제 주간: 식단 평가와 따로, 물 목표 달성일·영양제 다 먹은 날 */
+export function CheckWeekCard({ date }: { date: string }) {
+  const [start, setStart] = useState(() => weekStartOf(date));
+  useEffect(() => setStart(weekStartOf(date)), [date]);
+  const days = weekDays(start);
+  const today = todayStr();
+  const hyd = useHydration();
+  const supps = sortSupps(useSupplements());
+  const checks = useLiveQuery(() => Promise.all(days.map(getDayCheck)), [start], null);
+  if (!checks) return null;
+
+  // 지난 날과 오늘만 셈 (앞으로 올 날은 빈칸)
+  const past = days.map((d) => d <= today);
+  const n = past.filter(Boolean).length;
+  const waterDays = checks.filter((c, i) => past[i] && c.waterMl >= hyd.goalMl).length;
+  const drank = checks.filter((c, i) => past[i] && c.waterMl > 0);
+  const avgL = drank.length ? Math.round(drank.reduce((a, c) => a + c.waterMl, 0) / drank.length / 100) / 10 : 0;
+  const allTaken = (i: number) => supps.length > 0 && supps.every((s) => checks[i].supps[s.id]);
+  const suppDays = days.filter((_, i) => past[i] && allTaken(i)).length;
+  const missed = days.reduce((a, _, i) => a + (past[i] ? supps.filter((s) => !checks[i].supps[s.id]).length : 0), 0);
+  const max = Math.max(hyd.goalMl * 1.2, ...checks.map((c) => c.waterMl), 1);
+
+  return (
+    <section className="card weekly check-week">
+      <div className="weekly-head">
+        <h2>물 · 영양제 주간</h2>
+        <div className="week-nav">
+          <button className="ghost" onClick={() => setStart(addDays(start, -7))} aria-label="지난주">◀</button>
+          <span>{weekLabel(start)}</span>
+          <button className="ghost" onClick={() => setStart(addDays(start, 7))} aria-label="다음 주">▶</button>
+        </div>
+      </div>
+
+      {n === 0 ? (
+        <p className="muted small">아직 지나지 않은 주예요.</p>
+      ) : checks.every((c) => !c.waterMl && !Object.keys(c.supps).length) ? (
+        <p className="muted small">이 주는 물·영양제 기록이 없어요.</p>
+      ) : (
+        <>
+          <div className="tone-tiles in-card">
+            <div className="tone-tile water">
+              <span>물 목표 달성</span>
+              <b>{waterDays}<small>/{n}일</small></b>
+              <small>{drank.length ? `하루 평균 ${avgL}L` : "기록 없음"}</small>
+            </div>
+            <div className="tone-tile protein">
+              <span>영양제 다 먹은 날</span>
+              <b>{supps.length ? suppDays : "—"}<small>{supps.length ? `/${n}일` : ""}</small></b>
+              <small>{supps.length ? (missed ? `빠뜨린 것 ${missed}번` : "빠뜨린 것 없음") : "등록한 영양제 없음"}</small>
+            </div>
+          </div>
+
+          <div className="cw-block">
+            <span className="muted small">물</span>
+            <div className="cw-bars" role="img" aria-label={`물 목표 ${hyd.goalMl}ml, ${days.map((_, i) => `${DOW[i]} ${checks[i].waterMl}ml`).join(", ")}`}>
+              <div className="cw-goal" style={{ bottom: `${(hyd.goalMl / max) * 100}%` }} />
+              {checks.map((c, i) => (
+                <div key={days[i]} className="cw-col">
+                  {past[i] && c.waterMl > 0 && (
+                    <div className={c.waterMl >= hyd.goalMl ? "cw-bar on" : "cw-bar"} style={{ height: `${(c.waterMl / max) * 100}%` }} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="cw-days">{DOW.map((d, i) => <span key={d} className={days[i] === today ? "today" : ""}>{d}</span>)}</div>
+          </div>
+
+          {supps.length > 0 && (
+            <div className="cw-block">
+              <span className="muted small">영양제</span>
+              <div className="cw-supps">
+                {supps.map((s) => (
+                  <div key={s.id} className="cw-supp-row">
+                    <span className="cw-supp-name">{s.name}</span>
+                    {days.map((d, i) => (
+                      <span key={d} className={`cw-dot ${!past[i] ? "future" : checks[i].supps[s.id] ? "on" : ""}`} aria-label={`${DOW[i]} ${!past[i] ? "" : checks[i].supps[s.id] ? "먹음" : "안 먹음"}`} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="muted small">물 목표 달성: 그날 목표량 이상 · 영양제: 지금 목록을 모두 체크한 날</p>
+        </>
+      )}
+    </section>
   );
 }

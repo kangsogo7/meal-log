@@ -9,7 +9,7 @@ import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
-import { CheckTiles, WaterRow } from "./Checks";
+import { CheckTiles, CheckWeekCard, WaterRow } from "./Checks";
 
 /** 끼니의 기록들을 식사 세트로 저장 (즐겨찾기 탭에서 한 번에 기록) */
 async function saveAsSet(mealLabel: string, list: Entry[]) {
@@ -172,6 +172,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
       })()}
 
       <WeeklyCard date={date} onSelect={setDate} />
+      <CheckWeekCard date={date} />
 
       {adding && <AddSheet date={date} meal={adding} restore={restore?.meal === adding ? restore : null} onClose={() => { setAdding(null); setRestore(null); }} />}
       {editing && <EntrySheet entry={editing} onClose={() => setEditing(null)} />}
