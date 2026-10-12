@@ -1,6 +1,6 @@
-// 공유받은 음식(링크·그룹의 "나도 기록")을 양만 확인하고 바로 오늘 식단에 기록
+// 공유받은 음식(링크·그룹의 "나도 기록")을 양·날짜·끼니만 확인하고 바로 식단에 기록
 import { useState } from "react";
-import { MEALS, sumNutrients, todayStr, type Meal } from "../db";
+import { addDays, formatDate, MEALS, sumNutrients, todayStr, type Meal } from "../db";
 import { flash, NutrientGrid, Sheet } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion } from "../portion";
 import type { SharedFood } from "../foodShare";
@@ -14,6 +14,9 @@ function mealNow(): Meal {
 
 export default function ReceiveFood({ food, from, onClose, onSaved }: { food: SharedFood; from?: string; onClose: () => void; onSaved?: () => void }) {
   const [meal, setMeal] = useState<Meal>(mealNow);
+  const today = todayStr();
+  const [date, setDate] = useState(today);
+  const dayWord = date === today ? "오늘" : date === addDays(today, -1) ? "어제" : formatDate(date);
   const [portion, setPortion] = useState(() => storedPortion({ items: food.items, k: food.k, total: sumNutrients(food.items.map((i) => i.nutrients)) }));
   const [busy, setBusy] = useState(false);
   const label = MEALS.find((m) => m.key === meal)!.label;
@@ -21,11 +24,11 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
   const save = async () => {
     setBusy(true);
     try {
-      await saveEntry(todayStr(), meal, {
+      await saveEntry(date, meal, {
         kind: food.kind, title: food.title, place: food.place,
         items: portionItems({ items: food.items, k: food.k }, portion), k: portion.k,
       });
-      flash(`오늘 ${label}에 기록했어요`);
+      flash(`${dayWord} ${label}에 기록했어요`);
       onSaved?.();
       onClose();
     } catch (e) {
@@ -39,7 +42,7 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
     <Sheet
       title="나도 기록하기"
       onClose={onClose}
-      footer={<button className="primary block big" onClick={save} disabled={busy}>{busy ? "기록하는 중..." : `오늘 ${label}으로 기록`}</button>}
+      footer={<button className="primary block big" onClick={save} disabled={busy}>{busy ? "기록하는 중..." : `${dayWord} ${label}으로 기록`}</button>}
     >
       <div className="form food-detail">
         <div className="receive-head">
@@ -49,6 +52,14 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
         </div>
         <NutrientGrid n={portionNutrients(portion)} />
         <AmountEditor portion={portion} onChange={setPortion} />
+        <div className="receive-date">
+          <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
+          <label className="date-label">
+            {formatDate(date)}{date === today ? " · 오늘" : ""}
+            <input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value > today ? today : e.target.value)} />
+          </label>
+          <button className="ghost" onClick={() => setDate(addDays(date, 1))} disabled={date >= today} aria-label="다음 날">▶</button>
+        </div>
         <div className="seg meal-seg">
           {MEALS.map((m) => (
             <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>{m.label}</button>

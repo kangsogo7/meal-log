@@ -855,3 +855,9 @@ input.missing { border-color: var(--over); }
 .time-rows { display: flex; flex-direction: column; gap: 8px; padding-left: 4px; }
 .time-rows label { min-height: 44px; }
 .time-rows input, .time-rows select { width: auto; min-width: 120px; }
+
+/* 나도 기록: 날짜 고르기 (날짜를 누르면 달력) */
+.receive-date { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; background: var(--inset); border-radius: 12px; min-height: 48px; }
+.receive-date button.ghost { color: var(--muted); padding: 10px 0; }
+.receive-date .date-label { position: relative; text-align: center; font-weight: 700; }
+.receive-date .date-label input { position: absolute; inset: 0; opacity: 0; min-height: 0; }
