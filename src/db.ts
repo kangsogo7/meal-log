@@ -5,7 +5,7 @@ export const MEALS: { key: Meal; label: string; icon: string }[] = [
   { key: "breakfast", label: "아침", icon: "☀️" },
   { key: "lunch", label: "점심", icon: "🍽️" },
   { key: "snack", label: "간식", icon: "🍪" },
-  { key: "dinner", label: "저녁", icon: "🌆" },
+  { key: "dinner", label: "저녁", icon: "🌙" },
 ];
 
 export interface Nutrients {
