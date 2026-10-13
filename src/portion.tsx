@@ -4,13 +4,24 @@ import { r1, scaleNutrients, type Item, type Nutrients } from "./db";
 import { NumInput, Stepper } from "./components/ui";
 
 export interface Portion {
-  baseGrams: number | null; // ×1일 때 g (모르면 null → 배수로만 조절)
+  baseGrams: number | null; // ×1일 때 g (모르면 null → 아래 개수·단위로 조절)
   base: Nutrients; // ×1일 때 영양성분
   k: number; // 배수
+  /** g을 모를 때 ×1의 양과 단위 (예: "10개" → 10, "개"). 적힌 양이 없으면 1인분 */
+  baseCount?: number;
+  unit?: string;
 }
 
-export function makePortion(base: Nutrients, baseGrams?: number | null, k = 1): Portion {
-  return { base, baseGrams: baseGrams && baseGrams > 0 ? baseGrams : null, k };
+export function makePortion(base: Nutrients, baseGrams?: number | null, k = 1, amountText?: string): Portion {
+  const grams = baseGrams && baseGrams > 0 ? baseGrams : null;
+  return { base, baseGrams: grams, k, ...(grams ? {} : parseAmount(amountText)) };
+}
+
+/** "10개", "1.5인분", "200 ml" → 양과 단위. 못 읽으면 1인분 */
+export function parseAmount(text?: string): { baseCount: number; unit: string } {
+  const m = text?.replace(/\s*\(.*\)\s*$/, "").trim().match(/^(\d+(?:\.\d+)?)\s*([^\d\s][^\d]{0,5})$/);
+  const n = m ? Number(m[1]) : 0;
+  return n > 0 ? { baseCount: n, unit: m![2].trim() } : { baseCount: 1, unit: "인분" };
 }
 
 export const portionGrams = (p: Portion) => (p.baseGrams ? r1(p.baseGrams * p.k) : null);
@@ -33,7 +44,8 @@ export const scaleItems = (items: Item[], k: number): Item[] =>
 export function storedPortion(s: { total: Nutrients; items: Item[]; k?: number }): Portion {
   const k = s.k && s.k > 0 ? s.k : 1;
   const g = itemsGrams(s.items);
-  return makePortion(scaleNutrients(s.total, 1 / k), g ? g / k : null, k);
+  // g이 없는 한 가지 음식은 적힌 양("10개")을 ×1 양으로
+  return makePortion(scaleNutrients(s.total, 1 / k), g ? g / k : null, k, s.items.length === 1 ? s.items[0].amountText : undefined);
 }
 
 /** 저장된 재료를 고른 양으로 (재료가 하나면 영양성분을 직접 고친 값도 반영) */
@@ -48,16 +60,27 @@ export function portionItems(s: { items: Item[]; k?: number }, p: Portion): Item
 export function AmountEditor({ portion, onChange }: { portion: Portion; onChange: (p: Portion) => void }) {
   return (
     <div className="amount-row">
-      {portion.baseGrams && (
+      {portion.baseGrams ? (
         <label className="inline">
           먹은 양
           <NumInput
             value={portionGrams(portion)}
-            onChange={(g) => g != null && onChange({ ...portion, k: g / portion.baseGrams! })}
+            onChange={(g) => g != null && g > 0 && onChange({ ...portion, k: g / portion.baseGrams! })}
             placeholder="g"
             decimals={1}
           />
           <span className="muted">g</span>
+        </label>
+      ) : (
+        // g을 모르는 음식은 적힌 단위(개·회·인분…)로
+        <label className="inline">
+          먹은 양
+          <NumInput
+            value={r1((portion.baseCount ?? 1) * portion.k)}
+            onChange={(v) => v != null && v > 0 && onChange({ ...portion, k: v / (portion.baseCount ?? 1) })}
+            decimals={1}
+          />
+          <span className="muted">{portion.unit ?? "인분"}</span>
         </label>
       )}
       <Stepper value={portion.k} onChange={(k) => onChange({ ...portion, k })} />
