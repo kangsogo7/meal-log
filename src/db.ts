@@ -2,8 +2,8 @@ import Dexie, { type EntityTable } from "dexie";
 
 export type Meal = "breakfast" | "lunch" | "snack" | "dinner";
 export const MEALS: { key: Meal; label: string; icon: string }[] = [
-  { key: "breakfast", label: "아침", icon: "🌄" },
-  { key: "lunch", label: "점심", icon: "☀️" },
+  { key: "breakfast", label: "아침", icon: "☀️" },
+  { key: "lunch", label: "점심", icon: "🍽️" },
   { key: "snack", label: "간식", icon: "🍪" },
   { key: "dinner", label: "저녁", icon: "🌆" },
 ];
