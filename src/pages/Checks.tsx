@@ -5,7 +5,7 @@ import { addDays, todayStr } from "../db";
 import { weekDays, weekLabel, weekStartOf } from "../weekly";
 import {
   addWater, getDayCheck, saveHydration, saveReminders, saveSupplements, setWater, sortSupps, toggleSupp, useDayCheck, useHydration, useReminders,
-  useSupplements, WHEN, whenLabel, type Supplement, type When,
+  suppLabel, suppSlots, useSupplements, WHEN, type SuppWhen, type Supplement,
 } from "../checks";
 import { askNotifyPermission, canNotify } from "../notify";
 import { useLatestBody } from "../hooks";
@@ -72,7 +72,7 @@ export function CheckTiles({ date, open, onOpen, onClose }: { date: string; open
                 {sortSupps(supps).slice(0, 6).map((s) => <span key={s.id} className={day.supps[s.id] ? "on" : ""}>{day.supps[s.id] && <CheckIcon />}</span>)}
               </span>
               <span className="muted small supp-left">
-                {left.length ? `남은 것: ${left[0].name}${left.length > 1 ? ` 외 ${left.length - 1}개` : ` (${whenLabel(left[0].when)})`}` : "오늘 다 먹었어요"}
+                {left.length ? `남은 것: ${left[0].name}${left.length > 1 ? ` 외 ${left.length - 1}개` : ` (${suppLabel(left[0])})`}` : "오늘 다 먹었어요"}
               </span>
             </>
           ) : (
@@ -89,6 +89,7 @@ export function CheckTiles({ date, open, onOpen, onClose }: { date: string; open
 /** 오늘 물·영양제 체크 창 */
 function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => void; onManage: () => void }) {
   const hyd = useHydration();
+  const rem = useReminders();
   const supps = useSupplements();
   const day = useDayCheck(date);
   const cups = Math.max(1, Math.ceil(hyd.goalMl / hyd.cupMl));
@@ -122,9 +123,8 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
           {supps.length > 0 && <span className="muted small">{supps.filter((s) => day.supps[s.id]).length} / {supps.length}</span>}
         </div>
         {supps.length === 0 && <p className="muted small">아래 버튼으로 먹는 영양제를 등록하면 여기서 체크할 수 있어요.</p>}
-        {WHEN.map((w) => {
-          const list = supps.filter((s) => s.when === w.key);
-          if (!list.length) return null;
+        {suppSlots(supps, rem.times).map(({ key, label: wl, list }) => {
+          const w = { key, label: wl };
           return (
             <div key={w.key}>
               <p className="muted small supp-when">{w.label}</p>
@@ -162,7 +162,9 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
 
   const saveForm = async () => {
     if (!form || !form.name.trim()) return;
-    const item = { ...form, name: form.name.trim(), count: Math.max(1, form.count || 1) };
+    const item: Supplement = { ...form, name: form.name.trim(), count: Math.max(1, form.count || 1) };
+    if (item.when === "custom") item.time ??= "15:00";
+    else delete item.time;
     await saveSupplements(supps.some((s) => s.id === item.id) ? supps.map((s) => (s.id === item.id ? item : s)) : [...supps, item]);
     setForm(null);
   };
@@ -181,6 +183,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
     await saveReminders({ ...rem, [key]: on });
   };
   const usedWhen = WHEN.filter((w) => supps.some((s) => s.when === w.key));
+  const customs = supps.filter((s) => s.when === "custom");
 
   return (
     <Screen left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>} title="물 · 영양제">
@@ -207,7 +210,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
           <ul className="mini-list supp-manage">
             {sortSupps(supps).map((s) => (
               <li key={s.id}>
-                <span><b>{s.name}</b><br /><span className="muted small">{whenLabel(s.when)} · {s.count}정</span></span>
+                <span><b>{s.name}</b><br /><span className="muted small">{suppLabel(s)} · {s.count}정</span></span>
                 <button className="row-edit" onClick={() => setForm(s)}>수정</button>
               </li>
             ))}
@@ -230,7 +233,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
               영양제 알림
             </label>
             {rem.supp && (
-              usedWhen.length ? (
+              usedWhen.length || customs.length ? (
                 <div className="time-rows">
                   {usedWhen.map((w) => (
                     <label key={w.key} className="row-between">
@@ -238,6 +241,9 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
                       <input type="time" value={rem.times[w.key]} onChange={(e) => e.target.value && saveReminders({ ...rem, times: { ...rem.times, [w.key]: e.target.value } })} />
                     </label>
                   ))}
+                  {customs.length > 0 && (
+                    <p className="muted small">직접 정한 시간: {customs.map((s) => `${s.name} ${s.time}`).join(", ")} (영양제 수정에서 바꿔요)</p>
+                  )}
                   <p className="muted small">그때 먹을 영양제를 아직 체크하지 않았으면 알려 드려요.</p>
                 </div>
               ) : (
@@ -282,10 +288,16 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
             <label>이름<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 비타민C" /></label>
             <p className="label">언제</p>
             <div className="seg">
-              {WHEN.map((w) => (
-                <button key={w.key} className={form.when === w.key ? "on" : ""} onClick={() => setForm({ ...form, when: w.key as When })}>{w.label}</button>
+              {[...WHEN, { key: "custom" as const, label: "직접" }].map((w) => (
+                <button key={w.key} className={form.when === w.key ? "on" : ""} onClick={() => setForm({ ...form, when: w.key as SuppWhen, time: w.key === "custom" ? form.time ?? "15:00" : form.time })}>{w.label}</button>
               ))}
             </div>
+            {form.when === "custom" && (
+              <label className="row-between supp-time-input">
+                먹는 시간
+                <input type="time" value={form.time ?? "15:00"} onChange={(e) => e.target.value && setForm({ ...form, time: e.target.value })} />
+              </label>
+            )}
             <label>한 번에 (정)<NumInput value={form.count} onChange={(v) => setForm({ ...form, count: v ?? 1 })} step="1" /></label>
           </div>
         </Sheet>

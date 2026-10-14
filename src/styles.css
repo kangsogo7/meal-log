@@ -911,3 +911,6 @@ input.missing { border-color: var(--over); }
 .day-extras .extras > div { display: flex; justify-content: space-between; background: none; padding: 2px 0; text-align: left; }
 .day-extras .extras dt { font-size: 0.8rem; }
 .day-extras .extras dd { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+
+.supp-time-input { margin-top: 8px; min-height: 44px; }
+.supp-time-input input { width: auto; min-width: 120px; }

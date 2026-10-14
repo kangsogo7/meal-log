@@ -5,7 +5,7 @@ import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { addDays, todayStr } from "./db";
-import { getDayCheck, getHydration, getReminders, getSupplements, WHEN } from "./checks";
+import { getDayCheck, getHydration, getReminders, getSupplements, suppSlots } from "./checks";
 
 export const canNotify = () => Capacitor.isNativePlatform();
 
@@ -68,9 +68,10 @@ async function schedule() {
     const date = addDays(today, i);
     const check = i === 0 ? await getDayCheck(today) : null;
     if (rem.supp) {
-      WHEN.forEach((w, slot) => {
-        const due = supps.filter((s) => s.when === w.key && !check?.supps[s.id]);
-        const when = at(date, rem.times[w.key]);
+      // 아침·점심·저녁·자기 전 + 직접 정한 시각들 (하루 10묶음까지, 물 알림 번호는 10부터)
+      suppSlots(supps, rem.times).slice(0, 10).forEach((w, slot) => {
+        const due = w.list.filter((s) => !check?.supps[s.id]);
+        const when = at(date, w.time);
         if (!due.length || +when <= now) return;
         list.push({
           id: BASE + i * 100 + slot,

@@ -11,11 +11,39 @@ export const WHEN: { key: When; label: string }[] = [
 ];
 export const whenLabel = (w: When) => WHEN.find((x) => x.key === w)!.label;
 
+/** 먹는 때: 아침·점심·저녁·자기 전, 또는 직접 정한 시간(custom + time) */
+export type SuppWhen = When | "custom";
+
 export interface Supplement {
   id: string;
   name: string;
-  when: When;
+  when: SuppWhen;
+  time?: string; // when이 custom일 때 "15:00"
   count: number; // 한 번에 몇 정
+}
+
+/** 영양제 하나의 먹는 때 글자 ("아침" / "15:00") */
+export const suppLabel = (s: Supplement) => (s.when === "custom" ? s.time ?? "직접" : whenLabel(s.when));
+
+/** 먹는 시각 ("08:00"): 정해진 때는 알림 시간 설정을 따름 */
+const suppTime = (s: Supplement, times: Record<When, string>) => (s.when === "custom" ? s.time ?? "12:00" : times[s.when]);
+
+export interface SuppSlot {
+  key: string; // "morning" / "custom-15:00"
+  label: string;
+  time: string;
+  list: Supplement[];
+}
+
+/** 영양제를 먹는 때별로 묶어서 시각 순서대로 (직접 정한 시간은 시각마다 한 묶음) */
+export function suppSlots(supps: Supplement[], times: Record<When, string> = DEFAULT_REMINDERS.times): SuppSlot[] {
+  const slots = new Map<string, SuppSlot>();
+  for (const s of supps) {
+    const key = s.when === "custom" ? `custom-${s.time ?? ""}` : s.when;
+    if (!slots.has(key)) slots.set(key, { key, label: suppLabel(s), time: suppTime(s, times), list: [] });
+    slots.get(key)!.list.push(s);
+  }
+  return [...slots.values()].sort((a, b) => a.time.localeCompare(b.time));
 }
 export interface Hydration {
   goalMl: number;
@@ -90,6 +118,6 @@ export async function toggleSupp(date: string, id: string) {
   await setKV(dayKey(date), { ...d, supps });
 }
 
-/** 영양제를 먹는 때 순서대로 */
-export const sortSupps = (list: Supplement[]) =>
-  [...list].sort((a, b) => WHEN.findIndex((w) => w.key === a.when) - WHEN.findIndex((w) => w.key === b.when));
+/** 영양제를 먹는 시각 순서대로 */
+export const sortSupps = (list: Supplement[], times: Record<When, string> = DEFAULT_REMINDERS.times) =>
+  [...list].sort((a, b) => suppTime(a, times).localeCompare(suppTime(b, times)));
