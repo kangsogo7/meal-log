@@ -285,19 +285,22 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
           }
         >
           <div className="form">
-            <label>이름<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 비타민C" /></label>
-            <p className="label">언제</p>
-            <div className="seg">
-              {[...WHEN, { key: "custom" as const, label: "직접" }].map((w) => (
-                <button key={w.key} className={form.when === w.key ? "on" : ""} onClick={() => setForm({ ...form, when: w.key as SuppWhen, time: w.key === "custom" ? form.time ?? "15:00" : form.time })}>{w.label}</button>
-              ))}
-            </div>
+            <label>언제
+              <select value={form.when} onChange={(e) => {
+                const when = e.target.value as SuppWhen;
+                setForm({ ...form, when, time: when === "custom" ? form.time ?? "15:00" : form.time });
+              }}>
+                {WHEN.map((w) => <option key={w.key} value={w.key}>{w.label} ({rem.times[w.key]})</option>)}
+                <option value="custom">직접 정한 시간</option>
+              </select>
+            </label>
             {form.when === "custom" && (
               <label className="row-between supp-time-input">
                 먹는 시간
                 <input type="time" value={form.time ?? "15:00"} onChange={(e) => e.target.value && setForm({ ...form, time: e.target.value })} />
               </label>
             )}
+            <label>이름<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 비타민C" /></label>
             <label>한 번에 (정)<NumInput value={form.count} onChange={(v) => setForm({ ...form, count: v ?? 1 })} step="1" /></label>
           </div>
         </Sheet>
