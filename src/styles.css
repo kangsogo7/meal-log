@@ -914,3 +914,6 @@ input.missing { border-color: var(--over); }
 
 .supp-time-input { margin-top: 8px; min-height: 44px; }
 .supp-time-input input { width: auto; min-width: 120px; }
+/* 물 목표를 넘겨 마신 잔 */
+.cup-strip span.extra, .cup-grid button.extra { background: var(--water-ink); }
+.over-goal { font-weight: 700; }

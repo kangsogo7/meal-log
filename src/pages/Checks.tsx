@@ -50,11 +50,12 @@ export function CheckTiles({ date, open, onOpen, onClose }: { date: string; open
         <div className="check-tile water">
           <button className="check-tile-head" onClick={onOpen}>
             <span><span className="meal-ic" aria-hidden>💧</span>물</span>
-            <span>{Math.min(filled, cups)} / {cups}잔</span>
+            <span className={filled > cups ? "over-goal" : ""}>{filled} / {cups}잔</span>
           </button>
-          {cups <= 12 ? (
-            <div className="cup-strip" aria-hidden style={{ gridTemplateColumns: `repeat(${cups}, minmax(0, 1fr))` }}>
-              {Array.from({ length: cups }, (_, i) => <span key={i} className={i < filled ? "on" : ""} />)}
+          {Math.max(cups, filled) <= 12 ? (
+            // 목표를 넘겨 마신 잔은 칸을 더 붙여서 진하게
+            <div className="cup-strip" aria-hidden style={{ gridTemplateColumns: `repeat(${Math.max(cups, filled)}, minmax(0, 1fr))` }}>
+              {Array.from({ length: Math.max(cups, filled) }, (_, i) => <span key={i} className={i >= cups ? "on extra" : i < filled ? "on" : ""} />)}
             </div>
           ) : (
             <div className="progress water-bar" aria-hidden><div style={{ width: `${Math.min(100, (day.waterMl / hyd.goalMl) * 100)}%` }} /></div>
@@ -107,7 +108,7 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
         </div>
         <div className="cup-grid">
           {Array.from({ length: Math.max(cups, filled) }, (_, i) => (
-            <button key={i} className={i < filled ? "on" : ""} aria-label={`${i + 1}잔`} aria-pressed={i < filled} onClick={() => tapCup(i)} />
+            <button key={i} className={i >= cups ? "on extra" : i < filled ? "on" : ""} aria-label={`${i + 1}잔`} aria-pressed={i < filled} onClick={() => tapCup(i)} />
           ))}
         </div>
         <div className="btn-row">
