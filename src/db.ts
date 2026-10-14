@@ -15,7 +15,22 @@ export interface Nutrients {
   fat: number;
   sugar?: number;
   sodium?: number;
+  // 세부 영양 (g). 모르면 비워 둠(undefined) — 0과 구분
+  fiber?: number; // 식이섬유
+  satFat?: number; // 포화지방
+  transFat?: number; // 트랜스지방
+  unsatFat?: number; // 불포화지방
 }
+
+/** 세부 영양: 당류·식이섬유·지방 종류 (모르는 값은 비워 둠) */
+export const EXTRAS = [
+  { key: "sugar", label: "당류", short: "당" },
+  { key: "fiber", label: "식이섬유", short: "식이섬유" },
+  { key: "satFat", label: "포화지방", short: "포화" },
+  { key: "transFat", label: "트랜스지방", short: "트랜스" },
+  { key: "unsatFat", label: "불포화지방", short: "불포화" },
+] as const;
+export type ExtraKey = (typeof EXTRAS)[number]["key"];
 
 export type ItemSource = "db" | "ai" | "manual" | "saved";
 
@@ -213,27 +228,33 @@ export const ZERO: Nutrients = { kcal: 0, carb: 0, protein: 0, fat: 0, sugar: 0,
 export const r1 = (v: number) => Math.round(v * 10) / 10;
 
 export function sumNutrients(list: Nutrients[]): Nutrients {
-  const t = { ...ZERO } as Required<Nutrients>;
+  const t = { kcal: 0, carb: 0, protein: 0, fat: 0, sodium: 0 };
   for (const n of list) {
     t.kcal += n.kcal || 0;
     t.carb += n.carb || 0;
     t.protein += n.protein || 0;
     t.fat += n.fat || 0;
-    t.sugar += n.sugar || 0;
     t.sodium += n.sodium || 0;
   }
-  return { kcal: Math.round(t.kcal), carb: r1(t.carb), protein: r1(t.protein), fat: r1(t.fat), sugar: r1(t.sugar), sodium: Math.round(t.sodium) };
+  const out: Nutrients = { kcal: Math.round(t.kcal), carb: r1(t.carb), protein: r1(t.protein), fat: r1(t.fat), sodium: Math.round(t.sodium) };
+  // 세부 영양은 값을 아는 것끼리만 더함 (아무것도 모르면 비워 둠)
+  for (const { key } of EXTRAS) {
+    const known = list.filter((n) => n[key] != null);
+    if (known.length) out[key] = r1(known.reduce((a, n) => a + (n[key] ?? 0), 0));
+  }
+  return out;
 }
 
 export function scaleNutrients(n: Nutrients, k: number): Nutrients {
-  return {
+  const out: Nutrients = {
     kcal: n.kcal * k,
     carb: n.carb * k,
     protein: n.protein * k,
     fat: n.fat * k,
-    sugar: (n.sugar ?? 0) * k,
     sodium: (n.sodium ?? 0) * k,
   };
+  for (const { key } of EXTRAS) if (n[key] != null) out[key] = n[key]! * k;
+  return out;
 }
 
 export function todayStr() {

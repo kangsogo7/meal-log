@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { addDays, formatDate, todayStr, type Nutrients } from "../db";
+import { addDays, EXTRAS, formatDate, todayStr, type Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
 
 let openLayers = 0;
@@ -131,8 +131,12 @@ export function NumInput({
   const show = (v: number | null | undefined) => (v == null ? "" : String(Math.round(v * 10) / 10));
   const [text, setText] = useState(show(value));
   // 바깥에서 값이 바뀐 경우(양 조절 등)에만 화면 글자를 맞춤
+  const prev = useRef(value);
   useEffect(() => {
-    if (Math.abs(Number(text || 0) - (value ?? 0)) > 0.05) setText(show(value));
+    // 값이 "모름(비어 있음)"과 숫자 사이를 오간 경우(다른 음식을 고름)도 맞춤. 0과 빈칸은 숫자로 같아서 아래 비교로는 못 잡음
+    const toggled = (prev.current == null) !== (value == null);
+    prev.current = value;
+    if (toggled || Math.abs(Number(text || 0) - (value ?? 0)) > 0.05) setText(show(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
   return (
@@ -183,9 +187,29 @@ export function NutrientGrid({ n }: { n: Nutrients }) {
         {cell("fat", "지방", fmt(n.fat))}
         {cell("sodium", "나트륨", `${Math.round(n.sodium ?? 0).toLocaleString()}mg`)}
       </div>
+      <ExtrasList n={n} />
     </div>
   );
 }
+
+/** 세부 영양(당류·식이섬유·포화·트랜스·불포화지방) 칸. 하나도 모르면 안 보임, 모르는 값은 — */
+export function ExtrasList({ n, always = false }: { n: Nutrients; always?: boolean }) {
+  if (!always && EXTRAS.every(({ key }) => n[key] == null)) return null;
+  return (
+    <dl className="extras">
+      {EXTRAS.map(({ key, label }) => (
+        <div key={key}>
+          <dt>{label}</dt>
+          <dd>{n[key] != null ? fmt(n[key]!) : "—"}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** 접힌 상태에서 보이는 세부 영양 요약 ("당 5g · 포화 2g …") */
+export const extrasSummary = (n: Nutrients) =>
+  EXTRAS.filter(({ key }) => n[key] != null).map(({ key, short }) => `${short} ${fmt(n[key]!)}`).join(" · ");
 
 /** 목표 대비 진행 막대 */
 export function Progress({ label, value, target, unit, className }: { label: string; value: number; target?: number | null; unit: string; className?: string }) {
@@ -232,6 +256,29 @@ export function NutrientEditor({ n, onChange }: { n: Nutrients; onChange: (n: Nu
         <span>나트륨 (mg)</span>
         <NumInput value={n.sodium ?? 0} onChange={(v) => onChange({ ...n, sodium: v ?? 0 })} step="1" />
       </label>
+      <details className="extra-edit">
+        <summary>
+          세부 영양 <span className="muted small">{extrasSummary(n) || "당류·식이섬유·포화·트랜스·불포화지방"}</span>
+        </summary>
+        <div className="ngrid three">
+          {EXTRAS.map(({ key, label }) => (
+            <label key={key} className="nfield">
+              <span>{label} (g)</span>
+              <NumInput
+                value={n[key] ?? null}
+                placeholder="모름"
+                decimals={1}
+                onChange={(v) => {
+                  const next = { ...n };
+                  if (v == null) delete next[key];
+                  else next[key] = v;
+                  onChange(next);
+                }}
+              />
+            </label>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }

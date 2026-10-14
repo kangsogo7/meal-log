@@ -1,6 +1,16 @@
 // 식약처 식품영양성분 DB 검색 (public/food-db.json, 값은 100g 기준)
 import type { Nutrients } from "./db";
 
+/** 식약처 DB의 포화·트랜스지방·식이섬유(-1 = 원본에 없음) → 세부 영양. 불포화지방 = 지방 − 포화 − 트랜스 */
+function extras(fat: number, sat = -1, fiber = -1, trans = -1): Partial<Nutrients> {
+  const out: Partial<Nutrients> = {};
+  if (sat >= 0) out.satFat = sat;
+  if (trans >= 0) out.transFat = trans;
+  if (fiber >= 0) out.fiber = fiber;
+  if (sat >= 0 && fat >= 0) out.unsatFat = Math.round(Math.max(0, fat - sat - Math.max(0, trans)) * 10) / 10;
+  return out;
+}
+
 export interface Food {
   name: string;
   kind: 0 | 1 | 2; // 0=식재료(원재료성), 1=음식, 2=시판 제품
@@ -109,9 +119,10 @@ export function loadFoodDb(): Promise<Food[]> {
       const seen = new Set<string>();
       const list: Food[] = [];
       const sat = new Map<Food, number>();
+      const extra = new Map<Food, [number, number, number]>();
       for (const r of data.foods) {
-        const [name, kind, brand, kcal, carb, protein, fat, sugar, sodium, serving, group, satFat = -1] = r as [
-          string, 0 | 1, string, number, number, number, number, number, number, number, string, number?,
+        const [name, kind, brand, kcal, carb, protein, fat, sugar, sodium, serving, group, satFat = -1, fiber = -1, trans = -1] = r as [
+          string, 0 | 1, string, number, number, number, number, number, number, number, string, number?, number?, number?,
         ];
         if (!kcal) continue;
         const dup = `${name}|${brand}`;
@@ -125,9 +136,12 @@ export function loadFoodDb(): Promise<Food[]> {
           norm: norm(name),
         };
         sat.set(food, satFat);
+        extra.set(food, [satFat, fiber, trans]);
         list.push(food);
       }
       fillMissingMacros(list, sat);
+      // 지방을 추정한 메뉴도 추정한 지방으로 불포화지방 계산
+      for (const f of list) Object.assign(f.per100, extras(f.per100.fat, ...extra.get(f)!));
       foods = list;
       return list;
     })
@@ -153,15 +167,15 @@ export function loadProductDb(): Promise<Food[]> {
       const seen = new Set<string>();
       const list: Food[] = [];
       for (const r of data.products) {
-        const [name, maker, kcal, carb, protein, fat, sugar, sodium, serving, pkg] = r as [
-          string, string, number, number, number, number, number, number, number, number,
+        const [name, maker, kcal, carb, protein, fat, sugar, sodium, serving, pkg, satFat = -1, fiber = -1, trans = -1] = r as [
+          string, string, number, number, number, number, number, number, number, number, number?, number?, number?,
         ];
         const dup = `${name}|${maker}`;
         if (!kcal || seen.has(dup)) continue;
         seen.add(dup);
         list.push({
           name, kind: 2, brand: maker, serving, pkg, group: "",
-          per100: { kcal, carb, protein, fat, sugar, sodium },
+          per100: { kcal, carb, protein, fat, sugar, sodium, ...extras(fat, satFat, fiber, trans) },
           partial: false,
           norm: norm(name),
         });

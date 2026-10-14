@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
+import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useProfile, useTargets } from "../hooks";
-import { DateNav, NutrientLine, Sheet } from "../components/ui";
+import { DateNav, ExtrasList, NutrientLine, Sheet } from "../components/ui";
 import { Ring } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
@@ -92,6 +92,12 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
               {Math.round(total.sodium ?? 0).toLocaleString()} / {(target?.sodium ?? SODIUM_LIMIT).toLocaleString()}mg
             </span>
           </div>
+          {EXTRAS.some(({ key }) => total[key] != null) && (
+            <details className="day-extras">
+              <summary className="muted small">세부 영양</summary>
+              <ExtrasList n={total} always />
+            </details>
+          )}
           {!target && <button className="link small" onClick={onGoToGoals}>목표 설정하기 →</button>}
         </div>
       </section>

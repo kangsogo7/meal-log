@@ -68,7 +68,9 @@ for (const { pk, kind } of DATASETS) {
       n(r.NAT * k), // 8 나트륨(mg)
       qty(r.SERV_SIZE) || qty(r.FOOD_SIZE) || 0, // 9 1회 제공량(g), 없으면 0
       (r.FOOD_LV4_NM ?? "").trim(), // 10 대표식품명
-      nb(r.FASAT, k), // 11 포화지방 (없으면 -1, 지방 추정에 씀)
+      nb(r.FASAT, k), // 11 포화지방 (없으면 -1, 지방 추정에도 씀)
+      nb(r.FIBTG, k), // 12 식이섬유 (없으면 -1)
+      nb(r.FATRN, k), // 13 트랜스지방 (없으면 -1)
     ]);
   }
 }
@@ -78,6 +80,7 @@ for (const { pk, kind } of DATASETS) {
 console.log("데이터 받는 중: 15100066 (가공식품 → 대표식품별 평균 + 제품 목록)");
 const groups = new Map();
 const products = [];
+const groupExtras = new Map();
 // "(주)농심 안성공장" → "농심"
 const maker = (s) =>
   String(s ?? "")
@@ -94,10 +97,17 @@ for (const r of await fetchDataset("15100066")) {
     r.FOOD_NM.trim(), maker(r.MFR_NM || r.DIST_NM || r.IMPT_NM),
     n(r.ENERC * k), n(r.CHOCDF * k), n(r.PROT * k), n(r.FATCE * k), n(r.SUGAR * k), n(r.NAT * k),
     serv || 0, qty(r.FOOD_SIZE) || 0,
+    nb(r.FASAT, k), nb(r.FIBTG, k), nb(r.FATRN, k),
   ]);
   if (!name) continue;
   const g = groups.get(name) ?? [];
   g.push([r.ENERC, r.CHOCDF, r.PROT, r.FATCE, r.SUGAR, r.NAT].map((v) => (Number(v) || 0) * k));
+  // 세부 영양은 값이 있는 것만 따로 모아 중앙값
+  const ex = groupExtras.get(name) ?? [[], [], []];
+  [r.FASAT, r.FIBTG, r.FATRN].forEach((v, i) => {
+    if (v !== null && v !== undefined && String(v).trim() !== "") ex[i].push(Number(v) * k);
+  });
+  groupExtras.set(name, ex);
   groups.set(name, g);
 }
 const median = (xs) => {
@@ -107,14 +117,16 @@ const median = (xs) => {
 for (const [name, rows] of groups) {
   if (rows.length < 3) continue;
   const col = (i) => n(median(rows.map((r) => r[i])));
-  foods.push([name, 0, "", col(0), col(1), col(2), col(3), col(4), col(5), 0, `가공식품 ${rows.length}개 평균`, -1]);
+  const ex = groupExtras.get(name) ?? [[], [], []];
+  const exCol = (i) => (ex[i].length >= 3 ? n(median(ex[i])) : -1);
+  foods.push([name, 0, "", col(0), col(1), col(2), col(3), col(4), col(5), 0, `가공식품 ${rows.length}개 평균`, exCol(0), exCol(1), exCol(2)]);
 }
 
 await mkdir("public", { recursive: true });
 const out = {
   source: "식품의약품안전처 전국통합식품영양성분정보 표준데이터 (공공데이터포털)",
   builtAt: new Date().toISOString().slice(0, 10),
-  fields: ["name", "kind", "brand", "kcal", "carb(-1=없음)", "protein", "fat(-1=없음)", "sugar", "sodium", "serving", "group", "satFat(-1=없음)"],
+  fields: ["name", "kind", "brand", "kcal", "carb(-1=없음)", "protein", "fat(-1=없음)", "sugar", "sodium", "serving", "group", "satFat(-1=없음)", "fiber(-1=없음)", "transFat(-1=없음)"],
   foods,
 };
 await writeFile("public/food-db.json", JSON.stringify(out));
@@ -125,7 +137,7 @@ await writeFile(
   JSON.stringify({
     source: out.source,
     builtAt: out.builtAt,
-    fields: ["name", "maker", "kcal", "carb", "protein", "fat", "sugar", "sodium", "serving", "package"],
+    fields: ["name", "maker", "kcal", "carb", "protein", "fat", "sugar", "sodium", "serving", "package", "satFat(-1=없음)", "fiber(-1=없음)", "transFat(-1=없음)"],
     products,
   }),
 );

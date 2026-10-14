@@ -171,9 +171,21 @@ const NUTRIENT_PROPS = {
   protein: { type: "number", description: "단백질 (g)" },
   fat: { type: "number", description: "지방 (g)" },
   sugar: { type: "number", description: "당류 (g)" },
+  fiber: { type: "number", nullable: true, description: "식이섬유 (g), 모르면 null" },
+  satFat: { type: "number", nullable: true, description: "포화지방 (g), 모르면 null" },
+  transFat: { type: "number", nullable: true, description: "트랜스지방 (g), 모르면 null" },
+  unsatFat: { type: "number", nullable: true, description: "불포화지방 (g), 모르면 null" },
   sodium: { type: "number", description: "나트륨 (mg)" },
 };
-const NUTRIENT_REQ = ["kcal", "carb", "protein", "fat", "sugar", "sodium"];
+const NUTRIENT_REQ = ["kcal", "carb", "protein", "fat", "sugar", "sodium", "fiber", "satFat", "transFat", "unsatFat"];
+
+/** 세부 영양: 숫자로 온 값만 (null이면 비워 둠) */
+const optional = (n: Partial<Nutrients> | undefined) =>
+  Object.fromEntries(
+    (["fiber", "satFat", "transFat", "unsatFat"] as const)
+      .filter((k) => n?.[k] != null && Number.isFinite(Number(n[k])))
+      .map((k) => [k, Math.max(0, Number(n![k]))]),
+  );
 
 const toNutrients = (n: Partial<Nutrients> | undefined): Nutrients => ({
   kcal: Math.max(0, Number(n?.kcal) || 0),
@@ -181,6 +193,7 @@ const toNutrients = (n: Partial<Nutrients> | undefined): Nutrients => ({
   protein: Math.max(0, Number(n?.protein) || 0),
   fat: Math.max(0, Number(n?.fat) || 0),
   sugar: Math.max(0, Number(n?.sugar) || 0),
+  ...optional(n),
   sodium: Math.max(0, Number(n?.sodium) || 0),
 });
 

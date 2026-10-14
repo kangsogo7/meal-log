@@ -1,6 +1,6 @@
 // 음식 공유: 내가 기록한 음식(1회 제공량 + 양 조절 배수)을 링크로 보내거나 그룹에서 가져와 바로 기록.
 // 링크: https://kangsogo7.github.io/meal-log/?food=<음식 정보>  (안드로이드 앱은 meallog://food?food=…)
-import type { EntryKind, Item } from "./db";
+import { EXTRAS, type EntryKind, type Item } from "./db";
 import { isAndroid, isNativeApp, WEB_URL } from "./invite";
 
 export interface SharedFood {
@@ -33,7 +33,8 @@ export function slimFood(f: SharedFood): SharedFood {
       source: i.source ?? "manual",
       nutrients: {
         kcal: Math.round(i.nutrients.kcal), carb: r1(i.nutrients.carb), protein: r1(i.nutrients.protein),
-        fat: r1(i.nutrients.fat), sugar: r1(i.nutrients.sugar ?? 0), sodium: Math.round(i.nutrients.sodium ?? 0),
+        fat: r1(i.nutrients.fat), sodium: Math.round(i.nutrients.sodium ?? 0),
+        ...Object.fromEntries(EXTRAS.filter(({ key }) => i.nutrients[key] != null).map(({ key }) => [key, r1(i.nutrients[key]!)])),
       },
     })),
   };
