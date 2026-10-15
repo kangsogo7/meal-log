@@ -135,16 +135,39 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
           <Sheet title={openSet.name} onClose={() => setOpenSet(null)}>
             <div className="form food-detail">
               <NutrientGrid n={openSet.total} />
-              <ul className="mini-list">
-                {openSet.entries.map((e, i) => (
-                  <li key={i}><span>{e.place && <b>{e.place} </b>}{e.title}</span><span className="muted">{Math.round(sumNutrients(e.items.map((x) => x.nutrients)).kcal)}kcal</span></li>
-                ))}
+              <p className="muted small set-parts-head">구성 {openSet.entries.length}개</p>
+              <ul className="set-parts">
+                {openSet.entries.map((e, i) => {
+                  const n = sumNutrients(e.items.map((x) => x.nutrients));
+                  const grams = e.items.every((x) => x.grams) ? e.items.reduce((a, x) => a + (x.grams ?? 0), 0) : 0;
+                  const share = openSet.total.kcal ? Math.round((n.kcal / openSet.total.kcal) * 100) : 0;
+                  return (
+                    <li key={i}>
+                      <div className="sp-main">
+                        <span className="sp-name">
+                          {e.place && <span className="muted">{e.place} </span>}
+                          <b>{e.title}</b>
+                        </span>
+                        <span className="muted small">
+                          {[grams ? `${Math.round(grams)}g` : "", `탄 ${Math.round(n.carb)} · 단 ${Math.round(n.protein)} · 지 ${Math.round(n.fat)}g`].filter(Boolean).join(" · ")}
+                        </span>
+                      </div>
+                      <b className="sp-kcal">{Math.round(n.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
+                      {/* 세트 칼로리 중 이 음식 몫 */}
+                      <span className="sp-share" aria-hidden><i style={{ width: `${share}%` }} /></span>
+                    </li>
+                  );
+                })}
               </ul>
-              <button className="primary block big" onClick={() => { if (!on) toggle({ id, drafts: openSet.entries }); setOpenSet(null); }}>{on ? "담겨 있어요" : "세트 담기"}</button>
-              <div className="row-between detail-links">
-                <button className="text-btn muted" onClick={() => { setComposeSet(openSet.id!); setOpenSet(null); }}>구성 수정</button>
-                {on && <button className="text-btn danger-text" onClick={() => { toggle({ id, drafts: openSet.entries }); setOpenSet(null); }}>담은 것 빼기</button>}
+              <div className="set-actions">
+                <button onClick={() => { setComposeSet(openSet.id!); setOpenSet(null); }}>구성 수정</button>
+                <button className="primary" onClick={() => { if (!on) toggle({ id, drafts: openSet.entries }); setOpenSet(null); }}>{on ? "담겨 있어요" : "세트 담기"}</button>
               </div>
+              {on && (
+                <div className="detail-links">
+                  <button className="text-btn danger-text" onClick={() => { toggle({ id, drafts: openSet.entries }); setOpenSet(null); }}>담은 것 빼기</button>
+                </div>
+              )}
             </div>
           </Sheet>
         );

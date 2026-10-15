@@ -917,3 +917,17 @@ input.missing { border-color: var(--over); }
 /* 물 목표를 넘겨 마신 잔 */
 .cup-strip span.extra, .cup-grid button.extra { background: var(--water-ink); }
 .over-goal { font-weight: 700; }
+
+/* 세트 상세: 구성 음식 카드 */
+.set-parts-head { margin: 14px 2px 6px; }
+.set-parts { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.set-parts li { position: relative; display: flex; align-items: center; gap: 12px; background: var(--inset); border-radius: 14px; padding: 12px 14px 14px; overflow: hidden; }
+.sp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-kcal { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sp-kcal .muted { font-weight: 400; font-size: 0.8rem; }
+.sp-share { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--track); }
+.sp-share i { display: block; height: 100%; background: var(--accent); opacity: 0.7; }
+.set-actions { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+.set-actions button { min-height: 52px; padding: 0 18px; border-radius: 16px; font-size: 1rem; }
+.set-actions .primary { font-weight: 700; }
