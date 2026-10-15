@@ -8,6 +8,7 @@ import Today from "./pages/Today";
 import Activity from "./pages/Activity";
 import Goals from "./pages/Goals";
 import SettingsPage from "./pages/Settings";
+import { NavOrb } from "./components/NavOrb";
 import { rescheduleReminders, takeChecksRequest } from "./notify";
 // 그룹 탭은 Firebase 코드가 커서 열 때만 불러옴
 const Groups = lazy(() => import("./pages/Groups"));
@@ -89,14 +90,7 @@ export default function App() {
         {tab === "settings" && <SettingsPage />}
       </main>
       {food && <ReceiveFood food={food} from={food.from} onClose={() => { clearFood(); setFood(null); }} />}
-      <nav className="tabbar">
-        {TABS.map((t) => (
-          <button key={t.key} className={tab === t.key ? "active" : ""} onClick={() => setTab(t.key)}>
-            {t.icon}
-            <span>{t.label}</span>
-          </button>
-        ))}
-      </nav>
+      <NavOrb items={TABS} current={tab} home="today" onSelect={(k) => { setTab(k); window.scrollTo(0, 0); }} />
     </div>
   );
 }
