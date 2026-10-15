@@ -923,32 +923,35 @@ input.missing { border-color: var(--over); }
 
 /* 화면 이동 버튼 (아래 가운데) */
 .nav-orb {
-  position: fixed; left: 50%; bottom: calc(var(--safe-bottom) + 14px); transform: translateX(-50%); z-index: 15;
+  position: fixed; left: 50%; bottom: calc(var(--safe-bottom) + 14px); transform: translateX(-50%); z-index: 18;
   width: 64px; height: 64px; border-radius: 50%; padding: 0; border: none;
   background: var(--accent); color: var(--accent-ink);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 .nav-orb .tab-icon { width: 22px; height: 22px; }
 .orb-label { font-size: 0.62rem; font-weight: 700; line-height: 1.1; }
-.nav-orb.holding, .nav-orb.open { transform: translateX(-50%) scale(1.08); }
+.nav-orb.holding { transform: translateX(-50%) scale(1.08); }
+/* 펼치면 동그라미는 줄어들며 사라지고, 그 자리에서 칸들이 양옆으로 나옴 */
+.nav-orb.open { transform: translateX(-50%) scale(0.6); opacity: 0; pointer-events: none; }
 .orb-ring { position: absolute; inset: -5px; border-radius: 50%; border: 3px solid var(--accent); opacity: 0; clip-path: inset(0 100% 0 0); pointer-events: none; }
-.nav-orb.holding .orb-ring { opacity: 0.6; animation: orb-fill 0.5s linear forwards; }
+.nav-orb.holding .orb-ring { opacity: 0.6; animation: orb-fill 0.2s linear forwards; }
 @keyframes orb-fill { to { clip-path: inset(0 0 0 0); } }
-.orb-backdrop { position: fixed; inset: 0; z-index: 16; background: rgba(0, 0, 0, 0.35); animation: dim 0.2s ease-out; }
+/* 펼친 동안 화면 전체가 손가락을 받음 (아무 데나 대고 밀기) */
+.orb-layer { position: fixed; inset: 0; z-index: 16; background: rgba(0, 0, 0, 0.35); touch-action: none; animation: dim 0.15s ease-out; }
 .orb-menu {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 92px); z-index: 17;
-  display: flex; gap: 4px; padding: 6px; border-radius: 22px;
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 10px); z-index: 17;
+  display: flex; gap: 4px; padding: 6px; border-radius: 26px;
   background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  width: min(calc(100vw - 24px), 420px); animation: orb-pop 0.18s ease-out;
+  width: min(calc(100vw - 24px), 420px); pointer-events: none;
+  animation: orb-widen 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
-@keyframes orb-pop { from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.96); } }
-.orb-menu button { flex: 1; min-width: 0; border: none; background: none; color: var(--muted); border-radius: 16px; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 0.72rem; padding: 6px 0; transition: background 0.12s, transform 0.12s; }
+@keyframes orb-widen { from { clip-path: inset(0 calc(50% - 32px) round 32px); } to { clip-path: inset(0 0 round 26px); } }
+.orb-menu button { flex: 1; min-width: 0; border: none; background: none; color: var(--muted); border-radius: 20px; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 0.72rem; padding: 6px 0; transition: background 0.1s, color 0.1s, transform 0.1s; animation: orb-out 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards; }
+/* 가운데에서 --d칸 떨어진 자리로 미끄러져 나옴 */
+@keyframes orb-out { from { transform: translateX(calc(var(--d) * -72px)) scale(0.5); opacity: 0; } }
 .orb-menu button.current { color: var(--text); font-weight: 700; }
-.orb-menu button.hover { background: var(--accent); color: var(--accent-ink); transform: translateY(-4px); }
-@media (prefers-reduced-motion: reduce) { .orb-menu, .orb-backdrop, .nav-orb { animation: none; transition: none; } }
-/* 창이 열려 있으면(시트·전체 화면) 이동 버튼 숨김 */
-.no-scroll .nav-orb, .no-scroll .orb-menu, .no-scroll .orb-backdrop { display: none; }
-.nav-orb.open { z-index: 18; }
+.orb-menu button.hover { background: var(--accent); color: var(--accent-ink); transform: translateY(-6px) scale(1.06); }
+@media (prefers-reduced-motion: reduce) { .orb-menu, .orb-menu button, .orb-layer, .nav-orb { animation: none; transition: none; } }
