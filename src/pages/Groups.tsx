@@ -374,7 +374,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
     <PhotosCtx.Provider value={group.photos}>
     <Screen
       left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
-      title={group.name}
+      title={<>{group.name} <span className="title-count">{group.members.length}명</span></>}
       right={<button className="text-btn" onClick={() => setMembers(true)}>멤버</button>}
     >
       <div className="group-date">
@@ -388,7 +388,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
           const n = days.filter((d) => group.members.includes(d.uid) && d.meals.some((x) => x.meal === m.key)).length;
           return (
             <button key={m.key} role="tab" aria-selected={meal === m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>
-              <span><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</span><small>{n ? `${n}명` : "-"}</small>
+              <span><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}<span className="meal-n">({n})</span></span>
             </button>
           );
         })}
