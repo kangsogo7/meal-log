@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { addDays, db, setKV, todayStr, type BodyRecord, type ExerciseKind, type Goal, type Nutrients, type Profile } from "../db";
+import { addDays, db, getKV, setKV, todayStr, type BodyRecord, type ExerciseKind, type Goal, type Nutrients, type Profile } from "../db";
 import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion } from "../nutrition";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
@@ -315,10 +315,15 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
     const isNew = !record.id;
     await db.body.put(r);
     // 새 기록이면 2주 이상 전 기록과 비교해서 칼로리 조정 제안
-    const next = profile && isNew ? suggestAdjust(profile.goal, r, await db.body.toArray(), profile.kcalAdjust) : null;
+    const lastAsked = await getKV<string>("adjustAsked", "");
+    const next = profile && isNew ? suggestAdjust(profile.goal, r, await db.body.toArray(), profile.kcalAdjust, lastAsked || undefined) : null;
     // 컷팅 중 기초대사량 아래로 내려가는 제안은 하지 않음
     const floor = next && next.delta < 0 && !profile?.override && calc && target && target.kcal + next.delta < calc.bmr;
-    if (next?.delta && target && !floor) return setTip(next);
+    if (next?.delta && target && !floor) {
+      // 줄이기·그대로 어느 쪽을 골라도 2주 동안은 다시 묻지 않음
+      await setKV("adjustAsked", r.date);
+      return setTip(next);
+    }
     // 제안이 없을 때도 왜 없는지 알려 줌
     if (next) flash(floor ? `${next.text}. 더 줄이면 기초대사량보다 낮아져서 그대로 둘게요` : next.text, 4000);
     onClose();

@@ -53,31 +53,59 @@ export interface AdjustSuggestion {
   text: string; // "2주 전(9월 27일)보다 체지방률이 0.2%p 줄었어요"
 }
 
+/** 제안을 한 번 보여 주면(줄이기·그대로 모두) 이 기간 동안은 다시 묻지 않음 */
+export const ADJUST_COOLDOWN_DAYS = 14;
+
+const dayNum = (date: string) => Math.round(new Date(date + "T00:00:00").getTime() / 86400000);
+const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
 /**
- * 새 기록을 2주 이상 전 기록과 비교해서, 목표 쪽으로 변화가 없으면 칼로리 조정을 제안.
- * 컷팅: 체지방률(없으면 체중)이 0.5%p(0.3kg) 넘게 줄지 않았으면 줄이기
- * 린매스업·벌크업: 골격근량(없으면 체중)이 0.3kg 넘게 늘지 않았으면 늘리기
+ * 새 기록을 2~5주 전 기록과 비교해서, 목표 쪽으로 변화가 없으면 칼로리 조정을 제안.
+ * - 비교 대상: 14~35일 전 기록만 (몇 달 전 기록과는 비교하지 않음)
+ * - 체중은 하루 오차가 커서 평균끼리: 최근 7일 평균 vs 14~21일 전 평균 (없으면 14~35일 전 중 가장 최근 7일 평균)
+ * - 체지방률·골격근량(인바디)은 기록 하나끼리
+ * - 컷팅: 체지방률(없으면 체중)이 0.5%p(0.3kg) 넘게 줄지 않았으면 줄이기 / 린매스업·벌크업: 골격근량(없으면 체중)이 0.3kg 넘게 늘지 않았으면 늘리기
+ * - 예전 날짜를 새로 넣은 경우, 마지막 제안 뒤 2주가 안 됐으면 묻지 않음
  */
-export function suggestAdjust(goal: Goal, now: BodyRecord, history: BodyRecord[], currentAdjust = 0): AdjustSuggestion | null {
+export function suggestAdjust(goal: Goal, now: BodyRecord, history: BodyRecord[], currentAdjust = 0, lastAsked?: string): AdjustSuggestion | null {
   const cut = goal === "cut";
   if (!cut && goal !== "leanbulk" && goal !== "bulk") return { delta: 0, text: "목표가 유지라서 칼로리 조정은 제안하지 않아요" };
-  const limit = new Date(now.date + "T00:00:00").getTime() - 14 * 86400000;
-  // 2주 이상 전 기록 중 가장 최근 것 (같은 지표가 있는 기록을 우선)
-  const older = history.filter((r) => r.id !== now.id && new Date(r.date + "T00:00:00").getTime() <= limit).sort((a, b) => b.date.localeCompare(a.date));
+  const others = history.filter((r) => r.id !== now.id);
+  if (others.some((r) => r.date > now.date)) return null; // 예전 날짜 기록: 비교하지 않음
+  const today = dayNum(now.date);
+  const ago = (r: BodyRecord) => today - dayNum(r.date);
+  const win = others.filter((r) => ago(r) >= 14 && ago(r) <= 35).sort((a, b) => b.date.localeCompare(a.date));
+  if (!win.length) return { delta: 0, text: "비교할 2~5주 전 기록이 없어서 아직 칼로리 조정은 제안하지 않아요" };
+
   const key = cut ? "bodyFat" : "muscle";
-  const withKey = now[key] != null ? older.find((r) => r[key] != null) : undefined;
-  const base = withKey ?? older[0];
-  if (!base) return { delta: 0, text: "2주 넘게 지난 기록이 없어서 아직 비교할 수 없어요" };
-  const useKey = !!withKey;
-  const diff = useKey ? (now[key] as number) - (base[key] as number) : now.weight - base.weight;
-  const label = useKey ? (cut ? "체지방률" : "골격근량") : "체중";
-  const unit = useKey && cut ? "%p" : "kg";
-  const progressed = cut ? diff < -(useKey ? 0.5 : 0.3) : diff > 0.3;
-  const [, m, d] = base.date.split("-").map(Number);
-  const days = Math.round((new Date(now.date).getTime() - new Date(base.date).getTime()) / 86400000);
-  const change = Math.abs(diff) < 0.05 ? "그대로예요" : `${Math.abs(diff).toFixed(1)}${unit} ${diff > 0 ? "늘었어요" : "줄었어요"}`;
-  const text = `${days}일 전(${m}월 ${d}일)보다 ${label}이 ${change}`;
+  const keyBase = now[key] != null ? win.find((r) => r[key] != null) : undefined;
+  let diff: number, label: string, unit: string, since: string;
+  if (keyBase) {
+    diff = (now[key] as number) - (keyBase[key] as number);
+    label = cut ? "체지방률" : "골격근량";
+    unit = cut ? "%p" : "kg";
+    since = `${ago(keyBase)}일 전(${keyBase.date.slice(5).split("-").map(Number).join("/")})보다`;
+  } else {
+    const recent = [now, ...others.filter((r) => ago(r) >= 0 && ago(r) < 7)];
+    const near = win.filter((r) => ago(r) <= 21);
+    const base = near.length ? near : win.filter((r) => dayNum(win[0].date) - dayNum(r.date) < 7);
+    diff = avg(recent.map((r) => r.weight)) - avg(base.map((r) => r.weight));
+    label = "체중";
+    unit = "kg";
+    // 평균끼리면 "최근 1주 평균 체중이 2~3주 전 평균보다 …"
+    if (recent.length > 1 || base.length > 1) {
+      label = "최근 1주 평균 체중";
+      since = "";
+      unit = "kg";
+    } else since = `${ago(base[0])}일 전보다`;
+  }
+  const progressed = cut ? diff < -(keyBase ? 0.5 : 0.3) : diff > 0.3;
+  const change = Math.abs(diff) < 0.05 ? "거의 변하지 않았어요" : `${Math.abs(diff).toFixed(1)}${unit} ${diff > 0 ? "늘었어요" : "줄었어요"}`;
+  const text = since ? `${since} ${label}이 ${change}` : `${label}이 2~3주 전 평균보다 ${change}`;
   if (progressed) return { delta: 0, text: `${text}. 잘 되고 있어서 목표는 그대로 둘게요` };
+  if (lastAsked && today - dayNum(lastAsked) < ADJUST_COOLDOWN_DAYS) {
+    return { delta: 0, text: `${text}. 칼로리 조정은 ${lastAsked.slice(5).split("-").map(Number).join("/")}에 물어봐서 2주 뒤에 다시 볼게요` };
+  }
   const delta = cut ? -ADJUST_STEP : ADJUST_STEP;
   if (Math.abs(currentAdjust + delta) > ADJUST_MAX) return { delta: 0, text: `${text}. 이미 ${ADJUST_MAX}kcal까지 조정해서 더 바꾸지 않아요` };
   return { delta, text };
