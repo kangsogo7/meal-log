@@ -5,6 +5,7 @@ import { flash, NutrientGrid, Sheet } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion } from "../portion";
 import type { SharedFood } from "../foodShare";
 import { saveEntry } from "./AddSheet";
+import { FavStar } from "../favorites";
 
 /** 지금 시간에 맞는 끼니 */
 function mealNow(): Meal {
@@ -47,7 +48,11 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
       <div className="form food-detail">
         <div className="receive-head">
           {from && <span className="muted small">{from}님이 공유한 음식</span>}
-          <b>{food.place && <span className="muted">{food.place} </span>}{food.title}</b>
+          <div className="receive-title">
+            <b>{food.place && <span className="muted">{food.place} </span>}{food.title}</b>
+            {/* 즐겨찾기에는 1회 제공량(×1)으로 저장됨 */}
+            <FavStar getDraft={() => ({ kind: food.kind, title: food.title, place: food.place, items: food.items, k: food.k })} />
+          </div>
           {food.items.length > 1 && <span className="muted small">재료: {food.items.map((i) => i.name).join(" · ")}</span>}
         </div>
         <NutrientGrid n={portionNutrients(portion)} />

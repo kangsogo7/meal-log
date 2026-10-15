@@ -937,3 +937,4 @@ input.missing { border-color: var(--over); }
 .title-count { font-size: 0.8rem; font-weight: 500; color: var(--muted); }
 .meal-tabs .meal-n { margin-left: 2px; font-size: 0.78rem; font-weight: 500; opacity: 0.85; }
 .meal-tabs button { min-height: 46px; }
+.receive-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
