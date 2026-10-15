@@ -931,3 +931,4 @@ input.missing { border-color: var(--over); }
 .set-actions { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
 .set-actions button { min-height: 52px; padding: 0 18px; border-radius: 16px; font-size: 1rem; }
 .set-actions .primary { font-weight: 700; }
+.chart .grid { stroke: var(--border); stroke-width: 1; opacity: 0.7; }

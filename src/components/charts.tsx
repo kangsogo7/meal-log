@@ -84,11 +84,15 @@ export function Ring({ value, max, size = 132, stroke = 13, label, children }: {
 export function WeightChart({ points }: { points: { date: string; weight: number }[] }) {
   const [active, setActive] = useState<number | null>(null);
   if (points.length < 2) return null;
-  const W = 340, H = 160, padX = 14, top = 22, bottom = 22;
+  // 오른쪽에 kg 눈금 (1kg 간격, 범위가 넓으면 2·5kg)
+  const W = 340, H = 170, padX = 14, axisW = 40, top = 22, bottom = 22;
   const ws = points.map((p) => p.weight);
-  const lo = Math.min(...ws) - 0.5, hi = Math.max(...ws) + 0.5;
+  const span = Math.max(...ws) - Math.min(...ws) + 1;
+  const step = span <= 6 ? 1 : span <= 12 ? 2 : 5;
+  const lo = Math.floor((Math.min(...ws) - 0.5) / step) * step, hi = Math.ceil((Math.max(...ws) + 0.5) / step) * step;
+  const ticks = Array.from({ length: Math.round((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
   const t0 = +new Date(points[0].date), t1 = +new Date(points[points.length - 1].date);
-  const x = (d: string) => padX + ((+new Date(d) - t0) / Math.max(1, t1 - t0)) * (W - padX * 2);
+  const x = (d: string) => padX + ((+new Date(d) - t0) / Math.max(1, t1 - t0)) * (W - axisW - padX * 2);
   const y = (w: number) => top + (1 - (w - lo) / (hi - lo)) * (H - top - bottom);
   const path = points.map((p, i) => `${i ? "L" : "M"}${x(p.date)},${y(p.weight)}`).join(" ");
   const a = active ?? points.length - 1;
@@ -97,6 +101,13 @@ export function WeightChart({ points }: { points: { date: string; weight: number
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="체중 추이">
+      {ticks.map((t) => (
+        <g key={t}>
+          <line x1={0} x2={W - axisW + 4} y1={y(t)} y2={y(t)} className="grid" />
+          <text x={W - 2} y={y(t) + 4} textAnchor="end" className="tick">{t.toFixed(1)}</text>
+        </g>
+      ))}
+      <text x={W - 2} y={top - 10} textAnchor="end" className="tick">kg</text>
       <path d={path} className="line" fill="none" />
       {points.map((p, i) => (
         <g key={i} onClick={() => setActive(i)}>
@@ -104,11 +115,11 @@ export function WeightChart({ points }: { points: { date: string; weight: number
           <circle cx={x(p.date)} cy={y(p.weight)} r={i === a ? 5 : 3.5} className="dot" />
         </g>
       ))}
-      <text x={Math.min(W - 40, Math.max(40, x(ap.date)))} y={y(ap.weight) - 10} textAnchor="middle" className="val">
+      <text x={Math.min(W - axisW - 30, Math.max(30, x(ap.date)))} y={y(ap.weight) - 10} textAnchor="middle" className="val">
         {ap.weight}kg
       </text>
       <text x={padX} y={H - 5} className="tick">{label(points[0].date)}</text>
-      <text x={W - padX} y={H - 5} textAnchor="end" className="tick">{label(points[points.length - 1].date)}</text>
+      <text x={W - axisW - padX} y={H - 5} textAnchor="end" className="tick">{label(points[points.length - 1].date)}</text>
     </svg>
   );
 }
