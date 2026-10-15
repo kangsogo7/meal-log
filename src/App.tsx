@@ -8,7 +8,6 @@ import Today from "./pages/Today";
 import Activity from "./pages/Activity";
 import Goals from "./pages/Goals";
 import SettingsPage from "./pages/Settings";
-import { NavOrb } from "./components/NavOrb";
 import { rescheduleReminders, takeChecksRequest } from "./notify";
 // 그룹 탭은 Firebase 코드가 커서 열 때만 불러옴
 const Groups = lazy(() => import("./pages/Groups"));
@@ -21,12 +20,13 @@ const icon = (d: ReactNode) => (
     {d}
   </svg>
 );
+// 순서: 활동 · 그룹 · 식단(가운데) · 목표·체중 · 설정
 const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
-  { key: "today", label: "식단", icon: icon(<><circle cx="12" cy="13" r="7" /><circle cx="12" cy="13" r="3.5" /><path d="M3 4v5M3 9v11M21 4v16" /></>) },
   { key: "activity", label: "활동", icon: icon(<path d="M3 12h4l3-8 4 16 3-8h4" />) },
   { key: "groups", label: "그룹", icon: icon(<><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2" /><circle cx="17" cy="9" r="2.4" /><path d="M16 13.9c2.6 0 4.5 1.9 4.5 4.6" /></>) },
+  { key: "today", label: "식단", icon: icon(<><circle cx="12" cy="13" r="7" /><circle cx="12" cy="13" r="3.5" /><path d="M3 4v5M3 9v11M21 4v16" /></>) },
   { key: "goals", label: "목표·체중", icon: icon(<><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="0.8" fill="currentColor" /></>) },
-  { key: "settings", label: "설정", icon: icon(<><circle cx="12" cy="12" r="3" /><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" /></>) },
+  { key: "settings", label: "설정", icon: icon(<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></>) },
 ];
 
 /** 물·영양제 목표·목록·알림 설정이나 오늘 체크가 바뀌면 알림 다시 예약 */
@@ -90,7 +90,14 @@ export default function App() {
         {tab === "settings" && <SettingsPage />}
       </main>
       {food && <ReceiveFood food={food} from={food.from} onClose={() => { clearFood(); setFood(null); }} />}
-      <NavOrb items={TABS} current={tab} home="today" onSelect={(k) => { setTab(k); window.scrollTo(0, 0); }} />
+      <nav className="tabbar">
+        {TABS.map((t) => (
+          <button key={t.key} className={tab === t.key ? "active" : ""} onClick={() => setTab(t.key)}>
+            {t.icon}
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
