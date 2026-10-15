@@ -54,7 +54,7 @@ export interface AdjustSuggestion {
 }
 
 /** 제안을 한 번 보여 주면(줄이기·그대로 모두) 이 기간 동안은 다시 묻지 않음 */
-export const ADJUST_COOLDOWN_DAYS = 14;
+export const ADJUST_COOLDOWN_DAYS = 7;
 
 const dayNum = (date: string) => Math.round(new Date(date + "T00:00:00").getTime() / 86400000);
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -65,7 +65,7 @@ const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
  * - 체중은 하루 오차가 커서 평균끼리: 최근 7일 평균 vs 14~21일 전 평균 (없으면 14~35일 전 중 가장 최근 7일 평균)
  * - 체지방률·골격근량(인바디)은 기록 하나끼리
  * - 컷팅: 체지방률(없으면 체중)이 0.5%p(0.3kg) 넘게 줄지 않았으면 줄이기 / 린매스업·벌크업: 골격근량(없으면 체중)이 0.3kg 넘게 늘지 않았으면 늘리기
- * - 예전 날짜를 새로 넣은 경우, 마지막 제안 뒤 2주가 안 됐으면 묻지 않음
+ * - 예전 날짜를 새로 넣은 경우 비교하지 않음. 한 번 물으면 그 비교(2~3주 전 평균)에 대해 1주일 동안은 다시 묻지 않음
  */
 export function suggestAdjust(goal: Goal, now: BodyRecord, history: BodyRecord[], currentAdjust = 0, lastAsked?: string): AdjustSuggestion | null {
   const cut = goal === "cut";
@@ -104,7 +104,7 @@ export function suggestAdjust(goal: Goal, now: BodyRecord, history: BodyRecord[]
   const text = since ? `${since} ${label}이 ${change}` : `${label}이 2~3주 전 평균보다 ${change}`;
   if (progressed) return { delta: 0, text: `${text}. 잘 되고 있어서 목표는 그대로 둘게요` };
   if (lastAsked && today - dayNum(lastAsked) < ADJUST_COOLDOWN_DAYS) {
-    return { delta: 0, text: `${text}. 칼로리 조정은 ${lastAsked.slice(5).split("-").map(Number).join("/")}에 물어봐서 2주 뒤에 다시 볼게요` };
+    return { delta: 0, text: `${text}. 칼로리 조정은 ${lastAsked.slice(5).split("-").map(Number).join("/")}에 물어봐서 1주 뒤에 다시 볼게요` };
   }
   const delta = cut ? -ADJUST_STEP : ADJUST_STEP;
   if (Math.abs(currentAdjust + delta) > ADJUST_MAX) return { delta: 0, text: `${text}. 이미 ${ADJUST_MAX}kcal까지 조정해서 더 바꾸지 않아요` };

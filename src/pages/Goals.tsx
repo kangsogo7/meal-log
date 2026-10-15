@@ -320,7 +320,7 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
     // 컷팅 중 기초대사량 아래로 내려가는 제안은 하지 않음
     const floor = next && next.delta < 0 && !profile?.override && calc && target && target.kcal + next.delta < calc.bmr;
     if (next?.delta && target && !floor) {
-      // 줄이기·그대로 어느 쪽을 골라도 2주 동안은 다시 묻지 않음
+      // 줄이기·그대로 어느 쪽을 골라도 1주일 동안은 다시 묻지 않음
       await setKV("adjustAsked", r.date);
       return setTip(next);
     }
