@@ -135,7 +135,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
           <span className="muted small">음식 사진 또는 포장지의 영양성분표</span>
         </button>
       )}
-      <label>설명 <span className="muted">선택</span>
+      <label className="photo-memo">설명 (선택)
         <textarea
           rows={4}
           value={memo}
