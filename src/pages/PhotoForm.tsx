@@ -11,7 +11,7 @@ import { AmountEditor, makePortion, portionGrams, portionNutrients, type Portion
 import type { Draft } from "./AddSheet";
 
 const KEY = "photoAi";
-interface Saved { at: number; preview: string; result: PhotoResult; place?: string; menu?: string }
+interface Saved { at: number; preview: string; result: PhotoResult }
 interface Row { on: boolean; name: string; portion: Portion }
 
 export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => void }) {
@@ -21,8 +21,6 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
   const input = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
   const [memo, setMemo] = useState("");
-  const [place, setPlace] = useState("");
-  const [menu, setMenu] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
 
   // 새 결과가 오면 음식별 줄을 만듦 (모두 담기로 선택)
@@ -39,13 +37,13 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
   const analyze = () => {
     if (!photo) return;
     const file = photo.file;
-    const info = { place: place.trim(), menu: menu.trim(), memo: memo.trim() };
+    const note = memo.trim();
     runInBackground(
       KEY,
       async () => {
         const [image, small] = await Promise.all([imageToBase64(file, 1280), imageToBase64(file, 320)]);
-        const result = await analyzeFoodPhoto(settings, image, info);
-        await setKV(KEY, { at: Date.now(), preview: `data:${small.mimeType};base64,${small.data}`, result, place: info.place, menu: info.menu } satisfies Saved);
+        const result = await analyzeFoodPhoto(settings, image, note);
+        await setKV(KEY, { at: Date.now(), preview: `data:${small.mimeType};base64,${small.data}`, result } satisfies Saved);
       },
       { done: "사진 분석이 끝났어요", fail: (e) => (e instanceof GeminiError ? e.message : "사진을 분석하지 못했어요.") },
     );
@@ -54,14 +52,13 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
   const reset = async () => {
     setPhoto(null);
     setMemo("");
-    setPlace("");
-    setMenu("");
     await setKV(KEY, null);
   };
 
   const chosen = rows.filter((r) => r.on && r.name.trim());
   const save = async () => {
-    const shop = saved?.place?.trim() || undefined;
+    // 설명에서 가게를 알아냈으면 외식으로, 가게 이름도 같이 저장
+    const shop = saved?.result.place?.trim() || undefined;
     const kind = shop ? "out" : saved?.result.type === "label" ? "food" : "manual";
     onSave(
       chosen.map((r) => {
@@ -138,18 +135,15 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
           <span className="muted small">음식 사진 또는 포장지의 영양성분표</span>
         </button>
       )}
-      <div className="two">
-        <label>가게 이름 <span className="muted">선택</span>
-          <input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="예: 샐러디" />
-        </label>
-        <label>메뉴명 <span className="muted">선택</span>
-          <input value={menu} onChange={(e) => setMenu(e.target.value)} placeholder="예: 우삼겹 웜볼" />
-        </label>
-      </div>
-      {(place.trim() || menu.trim()) && <p className="muted small">가게·메뉴의 공식 정보를 찾아 참고해서 조금 더 걸려요.</p>}
-      <label>메모 <span className="muted">선택</span>
-        <textarea rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={"예: 밥은 반만 먹음\n드레싱은 따로 절반만"} />
+      <label>설명 <span className="muted">선택</span>
+        <textarea
+          rows={4}
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          placeholder="예: 신촌 OO국밥에서 먹기 전에 찍은 순대국 특 사이즈예요. 국물은 절반만 마셨고 공깃밥은 3분의 1쯤 남겼어요"
+        />
       </label>
+      <p className="muted small">가게·메뉴·사이즈·먹은 양을 적을수록 정확해요. 가게나 메뉴를 적으면 공식 정보를 찾아봐서 조금 더 걸려요.</p>
       {job.error && <p className="error">{job.error}</p>}
       <button className="primary block big" onClick={analyze} disabled={!photo || job.running}>
         {job.running ? "분석하는 중... (다른 앱을 써도 돼요)" : "분석하기"}

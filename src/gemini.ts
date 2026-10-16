@@ -297,22 +297,21 @@ export interface PhotoResult {
   type: "label" | "food"; // label: 영양성분표를 읽음 / food: 음식 사진으로 추정
   items: PhotoFood[];
   note: string;
+  place?: string; // 설명·사진에서 알아낸 가게 이름
 }
 
-/** info: 사용자가 적은 가게 이름·메뉴명·메모 (있으면 그 가게의 공식 메뉴 정보를 구글 검색으로 참고) */
-export async function analyzeFoodPhoto(
-  settings: Settings,
-  image: { mimeType: string; data: string },
-  info: { place?: string; menu?: string; memo?: string } = {},
-): Promise<PhotoResult> {
-  const place = info.place?.trim() ?? "";
-  const menu = info.menu?.trim() ?? "";
-  const memo = info.memo?.trim() ?? "";
-  const known = [place && `가게: ${place}`, menu && `메뉴: ${menu}`].filter(Boolean).join(", ");
-  const prompt = `이 사진의 영양 정보를 알려줘.${known ? `\n사진 속 음식은 ${known}이야. 이 가게·메뉴의 공식 정보(메뉴 설명, 구성, 중량, 영양정보)를 찾아서 그 값을 우선으로 쓰고, 사진에서 실제로 먹은 양이 다르면 그만큼 맞춰. 공식 정보가 있으면 note에 출처를 짧게.` : ""}
+/** memo: 사용자가 자유롭게 적은 설명 (가게·메뉴·사이즈·먹은 양). 적었으면 공식 메뉴 정보를 구글 검색으로 참고 */
+export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: string; data: string }, memo = ""): Promise<PhotoResult> {
+  memo = memo.trim();
+  const known = !!memo;
+  const prompt = `이 사진의 영양 정보를 알려줘.${memo ? `
+사용자 설명: ${memo}
+- 설명에 가게 이름·메뉴명·사이즈가 있으면 그 가게·메뉴의 공식 정보(메뉴 설명, 구성, 중량, 영양정보)를 찾아서 그 값을 우선으로 써. 공식 정보가 있으면 note에 출처를 짧게.
+- 설명에 적힌 먹은 양(반만 먹음, 소스 절반 등)을 그대로 반영해. 사진은 먹기 전일 수 있어.` : ""}
 - 영양성분표(포장지의 표)가 보이면 type은 "label". 표의 숫자를 그대로 읽어서 항목 하나로. name은 제품명(보이면, 없으면 "영양성분표"), grams는 표의 기준 중량(1회 제공량 또는 총 내용량), amount는 그 기준("1회 제공량 30g" 등).
 - 음식 사진이면 type은 "food". 보이는 음식을 하나씩 나눠서(밥, 국, 반찬 각각) 이름, 보이는 양(amount), 추정 중량(grams), 그 양의 영양성분. 조리에 쓴 기름·소스도 넣어서 추정.
-- note: 한국어 한 문장. 추정이면 무엇을 가정했는지.${memo ? `\n- 사용자 메모: ${memo}` : ""}`;
+- note: 한국어 한 문장. 추정이면 무엇을 가정했는지.
+- place: 설명이나 사진에서 알 수 있는 가게 이름. 모르면 빈 문자열.`;
   const schema = {
     type: "object",
     properties: {
@@ -331,8 +330,9 @@ export async function analyzeFoodPhoto(
         },
       },
       note: { type: "string" },
+      place: { type: "string" },
     },
-    required: ["type", "items", "note"],
+    required: ["type", "items", "note", "place"],
   };
   const parts = [{ inlineData: image }, { text: prompt }];
   let res: PhotoResult;
@@ -351,6 +351,7 @@ export async function analyzeFoodPhoto(
   return {
     type: res.type === "label" ? "label" : "food",
     note: res.note ?? "",
+    place: String(res.place ?? "").trim() || undefined,
     items: res.items.map((i) => ({ name: String(i.name || "음식"), amount: String(i.amount ?? ""), grams: Math.max(0, Number(i.grams) || 0), nutrients: toNutrients(i.nutrients) })),
   };
 }
