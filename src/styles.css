@@ -962,3 +962,5 @@ input.missing { border-color: var(--over); }
 .photo-row-head .photo-name { flex: 1; min-width: 0; margin: 0; background: transparent; border-color: transparent; font-weight: 700; padding: 6px 8px; }
 .photo-row-head .photo-name:focus { background: var(--card); }
 .photo-memo { margin-top: 20px; }
+.sheet-head h2 { flex: 1; min-width: 0; }
+.sheet-action { display: flex; align-items: center; margin-right: 4px; }

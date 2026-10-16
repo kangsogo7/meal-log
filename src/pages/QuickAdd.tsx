@@ -7,6 +7,7 @@ import { AmountEditor, portionItems, portionNutrients, storedPortion, type Porti
 import { shareFood, type SharedFood } from "../foodShare";
 import { FolderScreen, FoodEditScreen, savedDraft, servingLine, SetEditScreen, type CartItem } from "./FavoritesTab";
 import { SavedFoodEditSheet, SetComposeScreen } from "./FavEditors";
+import { FavStar } from "../favorites";
 
 type Source = { kind: "often" } | { kind: "group"; id: number } | { kind: "sets" } | { kind: "recent" };
 
@@ -107,7 +108,11 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
       )}
 
       {amountOf && (
-        <Sheet title={amountOf.food.title} onClose={() => setAmountOf(null)}>
+        <Sheet
+          title={amountOf.food.title}
+          onClose={() => setAmountOf(null)}
+          action={<FavStar getDraft={() => ({ kind: amountOf.food.kind, title: amountOf.food.title, place: amountOf.food.place, items: amountOf.food.items })} />}
+        >
           <div className="form food-detail">
             <NutrientGrid n={portionNutrients(amountOf.portion)} />
             <AmountEditor portion={amountOf.portion} onChange={(p) => setAmountOf({ ...amountOf, portion: p })} />
