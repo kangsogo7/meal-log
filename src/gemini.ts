@@ -286,6 +286,54 @@ export async function askFood(settings: Settings, question: string, search = fal
   return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients) };
 }
 
+// ---------- 음식 사진 · 영양성분표 사진 ----------
+export interface PhotoFood {
+  name: string;
+  amount: string; // "1공기", "반 그릇"
+  grams: number;
+  nutrients: Nutrients;
+}
+export interface PhotoResult {
+  type: "label" | "food"; // label: 영양성분표를 읽음 / food: 음식 사진으로 추정
+  items: PhotoFood[];
+  note: string;
+}
+
+export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: string; data: string }, memo = ""): Promise<PhotoResult> {
+  const prompt = `이 사진의 영양 정보를 알려줘.
+- 영양성분표(포장지의 표)가 보이면 type은 "label". 표의 숫자를 그대로 읽어서 항목 하나로. name은 제품명(보이면, 없으면 "영양성분표"), grams는 표의 기준 중량(1회 제공량 또는 총 내용량), amount는 그 기준("1회 제공량 30g" 등).
+- 음식 사진이면 type은 "food". 보이는 음식을 하나씩 나눠서(밥, 국, 반찬 각각) 이름, 보이는 양(amount), 추정 중량(grams), 그 양의 영양성분. 조리에 쓴 기름·소스도 넣어서 추정.
+- note: 한국어 한 문장. 추정이면 무엇을 가정했는지.${memo ? `\n- 사용자 메모: ${memo}` : ""}`;
+  const schema = {
+    type: "object",
+    properties: {
+      type: { type: "string", enum: ["label", "food"] },
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            amount: { type: "string" },
+            grams: { type: "number" },
+            nutrients: { type: "object", properties: NUTRIENT_PROPS, required: NUTRIENT_REQ },
+          },
+          required: ["name", "amount", "grams", "nutrients"],
+        },
+      },
+      note: { type: "string" },
+    },
+    required: ["type", "items", "note"],
+  };
+  const res = await generateJson<PhotoResult>(settings, [{ inlineData: image }, { text: prompt }], schema);
+  if (!res?.items?.length) throw new GeminiError("사진에서 음식이나 영양성분표를 찾지 못했어요. 다시 찍어 주세요.");
+  return {
+    type: res.type === "label" ? "label" : "food",
+    note: res.note ?? "",
+    items: res.items.map((i) => ({ name: String(i.name || "음식"), amount: String(i.amount ?? ""), grams: Math.max(0, Number(i.grams) || 0), nutrients: toNutrients(i.nutrients) })),
+  };
+}
+
 // ---------- 인바디 결과지 ----------
 export interface InBodyResult {
   date: string | null;

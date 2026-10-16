@@ -5,12 +5,13 @@ import { flash, Sheet } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
+import PhotoForm from "./PhotoForm";
 import type { CartItem } from "./FavoritesTab";
 import QuickAdd from "./QuickAdd";
 import { useTargets } from "../hooks";
 
-/** quick: 자주 먹는 것 카드 / search: 외식·식품 검색 / home: 재료 입력(조리) / manual: 직접 입력(숫자) */
-type Mode = "quick" | "search" | "home" | "manual";
+/** quick: 자주 먹는 것 카드 / search: 외식·식품 검색 / home: 재료 입력(조리) / manual: 직접 입력(숫자) / photo: 사진으로 */
+type Mode = "quick" | "search" | "home" | "manual" | "photo";
 type Kind = "out" | "food";
 
 export interface Draft {
@@ -60,7 +61,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
   const [meal, setMeal] = useState<Meal>(initialMeal);
   // 예전 형식(외식/식품/즐겨찾기 탭)으로 저장된 쓰던 창도 이어서 열기
   const old = restore?.mode as string | undefined;
-  const [mode, setMode] = useState<Mode>(old === "out" || old === "food" ? "search" : old === "home" || old === "manual" || old === "search" ? (old as Mode) : "quick");
+  const [mode, setMode] = useState<Mode>(old === "out" || old === "food" ? "search" : old === "home" || old === "manual" || old === "search" || old === "photo" ? (old as Mode) : "quick");
   const [kind, setKind] = useState<Kind>(old === "food" ? "food" : restore?.kind ?? "out");
   const [query, setQuery] = useState(restore?.query ?? "");
   useEffect(() => saveAddDraft({ date, meal, mode, kind, query, at: Date.now() }), [date, meal, mode, kind, query]);
@@ -74,6 +75,14 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
   const put = (c: CartItem) => setCart((p) => (p.some((x) => x.id === c.id) ? p.map((x) => (x.id === c.id ? c : x)) : [...p, c]));
   const count = cart.reduce((n, c) => n + c.drafts.length, 0);
   const cartKcal = cart.reduce((n, c) => n + c.drafts.reduce((m, d) => m + sumNutrients(d.items.map((i) => i.nutrients)).kcal, 0), 0);
+
+  /** 사진에서 찾은 음식 여러 개: 하나씩 따로 담기 (담은 것에서 하나씩 뺄 수 있게) */
+  const addDrafts = (list: Draft[]) => {
+    const t = Date.now();
+    list.forEach((d, i) => put({ id: `draft:${t}-${i}`, drafts: [d] }));
+    flash(`${list.length}개 담았어요`);
+    setMode("quick");
+  };
 
   /** 검색·조리·직접 입력에서 고른 음식은 담고 카드 화면으로 */
   const addDraft = (d: Draft) => {
@@ -126,11 +135,15 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
           <div className="quick-modes">
             <button className="mode-home" onClick={() => setMode("home")}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
-              <span><b>재료 입력</b><small>집밥·요리 재료로 계산</small></span>
+              <span><b>재료 입력</b><small>집밥·요리 재료</small></span>
             </button>
             <button className="mode-manual" onClick={() => setMode("manual")}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2" /></svg>
-              <span><b>직접 입력</b><small>칼로리·탄단지 숫자로</small></span>
+              <span><b>직접 입력</b><small>칼로리·탄단지</small></span>
+            </button>
+            <button className="mode-photo" onClick={() => setMode("photo")}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+              <span><b>사진으로</b><small>음식·성분표</small></span>
             </button>
           </div>
           {extras.length > 0 && (
@@ -172,6 +185,13 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
         <>
           <div className="row-between search-head">{back}<b>재료 입력</b></div>
           <HomeForm onSave={addDraft} actionLabel="담기" />
+        </>
+      )}
+
+      {mode === "photo" && (
+        <>
+          <div className="row-between search-head">{back}<b>사진으로</b></div>
+          <PhotoForm onSave={addDrafts} />
         </>
       )}
 

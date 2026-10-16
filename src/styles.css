@@ -938,3 +938,26 @@ input.missing { border-color: var(--over); }
 .meal-tabs .meal-n { margin-left: 2px; font-size: 0.78rem; font-weight: 500; opacity: 0.85; }
 .meal-tabs button { min-height: 46px; }
 .receive-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* 기록 창 버튼 3개: 재료 입력 · 직접 입력 · 사진으로 */
+.quick-modes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.quick-modes button { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; min-height: 76px; }
+.quick-modes span { width: 100%; }
+.quick-modes .mode-photo { background: var(--good-bg); border-color: transparent; }
+.quick-modes .mode-photo svg { color: var(--good); }
+.quick-modes .mode-photo small { color: var(--good-ink); opacity: 0.8; }
+/* 사진으로 */
+.photo-pick { width: 100%; min-height: 180px; border: 2px dashed var(--border); border-radius: 18px; background: var(--inset); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.photo-pick svg { color: var(--muted); }
+.photo-preview { width: 100%; padding: 0; border: none; border-radius: 18px; overflow: hidden; background: var(--inset); }
+.photo-preview img { display: block; width: 100%; max-height: 300px; object-fit: cover; }
+.photo-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.photo-head img { width: 76px; height: 76px; border-radius: 14px; object-fit: cover; flex: none; }
+.photo-head p { margin: 4px 0 0; }
+.photo-rows { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.photo-rows li { background: var(--inset); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.photo-rows li.off { opacity: 0.55; }
+.photo-row-head { display: flex !important; align-items: center; gap: 10px; margin: 0 !important; }
+.photo-row-head input[type="checkbox"] { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+.photo-row-head .photo-name { flex: 1; min-width: 0; margin: 0; background: transparent; border-color: transparent; font-weight: 700; padding: 6px 8px; }
+.photo-row-head .photo-name:focus { background: var(--card); }
