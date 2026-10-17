@@ -964,3 +964,4 @@ input.missing { border-color: var(--over); }
 .photo-memo { margin-top: 20px; }
 .sheet-head h2 { flex: 1; min-width: 0; }
 .sheet-action { display: flex; align-items: center; margin-right: 4px; }
+.meal-sum { margin-bottom: 12px; }

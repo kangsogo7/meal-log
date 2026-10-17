@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useProfile, useTargets } from "../hooks";
-import { DateNav, ExtrasList, NutrientLine, Sheet } from "../components/ui";
+import { DateNav, ExtrasList, NutrientGrid, NutrientLine, Sheet } from "../components/ui";
 import { Ring } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
@@ -147,6 +147,8 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
               </>
             }
           >
+            {/* 이 끼니 합계: 칼로리·탄단지·나트륨·세부 영양 */}
+            {list.length > 0 && <div className="meal-sum"><NutrientGrid n={sub} /></div>}
             {ev && (
               <div className="eval">
                 <p className="small muted"><span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span> {GOALS[profile!.goal].label} · 하루 목표의 {Math.round(MEAL_SHARE[meal.key] * 100)}% 기준</p>
