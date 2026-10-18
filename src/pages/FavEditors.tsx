@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, r1, savedKey, sumNutrients, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { BackIcon, flash, NumInput, NutrientEditor, NutrientLine, Screen, Sheet } from "../components/ui";
+import { BackIcon, flash, NumInput, NutrientEditor, PartsList, Screen, Sheet } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 
 // ---------------------------------------------------------------------------
@@ -78,14 +78,7 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
             <NutrientEditor n={base} onChange={setBase} />
           </>
         ) : (
-          <ul className="mini-list">
-            {food.items.map((i, idx) => (
-              <li key={idx}>
-                <span>{i.name} {i.grams ? `${Math.round(i.grams)}g` : i.amountText}</span>
-                <NutrientLine n={i.nutrients} />
-              </li>
-            ))}
-          </ul>
+          <PartsList label="식재료" parts={food.items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients }))} />
         )}
       </div>
     </Sheet>

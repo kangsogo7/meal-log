@@ -193,6 +193,33 @@ export function NutrientGrid({ n }: { n: Nutrients }) {
   );
 }
 
+/** 구성 음식·식재료 카드 목록 (세트 상세, 기록 수정, 즐겨찾기 수정 공통). 아래 막대 = 전체 칼로리 중 그 음식 몫 */
+export function PartsList({ label, parts }: { label: string; parts: { name: string; place?: string; amount?: string; n: Nutrients }[] }) {
+  const total = parts.reduce((a, p) => a + (p.n.kcal || 0), 0);
+  return (
+    <>
+      <p className="muted small set-parts-head">{label} {parts.length}개</p>
+      <ul className="set-parts">
+        {parts.map((p, i) => (
+          <li key={i}>
+            <div className="sp-main">
+              <span className="sp-name">
+                {p.place && <span className="muted">{p.place} </span>}
+                <b>{p.name}</b>
+              </span>
+              <span className="muted small">
+                {[p.amount, `탄 ${Math.round(p.n.carb)} · 단 ${Math.round(p.n.protein)} · 지 ${Math.round(p.n.fat)}g`].filter(Boolean).join(" · ")}
+              </span>
+            </div>
+            <b className="sp-kcal">{Math.round(p.n.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
+            <span className="sp-share" aria-hidden><i style={{ width: `${total ? Math.round((p.n.kcal / total) * 100) : 0}%` }} /></span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 /** 세부 영양(당류·식이섬유·포화·트랜스·불포화지방) 칸. 하나도 모르면 안 보임, 모르는 값은 — */
 export function ExtrasList({ n, always = false }: { n: Nutrients; always?: boolean }) {
   if (!always && EXTRAS.every(({ key }) => n[key] == null)) return null;

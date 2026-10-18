@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { db, KIND_LABEL, MEALS, sumNutrients, type Entry, type EntryKind } from "../db";
-import { NutrientEditor, NutrientLine, Sheet } from "../components/ui";
+import { NutrientEditor, PartsList, Sheet } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
 import { shareOut } from "./QuickAdd";
@@ -71,17 +71,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
         <NutrientEditor n={total} onChange={(n) => setPortion(withNutrients(portion, n))} />
 
         {items.length > 1 && (
-          <>
-            <p className="muted small">식재료</p>
-            <ul className="mini-list">
-              {items.map((i, idx) => (
-                <li key={idx}>
-                  <span>{i.name} {i.grams ? `${Math.round(i.grams)}g` : i.amountText}</span>
-                  <NutrientLine n={i.nutrients} />
-                </li>
-              ))}
-            </ul>
-          </>
+          <PartsList label="식재료" parts={items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients }))} />
         )}
 
         <label>메모

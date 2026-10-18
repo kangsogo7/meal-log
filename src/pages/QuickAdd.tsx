@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
-import { flash, NutrientGrid, Sheet } from "../components/ui";
+import { flash, NutrientGrid, PartsList, Sheet } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import { shareFood, type SharedFood } from "../foodShare";
 import { FolderScreen, FoodEditScreen, savedDraft, servingLine, SetEditScreen, type CartItem } from "./FavoritesTab";
@@ -140,30 +140,15 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
           <Sheet title={openSet.name} onClose={() => setOpenSet(null)}>
             <div className="form food-detail">
               <NutrientGrid n={openSet.total} />
-              <p className="muted small set-parts-head">구성 {openSet.entries.length}개</p>
-              <ul className="set-parts">
-                {openSet.entries.map((e, i) => {
-                  const n = sumNutrients(e.items.map((x) => x.nutrients));
-                  const grams = e.items.every((x) => x.grams) ? e.items.reduce((a, x) => a + (x.grams ?? 0), 0) : 0;
-                  const share = openSet.total.kcal ? Math.round((n.kcal / openSet.total.kcal) * 100) : 0;
-                  return (
-                    <li key={i}>
-                      <div className="sp-main">
-                        <span className="sp-name">
-                          {e.place && <span className="muted">{e.place} </span>}
-                          <b>{e.title}</b>
-                        </span>
-                        <span className="muted small">
-                          {[grams ? `${Math.round(grams)}g` : "", `탄 ${Math.round(n.carb)} · 단 ${Math.round(n.protein)} · 지 ${Math.round(n.fat)}g`].filter(Boolean).join(" · ")}
-                        </span>
-                      </div>
-                      <b className="sp-kcal">{Math.round(n.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
-                      {/* 세트 칼로리 중 이 음식 몫 */}
-                      <span className="sp-share" aria-hidden><i style={{ width: `${share}%` }} /></span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <PartsList
+                label="구성"
+                parts={openSet.entries.map((e) => ({
+                  name: e.title,
+                  place: e.place,
+                  amount: e.items.every((x) => x.grams) ? `${Math.round(e.items.reduce((a, x) => a + (x.grams ?? 0), 0))}g` : undefined,
+                  n: sumNutrients(e.items.map((x) => x.nutrients)),
+                }))}
+              />
               <div className="set-actions">
                 <button onClick={() => { setComposeSet(openSet.id!); setOpenSet(null); }}>구성 수정</button>
                 <button className="primary" onClick={() => { if (!on) toggle({ id, drafts: openSet.entries }); setOpenSet(null); }}>{on ? "담겨 있어요" : "세트 담기"}</button>
