@@ -130,6 +130,12 @@ export default function QuickAdd({ cart, toggle, put }: { cart: CartItem[]; togg
                 <button className="text-btn danger-text" onClick={() => { toggle(cart.find((c) => c.id === `fav:${amountOf.food.key}`)!); setAmountOf(null); }}>담은 것 빼기</button>
               )}
             </div>
+            {amountOf.food.items.length > 1 && (
+              <PartsList
+                label="식재료"
+                parts={portionItems(amountOf.food, amountOf.portion).map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients }))}
+              />
+            )}
           </div>
         </Sheet>
       )}

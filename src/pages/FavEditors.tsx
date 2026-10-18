@@ -1,8 +1,8 @@
 // 즐겨찾기 음식 수정 / 식사 세트 구성 수정
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, r1, savedKey, sumNutrients, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { BackIcon, flash, NumInput, NutrientEditor, PartsList, Screen, Sheet } from "../components/ui";
+import { db, r1, savedKey, scaleNutrients, sumNutrients, ZERO, type Item, type MealSet, type Nutrients, type SavedFood } from "../db";
+import { BackIcon, flash, NumInput, NutrientEditor, NutrientLine, Screen, Sheet } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 
 // ---------------------------------------------------------------------------
@@ -15,6 +15,8 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
   const [grams, setGrams] = useState<number | null>(single ? food.items[0].grams : null);
   const [amountText, setAmountText] = useState(food.items[0]?.amountText ?? "");
   const [base, setBase] = useState<Nutrients>(food.total);
+  // 재료 여러 개짜리: 재료마다 이름·양·영양성분 수정, 빼기, 추가
+  const [ings, setIngs] = useState<Item[]>(food.items);
 
   const save = async () => {
     const t = title.trim();
@@ -28,7 +30,8 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
           amountText: grams ? `${r1(grams)}g` : amountText,
           nutrients: base,
         }]
-      : food.items;
+      : ings.filter((i) => i.name.trim()).map((i) => ({ ...i, name: i.name.trim() }));
+    if (!items.length) return alert("재료가 하나 이상 있어야 해요.");
     const key = savedKey(food.kind, p, t);
     try {
       await db.transaction("rw", db.saved, async () => {
@@ -78,7 +81,7 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
             <NutrientEditor n={base} onChange={setBase} />
           </>
         ) : (
-          <PartsList label="식재료" parts={food.items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients }))} />
+          <IngredientEditor items={ings} onChange={setIngs} />
         )}
       </div>
     </Sheet>
@@ -186,5 +189,57 @@ function SavedFoodPicker({ onPick, onClose }: { onPick: (s: SavedFood) => void; 
       </ul>
       {list.length === 0 && <p className="muted small">음식이 없어요</p>}
     </Sheet>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 재료 편집: 이름 · 양(g을 바꾸면 영양성분도 같은 비율로) · 영양성분 · 빼기 · 추가
+// ---------------------------------------------------------------------------
+function IngredientEditor({ items, onChange }: { items: Item[]; onChange: (items: Item[]) => void }) {
+  const [open, setOpen] = useState<number | null>(null);
+  const set = (i: number, patch: Partial<Item>) => onChange(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const setGrams = (i: number, g: number | null) => {
+    const it = items[i];
+    // 양을 바꾸면 영양성분도 같은 비율로 (원래 양을 알 때만)
+    const nutrients = g && it.grams ? scaleNutrients(it.nutrients, g / it.grams) : it.nutrients;
+    set(i, { grams: g ? r1(g) : null, amountText: g ? `${r1(g)}g` : it.amountText, nutrients });
+  };
+  const total = sumNutrients(items.map((i) => i.nutrients));
+  return (
+    <>
+      <div className="row-between ing-head">
+        <p className="muted small">식재료 {items.length}개 · 합계</p>
+        <NutrientLine n={total} />
+      </div>
+      <ul className="ing-list">
+        {items.map((it, i) => (
+          <li key={i}>
+            <div className="ing-top">
+              <input value={it.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="재료 이름" aria-label="재료 이름" />
+              <button className="ghost ing-del" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label={`${it.name} 빼기`}>✕</button>
+            </div>
+            <div className="ing-mid">
+              <label className="inline">
+                양
+                <NumInput value={it.grams} onChange={(g) => setGrams(i, g)} decimals={1} placeholder="g" />
+                <span className="muted">g</span>
+              </label>
+              <b className="ing-kcal">{Math.round(it.nutrients.kcal)}<span className="muted"> kcal</span></b>
+              <button className="link small" onClick={() => setOpen(open === i ? null : i)}>{open === i ? "접기" : "영양성분"}</button>
+            </div>
+            {open === i && <NutrientEditor n={it.nutrients} onChange={(n) => set(i, { nutrients: n })} />}
+          </li>
+        ))}
+      </ul>
+      <button
+        className="block"
+        onClick={() => {
+          onChange([...items, { name: "", amountText: "", grams: null, source: "manual", nutrients: { ...ZERO } }]);
+          setOpen(items.length);
+        }}
+      >
+        + 재료 추가
+      </button>
+    </>
   );
 }
