@@ -73,6 +73,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
             <>
               <b className="ring-num">{Math.abs(Math.round(remain)).toLocaleString()}</b>
               <span className="muted small">{remain >= 0 ? "kcal 남음" : "kcal 초과"}</span>
+              <span className="ring-goal">목표 {target.kcal.toLocaleString()}</span>
             </>
           ) : (
             <>

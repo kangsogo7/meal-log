@@ -281,7 +281,8 @@ export async function askFood(settings: Settings, question: string, search = fal
       res = await generateJson<MenuEstimate>(settings, parts, schema);
     }
   } else {
-    res = await generateJson<MenuEstimate>(settings, parts, schema);
+    // 빠른 답은 붐비는 최신 모델 대신 3.6부터 (한도가 차면 나머지 모델로)
+    res = await generateJson<MenuEstimate>(settings, parts, schema, { prefer: ["gemini-3.6-flash"] });
   }
   return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients) };
 }
