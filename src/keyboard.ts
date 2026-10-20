@@ -29,9 +29,11 @@ export function initKeyboard() {
   const vv = window.visualViewport;
   if (!vv) return;
   const root = document.documentElement.style;
+  // 키보드가 없을 때는 창을 화면 맨 위 기준으로 (가로→세로로 돌린 뒤 아이폰이 옛 위치 값을 남겨서 창이 아래로 밀리고 버튼이 안 눌리던 문제)
   const update = () => {
-    root.setProperty("--vv-top", `${vv.offsetTop}px`);
-    root.setProperty("--vv-h", `${vv.height}px`);
+    const kb = document.documentElement.classList.contains("kb-open");
+    root.setProperty("--vv-top", `${kb ? vv.offsetTop : 0}px`);
+    root.setProperty("--vv-h", `${kb ? vv.height : window.innerHeight}px`);
   };
   vv.addEventListener("scroll", update);
   vv.addEventListener("resize", () => {
@@ -51,6 +53,15 @@ export function initKeyboard() {
   // 키보드가 떠 있는 동안(글자 입력칸에 포커스) 표시. 키보드 높이 값은 아이폰에서 믿을 수 없어서 포커스로 판단
   const typing = (el: Element | null) => !!el && (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|file|range|color|date)$/.test((el as HTMLInputElement).type)));
   document.addEventListener("focusin", (e) => document.documentElement.classList.toggle("kb-open", typing(e.target as Element)));
-  document.addEventListener("focusout", () => setTimeout(() => document.documentElement.classList.toggle("kb-open", typing(document.activeElement)), 50));
+  document.addEventListener("focusout", () => setTimeout(() => { document.documentElement.classList.toggle("kb-open", typing(document.activeElement)); update(); }, 50));
+  // 화면을 돌리면: 돌리기 전 확대·이동 상태를 지우고, 돌아가는 동안 값이 늦게 바뀌니 몇 번 더 맞춤
+  const settle = () => {
+    if (!document.documentElement.classList.contains("kb-open") && document.body.classList.contains("no-scroll")) window.scrollTo(0, 0);
+    update();
+  };
+  const onRotate = () => { for (const ms of [0, 150, 400, 800]) setTimeout(settle, ms); };
+  window.addEventListener("orientationchange", onRotate);
+  screen.orientation?.addEventListener?.("change", onRotate);
+  window.addEventListener("resize", () => update());
   update();
 }
