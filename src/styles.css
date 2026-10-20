@@ -117,6 +117,9 @@ body {
   font-size: 16px;
   line-height: 1.45;
 }
+/* 앱처럼: 길게 눌러도 글자가 선택되거나 메뉴가 뜨지 않게 (입력칸은 그대로 선택·붙여넣기 가능) */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 body.no-scroll { overflow: hidden; position: fixed; left: 0; right: 0; }
 
 .app { min-height: 100dvh; }
