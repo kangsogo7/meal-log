@@ -20,7 +20,6 @@ interface Choice {
   matchName?: string;
   portion: Portion; // 먹은 양 (공통 양 조절)
   note?: string;
-  verified?: boolean; // AI가 구글 검색으로 공식 정보를 확인했는지
 }
 
 const COPY = {
@@ -48,21 +47,18 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
   // AI에게 보낼 질문 (null이면 질문칸을 닫은 상태). 처음엔 검색어로 채워 줌
   const [prompt, setPrompt] = useState<string | null>(null);
   // AI 요청은 뒤에서 진행 (홈 화면에 갔다 오거나 폰을 잠가도 돌아오면 이어서)
-  const fastJob = useJob(aiKey(kind, query, false));
-  const verifyJob = useJob(aiKey(kind, query, true));
-  const fastSaved = useLiveQuery(() => (query.trim() ? getKV<AiSaved | null>(aiKey(kind, query, false), null) : null), [kind, query]);
-  const verifySaved = useLiveQuery(() => (query.trim() ? getKV<AiSaved | null>(aiKey(kind, query, true), null) : null), [kind, query]);
-  const aiSaved = verifySaved ?? fastSaved ?? null;
+  // AI는 항상 구글 검색으로 최신 공식 정보를 찾아서 답함
+  const aiJob = useJob(aiKey(kind, query, true));
+  const aiSaved = useLiveQuery(() => (query.trim() ? getKV<AiSaved | null>(aiKey(kind, query, true), null) : null), [kind, query]) ?? null;
   const aiChoice = useMemo<Choice | null>(
     () => aiSaved ? {
-      id: "ai", label: `AI 답 · ${aiSaved.est.name}`, title: aiSaved.title, place: aiSaved.place, source: "ai",
-      verified: !!verifySaved, portion: makePortion(aiSaved.est.nutrients, aiSaved.est.grams), note: aiSaved.est.note,
+      id: "ai", label: `AI 답 · ${aiSaved.est.name}`, title: aiSaved.title, place: aiSaved.place, source: "ai", portion: makePortion(aiSaved.est.nutrients, aiSaved.est.grams), note: aiSaved.est.note,
     } : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aiSaved?.at, !!verifySaved],
+    [aiSaved?.at],
   );
   const aiTime = aiSaved?.time ?? "";
-  const aiError = fastJob.error || verifyJob.error;
+  const aiError = aiJob.error;
   useEffect(() => onQueryChange?.(query), [query]);
   // 방금 요청한 AI 결과가 오면 바로 상세를 보여 줌 (다른 결과를 골라 둔 경우는 그대로)
   const askedAt = useRef(0);
@@ -148,20 +144,19 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
     return { title: q };
   };
 
-  /** search: 구글 검색으로 공식 영양정보 확인 (느림). 기본은 빠른 답 */
-  const runAi = (search = false) => {
-    const text = (search ? aiSaved?.prompt : prompt)?.trim() || query.trim();
+  const runAi = () => {
+    const text = prompt?.trim() || query.trim();
     if (!text) return;
     setError("");
     setPrompt(null);
     askedAt.current = Date.now();
-    const key = aiKey(kind, query, search);
+    const key = aiKey(kind, query, true);
     const { place, title } = placeAndTitle();
     runInBackground(
       key,
       async () => {
         const t0 = performance.now();
-        const est = await askFood(settings, text, search);
+        const est = await askFood(settings, text);
         const time = `총 ${((performance.now() - t0) / 1000).toFixed(1)}초 (${formatTrace(getLastTrace())})`;
         await setKV(key, { est, place, title, time, at: Date.now(), prompt: text } satisfies AiSaved);
       },
@@ -239,8 +234,8 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
             />
           ))}
           {!busy && results.length === 0 && !aiChoice && <p className="muted small">{copy.empty}</p>}
-          {settings.geminiKey && (fastJob.running ? (
-            <button className="block" disabled>AI가 답하는 중... (다른 앱을 써도 돼요)</button>
+          {settings.geminiKey && (aiJob.running ? (
+            <button className="block" disabled>AI가 최신 공식 정보를 찾는 중... (다른 앱을 써도 돼요)</button>
           ) : prompt !== null ? (
             <div className="ai-ask">
               <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="AI에게 물어볼 내용" autoFocus />
@@ -263,11 +258,6 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
           </div>
           {choice.note && <p className="muted small">{choice.note}</p>}
           {choice.id === "ai" && aiTime && <p className="muted small">{aiTime}</p>}
-          {choice.id === "ai" && !choice.verified && (
-            <button className="link small verify-btn" onClick={() => runAi(true)} disabled={verifyJob.running}>
-              {verifyJob.running ? "공식 정보 찾는 중... (10초 이상 걸릴 수 있어요)" : "공식 정보로 다시 찾기 (느림)"}
-            </button>
-          )}
           <AmountEditor portion={choice.portion} onChange={(portion) => setChoice({ ...choice, portion })} />
           <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, portion: withNutrients(choice.portion, n) })} />
           <button className="primary block" onClick={save}>{actionLabel}</button>

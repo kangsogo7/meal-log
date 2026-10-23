@@ -209,7 +209,7 @@ export interface Settings {
   geminiModel: string;
 }
 
-export const DEFAULT_SETTINGS: Settings = { geminiKey: "", geminiModel: "gemini-3.8-flash" };
+export const DEFAULT_SETTINGS: Settings = { geminiKey: "", geminiModel: "gemini-3.6-flash" };
 
 export async function getKV<T>(key: string, fallback: T): Promise<T> {
   const row = await db.kv.get(key);

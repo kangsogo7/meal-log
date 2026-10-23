@@ -541,7 +541,6 @@ input.missing { border-color: var(--over); }
 .ai-comment { background: var(--inset); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .ai-comment p { margin: 0; font-size: 0.92rem; line-height: 1.6; }
 .ai-comment button.block { margin: 0; }
-.verify-btn { align-self: flex-start; padding: 4px 0; }
 .week-memo { width: 100%; resize: vertical; font-size: 16px; /* 16px 미만이면 아이폰이 입력할 때 화면을 확대함 */ background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
 
 .week-memo-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }

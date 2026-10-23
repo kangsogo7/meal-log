@@ -143,7 +143,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
           placeholder="예: 신촌 OO국밥에서 먹기 전에 찍은 순대국 특 사이즈예요. 국물은 절반만 마셨고 공깃밥은 3분의 1쯤 남겼어요"
         />
       </label>
-      <p className="muted small">가게·메뉴·사이즈·먹은 양을 적을수록 정확해요. 가게나 메뉴를 적으면 공식 정보를 찾아봐서 조금 더 걸려요.</p>
+      <p className="muted small">가게·메뉴·사이즈·먹은 양을 적을수록 정확해요.</p>
       {job.error && <p className="error">{job.error}</p>}
       <button className="primary block big" onClick={analyze} disabled={!photo || job.running}>
         {job.running ? "분석하는 중... (다른 앱을 써도 돼요)" : "분석하기"}

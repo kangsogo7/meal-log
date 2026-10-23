@@ -35,7 +35,7 @@ const noFastThinking = new Set<string>();
 /** 없어진 모델 → 넘어간 모델 */
 const RENAMED: Record<string, string> = { "gemini-3.7-flash": "gemini-3.8-flash", "gemini-3.5-flash": "gemini-3.6-flash" };
 
-export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 
 const LITE_MODELS = GEMINI_MODELS.filter((m) => m.endsWith("-lite"));
 
@@ -165,6 +165,20 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
   }
 }
 
+/** 구글 검색으로 최신 공식 정보를 찾아서 답하게. 검색을 못 쓰거나 형식이 깨지면 검색 없이 */
+async function searchJson<T>(settings: Settings, parts: Part[], schema: object, ok: (r: T) => boolean): Promise<T> {
+  try {
+    const res = await generateJson<T>(settings, parts, schema, { search: true });
+    if (!res || !ok(res)) throw new GeminiError("형식 오류");
+    return res;
+  } catch {
+    return generateJson<T>(settings, parts, schema);
+  }
+}
+
+/** 검색할 때 붙이는 공통 지시 */
+const LATEST = "구글 검색으로 최신 공식 정보(제조사·가게 공식 홈페이지, 제품 영양성분표, 식약처 식품영양성분 DB)를 찾아서 그 값을 우선으로 써. 찾은 출처는 note에 짧게.";
+
 const NUTRIENT_PROPS = {
   kcal: { type: "number", description: "칼로리 (kcal)" },
   carb: { type: "number", description: "탄수화물 (g)" },
@@ -209,11 +223,11 @@ export interface IngredientAnswer {
 }
 
 export async function resolveIngredients(settings: Settings, queries: IngredientQuery[]): Promise<IngredientAnswer[]> {
-  const prompt = `너는 한국 영양사야. 사용자가 집에서 요리할 때 넣은 식재료 목록이야.
+  const prompt = `사용자가 집에서 요리할 때 넣은 식재료 목록이야.
 각 식재료마다:
 1. grams: 적힌 양을 그램(g)으로 환산해. (예: 계란 1개≈50g, 밥 1공기≈210g, 1큰술≈15g, 양이 없으면 1인분 기준으로 추정)
 2. match: 후보(식약처 식품영양성분 DB 이름) 중 가장 알맞은 것의 번호(0부터). 조리 상태(생것/삶은것 등)도 고려해. 알맞은 게 없으면 -1.
-3. nutrients: match가 -1일 때만, 그 양 전체(grams 기준)의 영양성분 추정치. match가 있으면 0으로 채워.
+3. nutrients: match가 -1일 때만, 그 양 전체(grams 기준)의 영양성분. 구글 검색으로 그 식재료(제품이면 그 제품)의 최신 공식 영양정보를 찾아서 그 값으로 계산해. match가 있으면 0으로 채워.
 
 ${queries.map((q, i) => `[${i}] ${q.text}\n후보: ${q.candidates.map((c, j) => `${j}) ${c}`).join(" / ") || "없음"}`).join("\n\n")}`;
 
@@ -236,8 +250,8 @@ ${queries.map((q, i) => `[${i}] ${q.text}\n후보: ${q.candidates.map((c, j) => 
     },
     required: ["items"],
   };
-  const res = await generateJson<{ items: { index: number; grams: number; match: number; nutrients: Nutrients }[] }>(
-    settings, [{ text: prompt }], schema,
+  const res = await searchJson<{ items: { index: number; grams: number; match: number; nutrients: Nutrients }[] }>(
+    settings, [{ text: prompt }], schema, (r) => Array.isArray(r.items),
   );
   return queries.map((q, i) => {
     const a = res.items.find((x) => x.index === i);
@@ -256,10 +270,10 @@ export interface MenuEstimate {
 }
 
 /**
- * 사용자가 쓴 질문을 그대로 보냄 (앱이 덧붙이는 지시 없음).
- * 숫자를 칸에 채우려고 답의 형식(JSON 스키마)만 정해 줌. 검색 모드는 형식을 강제할 수 없어서 형식 안내 한 줄이 붙음.
+ * 사용자가 쓴 질문 + 최신 공식 정보를 구글 검색으로 찾으라는 한 줄.
+ * 숫자를 칸에 채우려고 답의 형식(JSON 스키마)도 같이 보냄.
  */
-export async function askFood(settings: Settings, question: string, search = false): Promise<MenuEstimate> {
+export async function askFood(settings: Settings, question: string): Promise<MenuEstimate> {
   const schema = {
     type: "object",
     properties: {
@@ -270,20 +284,10 @@ export async function askFood(settings: Settings, question: string, search = fal
     },
     required: ["name", "grams", "nutrients", "note"],
   };
-  const parts = [{ text: question }];
-  let res: MenuEstimate;
-  if (search) {
-    try {
-      res = await generateJson<MenuEstimate>(settings, parts, schema, { search: true });
-      if (!res?.nutrients) throw new GeminiError("형식 오류");
-    } catch {
-      // 검색을 못 쓰는 경우(한도 등)엔 검색 없이
-      res = await generateJson<MenuEstimate>(settings, parts, schema);
-    }
-  } else {
-    // 빠른 답은 붐비는 최신 모델 대신 3.6부터 (한도가 차면 나머지 모델로)
-    res = await generateJson<MenuEstimate>(settings, parts, schema, { prefer: ["gemini-3.6-flash"] });
-  }
+  const parts = [{ text: `${question}
+
+${LATEST}` }];
+  const res = await searchJson<MenuEstimate>(settings, parts, schema, (r) => !!r.nutrients);
   return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients) };
 }
 
@@ -304,10 +308,9 @@ export interface PhotoResult {
 /** memo: 사용자가 자유롭게 적은 설명 (가게·메뉴·사이즈·먹은 양). 적었으면 공식 메뉴 정보를 구글 검색으로 참고 */
 export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: string; data: string }, memo = ""): Promise<PhotoResult> {
   memo = memo.trim();
-  const known = !!memo;
-  const prompt = `이 사진의 영양 정보를 알려줘.${memo ? `
+  const prompt = `이 사진의 영양 정보를 알려줘. ${LATEST}${memo ? `
 사용자 설명: ${memo}
-- 설명에 가게 이름·메뉴명·사이즈가 있으면 그 가게·메뉴의 공식 정보(메뉴 설명, 구성, 중량, 영양정보)를 찾아서 그 값을 우선으로 써. 공식 정보가 있으면 note에 출처를 짧게.
+- 설명에 가게 이름·메뉴명·사이즈가 있으면 그 가게·메뉴의 최신 공식 정보(메뉴 설명, 구성, 중량, 영양정보)를 찾아서 써.
 - 설명에 적힌 먹은 양(반만 먹음, 소스 절반 등)을 그대로 반영해. 사진은 먹기 전일 수 있어.` : ""}
 - 영양성분표(포장지의 표)가 보이면 type은 "label". 표의 숫자를 그대로 읽어서 항목 하나로. name은 제품명(보이면, 없으면 "영양성분표"), grams는 표의 기준 중량(1회 제공량 또는 총 내용량), amount는 그 기준("1회 제공량 30g" 등).
 - 음식 사진이면 type은 "food". 보이는 음식을 하나씩 나눠서(밥, 국, 반찬 각각) 이름, 보이는 양(amount), 추정 중량(grams), 그 양의 영양성분. 조리에 쓴 기름·소스도 넣어서 추정.
@@ -336,18 +339,7 @@ export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: st
     required: ["type", "items", "note", "place"],
   };
   const parts = [{ inlineData: image }, { text: prompt }];
-  let res: PhotoResult;
-  if (known) {
-    // 가게·메뉴를 알면 구글 검색으로 공식 정보 확인 (검색을 못 쓰면 검색 없이)
-    try {
-      res = await generateJson<PhotoResult>(settings, parts, schema, { search: true });
-      if (!res?.items?.length) throw new GeminiError("형식 오류");
-    } catch {
-      res = await generateJson<PhotoResult>(settings, parts, schema);
-    }
-  } else {
-    res = await generateJson<PhotoResult>(settings, parts, schema);
-  }
+  const res = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length);
   if (!res?.items?.length) throw new GeminiError("사진에서 음식이나 영양성분표를 찾지 못했어요. 다시 찍어 주세요.");
   return {
     type: res.type === "label" ? "label" : "food",
