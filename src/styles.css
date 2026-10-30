@@ -603,7 +603,7 @@ input.missing { border-color: var(--over); }
 .ring-bar { stroke: var(--accent); transition: stroke-dasharray 0.4s; }
 .ring-bar.over { stroke: var(--over); }
 .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.ring-col { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ring-col { flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .ring-eaten { font-size: 1.9rem; line-height: 1.05; font-weight: 800; letter-spacing: -0.02em; color: var(--accent); font-variant-numeric: tabular-nums; }
 .ring-eaten b { font-weight: inherit; }
 .ring-eaten.over { color: var(--over); }
