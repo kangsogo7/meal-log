@@ -68,6 +68,13 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
       <DateNav date={date} onChange={setDate} />
 
       <section className="card today-summary">
+        <div className="ring-col">
+          {/* 먹은 칼로리 (그래프와 같은 색, 넘으면 넘은 색) */}
+          {target && (
+            <span className={`ring-eaten ${total.kcal > target.kcal ? "over" : ""}`}>
+              <b>{Math.round(total.kcal).toLocaleString()}</b> kcal 먹음
+            </span>
+          )}
         <Ring value={total.kcal} max={target?.kcal ?? 0} label={`칼로리 ${Math.round(total.kcal)} / ${target?.kcal ?? "-"}kcal`}>
           {target ? (
             <>
@@ -82,6 +89,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
             </>
           )}
         </Ring>
+        </div>
         <div className="macro-list">
           {macro("carb", "탄수화물")}
           {macro("protein", "단백질")}
