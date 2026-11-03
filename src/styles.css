@@ -498,7 +498,8 @@ input.missing { border-color: var(--over); }
 .version { text-align: center; margin: 8px 0 0; line-height: 1.6; }
 .ext-link { color: var(--point); text-decoration: none; margin-bottom: 10px; }
 
-.toast { position: fixed; left: 50%; bottom: calc(90px + var(--safe-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 0.9rem; z-index: 1000; }
+/* 긴 안내는 여러 줄로 (화면 양옆 16px 안, 모서리는 둥근 네모) */
+.toast { position: fixed; left: 50%; bottom: calc(90px + var(--safe-bottom)); transform: translateX(-50%); width: max-content; max-width: min(440px, calc(100vw - 32px)); box-sizing: border-box; background: var(--text); color: var(--bg); padding: 11px 16px; border-radius: 16px; font-size: 0.9rem; line-height: 1.45; z-index: 1000; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); }
 
 /* 세트 수정 */
 .food-card.stack { flex-direction: column; align-items: stretch; cursor: default; }

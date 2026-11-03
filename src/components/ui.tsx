@@ -390,6 +390,8 @@ export function flash(message: string, ms = 1500) {
   const el = document.createElement("div");
   el.className = "toast flash";
   el.textContent = message;
+  // 눌러서 바로 닫기
+  el.addEventListener("click", () => el.remove());
   document.body.appendChild(el);
   setTimeout(() => el.remove(), ms);
 }
