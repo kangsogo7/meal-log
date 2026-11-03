@@ -59,56 +59,90 @@ export const ADJUST_COOLDOWN_DAYS = 7;
 const dayNum = (date: string) => Math.round(new Date(date + "T00:00:00").getTime() / 86400000);
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
+/** 하루 식단 (잘 지켰는지 판단용) */
+export interface DietDay { date: string; logged: boolean; kcal: number; target: number | null; cheat: boolean }
+
+/** 목표별로 "잘 지켰다"고 볼 하루 평균 칼로리 범위 (목표 대비) */
+const KEEP_RANGE: Record<Goal, [number, number]> = { cut: [0.85, 1.05], maintain: [0.9, 1.1], leanbulk: [0.95, 1.15], bulk: [0.95, 1.15] };
+/** 기간 중 이만큼 이상 기록해야 잘 지켰다고 봄 */
+const KEEP_LOGGED = 0.7;
+
+/** 기간 동안 식단을 잘 지켰는지: 치팅데이를 뺀 날 중 70% 이상 기록, 기록한 날 평균 칼로리가 목표 범위 안 */
+export function dietAdherence(goal: Goal, days: DietDay[]) {
+  const pool = days.filter((d) => !d.cheat);
+  const logged = pool.filter((d) => d.logged && d.target);
+  const cheats = days.length - pool.length;
+  const rate = pool.length ? logged.length / pool.length : 0;
+  const avgKcal = logged.length ? Math.round(avg(logged.map((d) => d.kcal))) : null;
+  const avgTarget = logged.length ? Math.round(avg(logged.map((d) => d.target!))) : null;
+  const [lo, hi] = KEEP_RANGE[goal];
+  const inRange = avgKcal != null && avgTarget != null && avgKcal >= avgTarget * lo && avgKcal <= avgTarget * hi;
+  const ok = rate >= KEEP_LOGGED && inRange;
+  const parts = [`기록 ${logged.length}/${pool.length}일`];
+  if (avgKcal != null) parts.push(`평균 ${avgKcal.toLocaleString()}kcal (목표 ${avgTarget!.toLocaleString()})`);
+  if (cheats) parts.push(`치팅데이 ${cheats}일 제외`);
+  return { ok, text: parts.join(", "), lowLog: rate < KEEP_LOGGED };
+}
+
+/** 주당 변화량 (최소제곱 직선의 기울기 × 7) */
+function weeklySlope(pts: { d: number; v: number }[]) {
+  const mx = avg(pts.map((p) => p.d));
+  const my = avg(pts.map((p) => p.v));
+  const den = pts.reduce((a, p) => a + (p.d - mx) ** 2, 0);
+  return den ? (pts.reduce((a, p) => a + (p.d - mx) * (p.v - my), 0) / den) * 7 : 0;
+}
+
+/** 목표 쪽으로 가고 있다고 볼 주당 변화 (컷팅은 이만큼 이상 줄고, 벌크업은 이만큼 이상 늘면) */
+const TREND_MIN = { bodyFat: 0.1, muscle: 0.05, weightCut: 0.2, weightBulk: 0.1 };
+
 /**
- * 새 기록을 2~5주 전 기록과 비교해서, 목표 쪽으로 변화가 없으면 칼로리 조정을 제안.
- * - 비교 대상: 14~35일 전 기록만 (몇 달 전 기록과는 비교하지 않음)
- * - 체중은 하루 오차가 커서 평균끼리: 최근 7일 평균 vs 14~21일 전 평균 (없으면 14~35일 전 중 가장 최근 7일 평균)
- * - 체지방률·골격근량(인바디)은 기록 하나끼리
- * - 컷팅: 체지방률(없으면 체중)이 0.5%p(0.3kg) 넘게 줄지 않았으면 줄이기 / 린매스업·벌크업: 골격근량(없으면 체중)이 0.3kg 넘게 늘지 않았으면 늘리기
- * - 예전 날짜를 새로 넣은 경우 비교하지 않음. 한 번 물으면 그 비교(2~3주 전 평균)에 대해 1주일 동안은 다시 묻지 않음
+ * 식단을 기록한 기간(since부터, 칼로리를 조정했으면 그날부터)의 인바디·체중 기록 전체로 추세를 봄.
+ * - 컷팅은 체지방률, 린매스업·벌크업은 골격근량 추세 (그 값이 있는 기록이 모자라면 체중 추세)
+ * - 기록이 2개 이상, 처음과 끝이 14일 이상 떨어져 있어야 판단
+ * - 목표 쪽으로 가고 있으면 그대로. 안 가고 있으면 그 기간 식단을 잘 지켰는지 보고:
+ *   잘 지켰으면 칼로리 조정 제안, 못 지켰으면 조정하지 않고 이유를 알려 줌
+ * - 예전 날짜를 새로 넣은 경우 판단하지 않음. 한 번 물으면 1주일 동안은 다시 묻지 않음
  */
-export function suggestAdjust(goal: Goal, now: BodyRecord, history: BodyRecord[], currentAdjust = 0, lastAsked?: string): AdjustSuggestion | null {
+export function suggestAdjust(
+  goal: Goal, now: BodyRecord, history: BodyRecord[],
+  opts: { since: string; diet: DietDay[]; currentAdjust?: number; lastAsked?: string },
+): AdjustSuggestion | null {
   const cut = goal === "cut";
   if (!cut && goal !== "leanbulk" && goal !== "bulk") return { delta: 0, text: "목표가 유지라서 칼로리 조정은 제안하지 않아요" };
   const others = history.filter((r) => r.id !== now.id);
-  if (others.some((r) => r.date > now.date)) return null; // 예전 날짜 기록: 비교하지 않음
-  const today = dayNum(now.date);
-  const ago = (r: BodyRecord) => today - dayNum(r.date);
-  const win = others.filter((r) => ago(r) >= 14 && ago(r) <= 35).sort((a, b) => b.date.localeCompare(a.date));
-  if (!win.length) return { delta: 0, text: "비교할 2~5주 전 기록이 없어서 아직 칼로리 조정은 제안하지 않아요" };
+  if (others.some((r) => r.date > now.date)) return null; // 예전 날짜 기록: 판단하지 않음
+  const recs = [...others.filter((r) => r.date >= opts.since && r.date <= now.date), now].sort((a, b) => a.date.localeCompare(b.date));
+  const span = (rs: BodyRecord[]) => (rs.length >= 2 ? dayNum(rs[rs.length - 1].date) - dayNum(rs[0].date) : 0);
 
   const key = cut ? "bodyFat" : "muscle";
-  const keyBase = now[key] != null ? win.find((r) => r[key] != null) : undefined;
-  let diff: number, label: string, unit: string, since: string;
-  if (keyBase) {
-    diff = (now[key] as number) - (keyBase[key] as number);
-    label = cut ? "체지방률" : "골격근량";
-    unit = cut ? "%p" : "kg";
-    since = `${ago(keyBase)}일 전(${keyBase.date.slice(5).split("-").map(Number).join("/")})보다`;
-  } else {
-    const recent = [now, ...others.filter((r) => ago(r) >= 0 && ago(r) < 7)];
-    const near = win.filter((r) => ago(r) <= 21);
-    const base = near.length ? near : win.filter((r) => dayNum(win[0].date) - dayNum(r.date) < 7);
-    diff = avg(recent.map((r) => r.weight)) - avg(base.map((r) => r.weight));
-    label = "체중";
-    unit = "kg";
-    // 평균끼리면 "최근 1주 평균 체중이 2~3주 전 평균보다 …"
-    if (recent.length > 1 || base.length > 1) {
-      label = "최근 1주 평균 체중";
-      since = "";
-      unit = "kg";
-    } else since = `${ago(base[0])}일 전보다`;
+  const withKey = recs.filter((r) => r[key] != null);
+  const useKey = withKey.length >= 2 && span(withKey) >= 14;
+  const pts = useKey ? withKey : recs;
+  if (span(pts) < 14) return { delta: 0, text: "식단을 기록한 기간에 2주 이상 떨어진 체중·인바디 기록이 2개 이상 생기면 추세를 보고 알려 드릴게요" };
+
+  const slope = weeklySlope(pts.map((r) => ({ d: dayNum(r.date), v: (useKey ? r[key] : r.weight) as number })));
+  const label = useKey ? (cut ? "체지방률" : "골격근량") : "체중";
+  const unit = useKey && cut ? "%p" : "kg";
+  const min = useKey ? (cut ? TREND_MIN.bodyFat : TREND_MIN.muscle) : cut ? TREND_MIN.weightCut : TREND_MIN.weightBulk;
+  const progressed = cut ? slope <= -min : slope >= min;
+  const md = (d: string) => d.slice(5).split("-").map(Number).join("/");
+  const change = Math.abs(slope) < 0.01 ? "거의 그대로예요" : `일주일에 ${Math.abs(slope).toFixed(2)}${unit}씩 ${slope > 0 ? "늘고" : "줄고"} 있어요`;
+  const text = `${md(pts[0].date)}~${md(now.date)} 기록 ${pts.length}개로 보면 ${label}이 ${change}`;
+  if (progressed) return { delta: 0, text: `${text}. 잘 되고 있어서 칼로리는 그대로 둘게요` };
+
+  // 추세를 본 기간에 식단을 잘 지켰는지 (마지막 기록 날은 아직 진행 중이라 뺌)
+  const diet = dietAdherence(goal, opts.diet.filter((d) => d.date >= pts[0].date && d.date < now.date));
+  if (!diet.ok) {
+    const why = diet.lowLog ? "기록한 날이 적어서" : "평균 칼로리가 목표와 달라서";
+    return { delta: 0, text: `${text}. 다만 이 기간 ${why}(${diet.text}) 칼로리는 그대로 둘게요. 먼저 목표대로 드셔 보세요` };
   }
-  const progressed = cut ? diff < -(keyBase ? 0.5 : 0.3) : diff > 0.3;
-  const change = Math.abs(diff) < 0.05 ? "거의 변하지 않았어요" : `${Math.abs(diff).toFixed(1)}${unit} ${diff > 0 ? "늘었어요" : "줄었어요"}`;
-  const text = since ? `${since} ${label}이 ${change}` : `${label}이 2~3주 전 평균보다 ${change}`;
-  if (progressed) return { delta: 0, text: `${text}. 잘 되고 있어서 목표는 그대로 둘게요` };
-  if (lastAsked && today - dayNum(lastAsked) < ADJUST_COOLDOWN_DAYS) {
-    return { delta: 0, text: `${text}. 칼로리 조정은 ${lastAsked.slice(5).split("-").map(Number).join("/")}에 물어봐서 1주 뒤에 다시 볼게요` };
+  const today = dayNum(now.date);
+  if (opts.lastAsked && today - dayNum(opts.lastAsked) < ADJUST_COOLDOWN_DAYS) {
+    return { delta: 0, text: `${text}. 칼로리 조정은 ${md(opts.lastAsked)}에 물어봐서 1주 뒤에 다시 볼게요` };
   }
   const delta = cut ? -ADJUST_STEP : ADJUST_STEP;
-  if (Math.abs(currentAdjust + delta) > ADJUST_MAX) return { delta: 0, text: `${text}. 이미 ${ADJUST_MAX}kcal까지 조정해서 더 바꾸지 않아요` };
-  return { delta, text };
+  if (Math.abs((opts.currentAdjust ?? 0) + delta) > ADJUST_MAX) return { delta: 0, text: `${text}. 이미 ${ADJUST_MAX}kcal까지 조정해서 더 바꾸지 않아요` };
+  return { delta, text: `${text}. 이 기간 식단은 잘 지키셨어요(${diet.text})` };
 }
 
 // ---------- 끼니 평가 ----------

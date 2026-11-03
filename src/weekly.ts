@@ -43,8 +43,8 @@ function gradeOf(c: Criterion, ratio: number): Grade {
 
 export interface DayResult {
   date: string;
-  /** none = 기록 없음, today = 오늘(아직 진행 중, 점수에 넣지 않음), future = 아직 안 온 날 */
-  status: "scored" | "none" | "today" | "future";
+  /** none = 기록 없음, today = 오늘(아직 진행 중, 점수에 넣지 않음), future = 아직 안 온 날, cheat = 치팅데이(점수에 넣지 않음) */
+  status: "scored" | "none" | "today" | "future" | "cheat";
   total: Nutrients;
   target: Nutrients | null;
   score?: number; // 0~100
@@ -56,10 +56,11 @@ const valueOf = (n: Nutrients, c: Criterion) => (c === "sodium" ? n.sodium ?? 0 
 const targetOf = (t: Nutrients, c: Criterion) => (c === "sodium" ? t.sodium ?? SODIUM_LIMIT : t[c]);
 export const gradeOfScore = (s: number): Grade => (s >= 80 ? "good" : s >= 50 ? "ok" : "bad");
 
-export function evaluateDay(date: string, entries: Entry[], target: Nutrients | null): DayResult {
+export function evaluateDay(date: string, entries: Entry[], target: Nutrients | null, cheat = false): DayResult {
   const total = sumNutrients(entries.map((e) => e.total));
   const today = todayStr();
   if (date > today) return { date, status: "future", total, target };
+  if (cheat) return { date, status: "cheat", total, target };
   if (!entries.length) return { date, status: "none", total, target };
   if (date === today || !target) return { date, status: "today", total, target };
   let score = 0;

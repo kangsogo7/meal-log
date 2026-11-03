@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { addDays, db, getKV, setKV, todayStr, type BodyRecord, type ExerciseKind, type Goal, type Nutrients, type Profile } from "../db";
-import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion } from "../nutrition";
+import { addDays, db, getKV, setKV, sumNutrients, todayStr, type BodyRecord, type ExerciseKind, type Goal, type Nutrients, type Profile } from "../db";
+import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion, type DietDay } from "../nutrition";
+import { targetsFor } from "../share";
+import { getCheatDays } from "../cheat";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
 import { Dialog, flash, NumInput, Sheet } from "../components/ui";
@@ -304,6 +306,20 @@ function InBodyButton({ onRead }: { onRead: (r: BodyRecord) => void }) {
   );
 }
 
+/** from~to(포함) 하루하루 먹은 칼로리·목표·치팅데이 */
+async function loadDietDays(from: string, to: string): Promise<DietDay[]> {
+  if (from > to) return [];
+  const dates: string[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) dates.push(d);
+  const entries = await db.entries.where("date").between(from, to, true, true).toArray();
+  const targets = await targetsFor(dates);
+  const cheats = new Set(await getCheatDays());
+  return dates.map((date) => {
+    const list = entries.filter((e) => e.date === date);
+    return { date, logged: list.length > 0, kcal: sumNutrients(list.map((e) => e.total)).kcal, target: targets[date]?.kcal ?? null, cheat: cheats.has(date) };
+  });
+}
+
 function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void }) {
   const [r, setR] = useState<BodyRecord>(record);
   const profile = useProfile();
@@ -316,7 +332,15 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
     await db.body.put(r);
     // 새 기록이면 2주 이상 전 기록과 비교해서 칼로리 조정 제안
     const lastAsked = await getKV<string>("adjustAsked", "");
-    const next = profile && isNew ? suggestAdjust(profile.goal, r, await db.body.toArray(), profile.kcalAdjust, lastAsked || undefined) : null;
+    // 추세는 식단을 기록하기 시작한 날부터 (칼로리를 조정했으면 조정한 날부터) 본 기록으로
+    const firstEntry = (await db.entries.orderBy("date").first())?.date;
+    const adjustedAt = await getKV<string>("adjustedAt", "");
+    const since = [firstEntry ?? r.date, adjustedAt].filter(Boolean).sort().pop()!;
+    const next = profile && isNew
+      ? suggestAdjust(profile.goal, r, await db.body.toArray(), {
+          since, diet: await loadDietDays(since, r.date), currentAdjust: profile.kcalAdjust, lastAsked: lastAsked || undefined,
+        })
+      : null;
     // 컷팅 중 기초대사량 아래로 내려가는 제안은 하지 않음
     const floor = next && next.delta < 0 && !profile?.override && calc && target && target.kcal + next.delta < calc.bmr;
     if (next?.delta && target && !floor) {
@@ -344,6 +368,8 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
       } else {
         await setKV("profile", { ...profile, kcalAdjust: (profile.kcalAdjust ?? 0) + tip.delta });
       }
+      // 바꾼 칼로리로 먹은 결과만 다음 추세에 쓰게
+      await setKV("adjustedAt", r.date);
       onClose();
     };
     return (

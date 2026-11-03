@@ -8,6 +8,7 @@ import { WeekChart } from "../components/charts";
 import { GeminiError, weeklyComment } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { CRITERIA, CRITERIA_ORDER, evaluateDay, evaluateWeek, weekDays, weekLabel, weekStartOf, type WeekResult } from "../weekly";
+import { useCheatDays } from "../cheat";
 
 const DOW = ["월", "화", "수", "목", "금", "토", "일"];
 
@@ -26,7 +27,8 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
   const targets = useTargetsFor(days);
   const profile = useProfile();
 
-  const week = evaluateWeek(days.map((d) => evaluateDay(d, entries.filter((e) => e.date === d), targets[d])));
+  const cheats = useCheatDays();
+  const week = evaluateWeek(days.map((d) => evaluateDay(d, entries.filter((e) => e.date === d), targets[d], cheats.includes(d))));
   const goals = days.map((d) => targets[d]?.kcal).filter((v): v is number => !!v);
   const goalKcal = goals.length ? Math.round(goals.reduce((a, b) => a + b, 0) / goals.length) : null;
 
@@ -56,7 +58,7 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
           <button key={d.date} className={`wd ${d.date === date ? "sel" : ""}`} onClick={() => onSelect(d.date)}>
             <span className="muted">{DOW[i]}</span>
             <span className={`wd-mark ${d.status === "today" ? "txt" : ""}`}>
-              {d.status === "scored" ? <i className={`wd-dot ${d.grade}`} aria-label={GRADE_LABEL[d.grade!]} /> : d.status === "today" ? "오늘" : d.status === "none" ? "–" : ""}
+              {d.status === "scored" ? <i className={`wd-dot ${d.grade}`} aria-label={GRADE_LABEL[d.grade!]} /> : d.status === "today" ? "오늘" : d.status === "cheat" ? "🍕" : d.status === "none" ? "–" : ""}
             </span>
             <span className="wd-score">{d.status === "scored" ? d.score : ""}</span>
           </button>

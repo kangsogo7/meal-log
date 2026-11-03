@@ -11,6 +11,7 @@ import { addDays, db, getKV, MEALS, setKV, sumNutrients, todayStr, type Entry, t
 import { resolveTarget } from "./hooks";
 import { DEFAULT_PROFILE, evaluateMeal, GOALS } from "./nutrition";
 import { evaluateDay, evaluateWeek, weekDays, weekStartOf } from "./weekly";
+import { getCheatDays } from "./cheat";
 import { slimFood, type SharedFood } from "./foodShare";
 
 // 공개용 설정값 (앱 코드에 들어가도 되는 값. 실제 접근 권한은 firestore.rules로 막음)
@@ -252,7 +253,7 @@ function dayDoc(uid: string, date: string, entries: Entry[], target: Nutrients |
 }
 
 /** 날짜별 목표 (식단 화면과 같은 계산) */
-async function targetsFor(dates: string[]) {
+export async function targetsFor(dates: string[]) {
   const profile = await getKV("profile", DEFAULT_PROFILE);
   const saved = !!(await db.kv.get("profile"));
   const body = await db.body.orderBy("date").last();
@@ -288,8 +289,9 @@ async function doSync() {
     const d = addDays(from, i);
     docs.push({ kind: "days", key: d, data: dayDoc(u.uid, d, entries.filter((e) => e.date === d), targets[d], goalKey) });
   }
+  const cheats = await getCheatDays();
   for (const start of weekStarts) {
-    const week = evaluateWeek(weekDays(start).map((d) => evaluateDay(d, entries.filter((e) => e.date === d), targets[d])));
+    const week = evaluateWeek(weekDays(start).map((d) => evaluateDay(d, entries.filter((e) => e.date === d), targets[d], cheats.includes(d))));
     const ai = await getKV<{ text: string } | null>(`weekAi:${start}`, null);
     const memoRaw = await getKV<unknown>(`weekMemo:${start}`, "");
     docs.push({

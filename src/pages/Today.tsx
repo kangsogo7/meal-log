@@ -10,8 +10,16 @@ import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
 import { CheckTiles, CheckWeekCard, WaterRow } from "./Checks";
+import { cheatInWeek, setCheat, useCheatDays } from "../cheat";
 
 /** 끼니의 기록들을 식사 세트로 저장 (즐겨찾기 탭에서 한 번에 기록) */
+const DOWS = ["일", "월", "화", "수", "목", "금", "토"];
+/** "10/28(수)" */
+const mdDow = (d: string) => {
+  const [y, m, day] = d.split("-").map(Number);
+  return `${m}/${day}(${DOWS[new Date(y, m - 1, day).getDay()]})`;
+};
+
 async function saveAsSet(mealLabel: string, list: Entry[]) {
   const name = prompt("식사 세트 이름", `${mealLabel} 세트`)?.trim();
   if (!name) return;
@@ -45,6 +53,15 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
   }, [openChecks]);
   const { target } = useTargets(date);
   const profile = useProfile();
+  // 치팅데이: 그날 끼니는 평가하지 않음 (주간 평가·칼로리 조정 판단에서도 빠짐)
+  const cheats = useCheatDays();
+  const cheat = cheats.includes(date);
+  const toggleCheat = () => {
+    if (cheat) return setCheat(date, false);
+    const other = cheatInWeek(cheats, date);
+    if (other && !confirm(`치팅데이는 일주일에 하루예요. 이번 주 치팅데이(${mdDow(other)})를 ${mdDow(date)}로 옮길까요?`)) return;
+    setCheat(date, true);
+  };
 
   const entries = useLiveQuery(() => db.entries.where("date").equals(date).sortBy("createdAt"), [date], []);
   const total = sumNutrients(entries.map((e) => e.total));
@@ -66,6 +83,16 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
   return (
     <>
       <DateNav date={date} onChange={setDate} />
+      <div className="cheat-row">
+        {cheat ? (
+          <>
+            <span className="cheat-chip">🍕 치팅데이</span>
+            <button className="link small" onClick={toggleCheat}>해제</button>
+          </>
+        ) : (
+          <button className="link small muted-link" onClick={toggleCheat}>🍕 치팅데이로 지정</button>
+        )}
+      </div>
 
       <section className="card today-summary">
         <div className="ring-col">
@@ -124,12 +151,13 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
             );
           }
           const sub = sumNutrients(list.map((e) => e.total));
-          const ev = target && profile ? evaluateMeal(m.key, sub, target, profile.goal) : null;
+          const ev = target && profile && !cheat ? evaluateMeal(m.key, sub, target, profile.goal) : null;
           return (
             <button key={m.key} className="meal-tile" onClick={() => setOpenMeal(m.key)}>
               <span className="row-between">
                 <b className="tile-name"><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</b>
                 {ev && <span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>}
+                {cheat && <span className="grade-chip cheat">치팅</span>}
               </span>
               <b className="tile-kcal">{Math.round(sub.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
               <span className="muted small tile-sub">{list[0].title}{list.length > 1 ? ` 외 ${list.length - 1}개` : ""}</span>
@@ -143,7 +171,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
       {meal && (() => {
         const list = entries.filter((e) => e.meal === meal.key);
         const sub = sumNutrients(list.map((e) => e.total));
-        const ev = target && profile && list.length ? evaluateMeal(meal.key, sub, target, profile.goal) : null;
+        const ev = target && profile && list.length && !cheat ? evaluateMeal(meal.key, sub, target, profile.goal) : null;
         return (
           <Sheet
             title={`${meal.icon} ${meal.label} · ${Math.round(sub.kcal).toLocaleString()}kcal`}
@@ -158,6 +186,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
           >
             {/* 이 끼니 합계: 칼로리·탄단지·나트륨·세부 영양 */}
             {list.length > 0 && <div className="meal-sum"><NutrientGrid n={sub} /></div>}
+            {cheat && list.length > 0 && <p className="small muted">🍕 치팅데이라 이 끼니는 평가하지 않아요</p>}
             {ev && (
               <div className="eval">
                 <p className="small muted"><span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span> {GOALS[profile!.goal].label} · 하루 목표의 {Math.round(MEAL_SHARE[meal.key] * 100)}% 기준</p>

@@ -688,7 +688,7 @@ function MemberWeek({ me, gid, uid, name, week, start, setStart }: {
                 <span key={d.date}>
                   {DOW[i]}
                   <i className={`wd-dot ${d.status === "scored" && d.grade ? d.grade : d.status === "today" ? "today" : "none"}`} aria-hidden />
-                  <small>{d.status === "scored" ? d.score : d.status === "today" ? "오늘" : ""}</small>
+                  <small>{d.status === "scored" ? d.score : d.status === "today" ? "오늘" : d.status === "cheat" ? "🍕" : ""}</small>
                 </span>
               ))}
             </div>
