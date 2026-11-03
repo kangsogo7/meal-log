@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
-import { useProfile, useTargets } from "../hooks";
+import { useTargets } from "../hooks";
 import { DateNav, ExtrasList, NutrientGrid, NutrientLine, Sheet } from "../components/ui";
 import { Ring } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
@@ -51,8 +51,8 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
     setDate(todayStr());
     setChecksOpen(true);
   }, [openChecks]);
-  const { target } = useTargets(date);
-  const profile = useProfile();
+  // 지난 날은 그때 목표로 평가
+  const { target, profile } = useTargets(date);
   // 치팅데이: 그날 끼니는 평가하지 않음 (주간 평가·칼로리 조정 판단에서도 빠짐)
   const cheats = useCheatDays();
   const cheat = cheats.includes(date);

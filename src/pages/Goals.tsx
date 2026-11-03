@@ -4,6 +4,7 @@ import { addDays, db, getKV, setKV, sumNutrients, todayStr, type BodyRecord, typ
 import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion, type DietDay } from "../nutrition";
 import { targetsFor } from "../share";
 import { getCheatDays } from "../cheat";
+import { getProfileHistory, lastGoalChange, saveProfile } from "../profileHistory";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
 import { Dialog, flash, NumInput, Sheet } from "../components/ui";
@@ -18,7 +19,7 @@ export default function Goals() {
   const [bodyForm, setBodyForm] = useState<BodyRecord | null>(null);
 
   if (!profile) return null;
-  const set = (patch: Partial<Profile>) => setKV("profile", { ...profile, ...patch });
+  const set = (patch: Partial<Profile>) => saveProfile({ ...profile!, ...patch });
 
   return (
     <>
@@ -51,7 +52,7 @@ export default function Goals() {
         ) : !saved ? (
           <>
             <p className="muted small">아래 "내 정보"를 내 값으로 고친 뒤 눌러 주세요.{!latest && " 체중도 기록해야 해요."}</p>
-            <button className="primary block" onClick={() => setKV("profile", profile)}>이 정보로 목표 계산하기</button>
+            <button className="primary block" onClick={() => saveProfile(profile)}>이 정보로 목표 계산하기</button>
           </>
         ) : (
           <p className="muted small">체중을 기록하면 계산해 드려요.</p>
@@ -335,7 +336,9 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
     // 추세는 식단을 기록하기 시작한 날부터 (칼로리를 조정했으면 조정한 날부터) 본 기록으로
     const firstEntry = (await db.entries.orderBy("date").first())?.date;
     const adjustedAt = await getKV<string>("adjustedAt", "");
-    const since = [firstEntry ?? r.date, adjustedAt].filter(Boolean).sort().pop()!;
+    // 목표를 바꿨으면 바꾼 날부터 (예전 목표 기간의 체성분 변화로 새 목표를 판단하지 않게)
+    const goalChanged = lastGoalChange(await getProfileHistory()) ?? "";
+    const since = [firstEntry ?? r.date, adjustedAt, goalChanged].filter(Boolean).sort().pop()!;
     const next = profile && isNew
       ? suggestAdjust(profile.goal, r, await db.body.toArray(), {
           since, diet: await loadDietDays(since, r.date), currentAdjust: profile.kcalAdjust, lastAsked: lastAsked || undefined,
@@ -364,9 +367,9 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
       // 목표를 직접 정한 경우엔 그 값에서 탄수화물로 조정, 아니면 계산값에 더함
       if (profile.override) {
         const o = profile.override;
-        await setKV("profile", { ...profile, override: { ...o, kcal: o.kcal + tip.delta, carb: Math.max(0, o.carb + tip.delta / 4) } });
+        await saveProfile({ ...profile, override: { ...o, kcal: o.kcal + tip.delta, carb: Math.max(0, o.carb + tip.delta / 4) } });
       } else {
-        await setKV("profile", { ...profile, kcalAdjust: (profile.kcalAdjust ?? 0) + tip.delta });
+        await saveProfile({ ...profile, kcalAdjust: (profile.kcalAdjust ?? 0) + tip.delta });
       }
       // 바꾼 칼로리로 먹은 결과만 다음 추세에 쓰게
       await setKV("adjustedAt", r.date);

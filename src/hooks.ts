@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, DEFAULT_SETTINGS, getKV, todayStr, type BodyRecord, type DayActivity, type Nutrients, type Profile, type Settings } from "./db";
 import { calcTargets, DEFAULT_PROFILE, type TargetResult } from "./nutrition";
+import { profileOn, useProfileHistory } from "./profileHistory";
 
 export function useSettings(): Settings {
   return useLiveQuery(() => getKV("settings", DEFAULT_SETTINGS), [], DEFAULT_SETTINGS);
@@ -23,13 +24,14 @@ export function useLatestBody() {
  * 화면에 쓸 목표값: 직접 지정한 값이 있으면 그것, 없으면 계산값.
  * date를 주고 "실제 활동 칼로리 반영"이 켜져 있으면 그날 건강 앱 활동 칼로리로 계산
  */
-export function useTargets(date: string = todayStr()): { target: Nutrients | null; calc: TargetResult | null; hasProfile: boolean } {
-  const profile = useProfile();
+export function useTargets(date: string = todayStr()): { target: Nutrients | null; calc: TargetResult | null; hasProfile: boolean; profile: Profile | undefined } {
+  // 지난 날은 그때 쓰던 목표로
+  const profile = profileOn(useProfileHistory(), useProfile(), date);
   const saved = useProfileSaved();
   const body = useLatestBody();
   const day = useLiveQuery(() => db.activity.get(date), [date]);
   const { target, calc } = resolveTarget(profile, saved, body, day, date);
-  return { target, calc, hasProfile: !!saved && !!body };
+  return { target, calc, hasProfile: !!saved && !!body, profile };
 }
 
 /** 그날의 목표 (직접 지정 > 계산값, "실제 활동 칼로리 반영"이면 그날 활동 칼로리로) */
@@ -43,9 +45,10 @@ export function resolveTarget(profile: Profile | undefined, saved: boolean | und
 /** 여러 날짜의 목표를 한 번에 (주간 평가용) */
 export function useTargetsFor(dates: string[]): Record<string, Nutrients | null> {
   const profile = useProfile();
+  const history = useProfileHistory();
   const saved = useProfileSaved();
   const body = useLatestBody();
   const from = dates[0], to = dates[dates.length - 1];
   const acts = useLiveQuery(() => db.activity.where("date").between(from, to, true, true).toArray(), [from, to], []);
-  return Object.fromEntries(dates.map((d) => [d, resolveTarget(profile, saved, body, acts.find((a) => a.date === d), d).target]));
+  return Object.fromEntries(dates.map((d) => [d, resolveTarget(profileOn(history, profile, d), saved, body, acts.find((a) => a.date === d), d).target]));
 }

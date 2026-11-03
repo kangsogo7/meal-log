@@ -9,6 +9,7 @@ import { GeminiError, weeklyComment } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { CRITERIA, CRITERIA_ORDER, evaluateDay, evaluateWeek, weekDays, weekLabel, weekStartOf, type WeekResult } from "../weekly";
 import { useCheatDays } from "../cheat";
+import { profileOn, useProfileHistory } from "../profileHistory";
 
 const DOW = ["월", "화", "수", "목", "금", "토", "일"];
 
@@ -25,7 +26,8 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
   const end = days[6];
   const entries = useLiveQuery(() => db.entries.where("date").between(start, end, true, true).toArray(), [start, end], []);
   const targets = useTargetsFor(days);
-  const profile = useProfile();
+  // 이 주 목표 (주 중에 바꿨으면 그 주 마지막 날 기준, 지난 날은 그때 목표)
+  const profile = profileOn(useProfileHistory(), useProfile(), end);
 
   const cheats = useCheatDays();
   const week = evaluateWeek(days.map((d) => evaluateDay(d, entries.filter((e) => e.date === d), targets[d], cheats.includes(d))));

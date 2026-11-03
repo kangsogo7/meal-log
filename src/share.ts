@@ -12,6 +12,7 @@ import { resolveTarget } from "./hooks";
 import { DEFAULT_PROFILE, evaluateMeal, GOALS } from "./nutrition";
 import { evaluateDay, evaluateWeek, weekDays, weekStartOf } from "./weekly";
 import { getCheatDays } from "./cheat";
+import { getProfileHistory, profileOn } from "./profileHistory";
 import { slimFood, type SharedFood } from "./foodShare";
 
 // 공개용 설정값 (앱 코드에 들어가도 되는 값. 실제 접근 권한은 firestore.rules로 막음)
@@ -258,7 +259,8 @@ export async function targetsFor(dates: string[]) {
   const saved = !!(await db.kv.get("profile"));
   const body = await db.body.orderBy("date").last();
   const acts = await db.activity.where("date").between(dates[0], dates[dates.length - 1], true, true).toArray();
-  return Object.fromEntries(dates.map((d) => [d, resolveTarget(profile, saved, body, acts.find((a) => a.date === d), d).target]));
+  const history = await getProfileHistory();
+  return Object.fromEntries(dates.map((d) => [d, resolveTarget(profileOn(history, profile, d), saved, body, acts.find((a) => a.date === d), d).target]));
 }
 
 let syncing: Promise<void> | null = null;
@@ -281,13 +283,16 @@ async function doSync() {
   const allDates = [...new Set([...weekDays(weekStarts[0]), ...weekDays(weekStarts[1]), ...Array.from({ length: SHARE_DAYS }, (_, i) => addDays(from, i))])].sort();
   const entries = await db.entries.where("date").between(allDates[0], allDates[allDates.length - 1], true, true).toArray();
   const targets = await targetsFor(allDates);
-  const goalKey = (await getKV("profile", DEFAULT_PROFILE)).goal;
+  const profileNow = await getKV("profile", DEFAULT_PROFILE);
+  const history = await getProfileHistory();
+  // 그날 목표로 끼니 평가 (목표를 바꿨으면 바꾸기 전 날은 예전 목표)
+  const goalOn = (d: string) => (profileOn(history, profileNow, d) ?? profileNow).goal;
 
   // 올릴 내용 (그룹마다 같음)
   const docs: { kind: "days" | "weeks"; key: string; data: object }[] = [];
   for (let i = 0; i < SHARE_DAYS; i++) {
     const d = addDays(from, i);
-    docs.push({ kind: "days", key: d, data: dayDoc(u.uid, d, entries.filter((e) => e.date === d), targets[d], goalKey) });
+    docs.push({ kind: "days", key: d, data: dayDoc(u.uid, d, entries.filter((e) => e.date === d), targets[d], goalOn(d)) });
   }
   const cheats = await getCheatDays();
   for (const start of weekStarts) {
