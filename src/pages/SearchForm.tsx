@@ -1,7 +1,7 @@
 // 외식 / 식품 공통: 입력칸 하나 → 목록 → 누르면 영양성분 상세 + 저장
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, getKV, savedKey, setKV, scaleNutrients, type ItemSource, type Nutrients } from "../db";
+import { db, getKV, setKV, scaleNutrients, type ItemSource, type Nutrients } from "../db";
 import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBrand, type Food } from "../foodDb";
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
@@ -40,7 +40,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<Food[]>([]);
   const [split, setSplit] = useState<{ brand?: string; rest: string }>({ rest: "" });
-  const [savedHit, setSavedHit] = useState<Choice | null>(null);
+  const [savedHits, setSavedHits] = useState<Choice[]>([]);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [busy, setBusy] = useState<"" | "db">("");
   const [error, setError] = useState("");
@@ -73,7 +73,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
     const q = query.trim();
     if (q.length < 1) {
       setResults([]);
-      setSavedHit(null);
+      setSavedHits([]);
       return;
     }
     let cancelled = false;
@@ -101,21 +101,23 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
           const strong = q.includes(" ") ? [] : fromBase.filter((f) => f.name.startsWith(head));
           found = [...new Set([...strong.slice(0, 2), ...fromProducts, ...fromBase])].slice(0, 10);
         }
-        // 그 외식/식품을 이전에 기록했으면 맨 위에
-        const placeGuess = sp.brand ?? (kind === "out" && q.includes(" ") ? q.split(/\s+/)[0] : undefined);
-        const titleGuess = sp.brand ? sp.rest : placeGuess ? q.slice(placeGuess.length).trim() : q;
-        const prev = (await db.saved.get(savedKey(kind, placeGuess, titleGuess))) ?? (await db.saved.get(savedKey(kind, undefined, q)));
+        // 이전에 기록한 음식 중 검색어가 들어간 것을 DB 목록보다 위에 (검색어 그대로인 것, 이 탭 종류, 자주·최근 순)
+        const norm = (x: string) => x.replace(/\s+/g, "").toLowerCase();
+        const words = q.split(/\s+/).map(norm).filter(Boolean);
+        const exact = norm(q);
+        const prev = (await db.saved.toArray())
+          .filter((s) => words.every((w) => norm(`${s.place ?? ""}${s.title}`).includes(w)))
+          .map((s) => ({ s, score: (norm(`${s.place ?? ""}${s.title}`) === exact || norm(s.title) === exact ? 4 : 0) + (s.kind === kind ? 2 : 0) }))
+          .sort((a, b) => b.score - a.score || b.s.uses - a.s.uses || b.s.updatedAt - a.s.updatedAt)
+          .slice(0, 5)
+          .map(({ s }) => s);
         if (cancelled) return;
         setSplit(sp);
         setResults(found);
-        setSavedHit(
-          prev
-            ? {
-                id: "saved", label: `이전 기록 · ${prev.place ? prev.place + " " : ""}${prev.title}`, title: prev.title, place: prev.place,
-                source: "saved", portion: storedPortion(prev),
-              }
-            : null,
-        );
+        setSavedHits(prev.map((s, i) => ({
+          id: `saved${i}`, label: `이전 기록 · ${s.place ? s.place + " " : ""}${s.title}`, title: s.title, place: s.place,
+          source: "saved", portion: storedPortion(s),
+        })));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -220,7 +222,9 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
 
       {q && (
         <div className="results">
-          {savedHit && <ResultButton label={savedHit.label} n={portionNutrients(savedHit.portion)} selected={choice?.id === "saved"} onClick={() => setChoice(savedHit)} fav={() => toDraft(savedHit)} />}
+          {savedHits.map((h) => (
+            <ResultButton key={h.id} label={h.label} n={portionNutrients(h.portion)} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
+          ))}
           {aiChoice && <ResultButton label={aiChoice.label} n={portionNutrients(aiChoice.portion)} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
           {results.map((f, i) => (
             <ResultButton
@@ -233,7 +237,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
               fav={() => toDraft(foodChoice(f, i))}
             />
           ))}
-          {!busy && results.length === 0 && !aiChoice && <p className="muted small">{copy.empty}</p>}
+          {!busy && results.length === 0 && savedHits.length === 0 && !aiChoice && <p className="muted small">{copy.empty}</p>}
           {settings.geminiKey && (aiJob.running ? (
             <button className="block" disabled>AI가 최신 공식 정보를 찾는 중... (다른 앱을 써도 돼요)</button>
           ) : prompt !== null ? (
