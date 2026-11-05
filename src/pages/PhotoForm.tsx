@@ -6,7 +6,7 @@ import { getKV, setKV } from "../db";
 import { analyzeFoodPhoto, GeminiError, imageToBase64, type PhotoResult } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { NutrientLine } from "../components/ui";
+import { NutrientLine, SourceLinks } from "../components/ui";
 import { AmountEditor, makePortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 
@@ -91,6 +91,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
             <b>{saved.result.type === "label" ? "영양성분표를 읽었어요" : `음식 ${rows.length}개를 찾았어요`}</b>
             <p className="muted small">{saved.result.type === "label" ? "표의 숫자 그대로예요." : "양은 사진으로 눈대중한 값이라 실제와 다를 수 있어요. 고쳐서 담아 주세요."}</p>
             {saved.result.note && <p className="muted small">{saved.result.note}</p>}
+            {saved.result.type === "food" && !!saved.result.sources?.length && <SourceLinks sources={saved.result.sources} />}
           </div>
         </div>
         <ul className="photo-rows">

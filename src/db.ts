@@ -41,8 +41,8 @@ export interface Item {
   grams: number | null;
   source: ItemSource;
   matchName?: string; // DB에서 매칭된 식품명
-  /** AI 값이 어디서 왔는지: label=영양성분표 사진, web=AI 검색(공식 정보 찾기), photo=음식 사진 눈대중 */
-  via?: "label" | "web" | "photo";
+  /** AI 값이 어디서 왔는지: label=영양성분표 사진, web=AI 검색(검색 근거 있음), photo=음식 사진 눈대중, guess=검색 근거 없이 추정 */
+  via?: "label" | "web" | "photo" | "guess";
   nutrients: Nutrients;
 }
 
@@ -51,7 +51,7 @@ export function sourceLabel(i: { source: ItemSource; via?: Item["via"] }): strin
   if (i.source === "db") return "식약처";
   if (i.source === "saved") return "내 기록";
   if (i.source === "manual") return "직접 입력";
-  return i.via === "label" ? "포장지" : i.via === "web" ? "AI 검색" : i.via === "photo" ? "AI 추정" : "AI";
+  return i.via === "label" ? "포장지" : i.via === "web" ? "AI 검색" : i.via === "photo" || i.via === "guess" ? "AI 추정" : "AI";
 }
 
 /** out=외식, home=조리(집에서 요리), food=식품(바로 먹는 제품·과일 등), manual=직접 입력 */

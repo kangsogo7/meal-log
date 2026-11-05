@@ -68,7 +68,14 @@ function extractJson(text: string): string {
  * search: 구글 검색으로 공식 영양정보를 찾아보게 함.
  * 검색 도구를 쓰면 응답 형식(responseSchema)을 강제할 수 없어서, 형식은 글로 알려 주고 JSON만 골라 읽음.
  */
+/** 구글 검색에서 실제로 참고한 웹페이지 (모델이 쓴 말이 아니라 응답의 검색 근거 정보) */
+export interface WebSource { title: string; uri: string }
+
 async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[] } = {}): Promise<T> {
+  return (await generateMeta<T>(settings, parts, schema, opts)).value;
+}
+
+async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[] } = {}): Promise<{ value: T; sources: WebSource[] }> {
   const apiKey = cleanKey(settings.geminiKey);
   if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
   // 검색 없는 요청은 "생각하기"를 최소로 해서 빨리 답하게 (모델이 이 설정을 모르면 빼고 다시 보냄)
@@ -158,26 +165,32 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
     .map((p: { text?: string }) => p.text ?? "")
     .join("");
   if (!text) throw new GeminiError("Gemini가 답을 주지 않았어요. 다시 시도해 주세요.");
+  const chunks: { web?: { title?: string; uri?: string } }[] = data?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+  const sources: WebSource[] = [];
+  for (const c of chunks) {
+    const title = c.web?.title?.trim();
+    if (title && c.web?.uri && !sources.some((x) => x.title === title)) sources.push({ title, uri: c.web.uri });
+  }
   try {
-    return JSON.parse(extractJson(text)) as T;
+    return { value: JSON.parse(extractJson(text)) as T, sources: sources.slice(0, 3) };
   } catch {
     throw new GeminiError("Gemini 응답을 읽지 못했어요. 다시 시도해 주세요.");
   }
 }
 
 /** 구글 검색으로 최신 공식 정보를 찾아서 답하게. 검색을 못 쓰거나 형식이 깨지면 검색 없이 */
-async function searchJson<T>(settings: Settings, parts: Part[], schema: object, ok: (r: T) => boolean): Promise<T> {
+async function searchJson<T>(settings: Settings, parts: Part[], schema: object, ok: (r: T) => boolean): Promise<{ value: T; sources: WebSource[] }> {
   try {
-    const res = await generateJson<T>(settings, parts, schema, { search: true });
-    if (!res || !ok(res)) throw new GeminiError("형식 오류");
+    const res = await generateMeta<T>(settings, parts, schema, { search: true });
+    if (!res.value || !ok(res.value)) throw new GeminiError("형식 오류");
     return res;
   } catch {
-    return generateJson<T>(settings, parts, schema);
+    return generateMeta<T>(settings, parts, schema);
   }
 }
 
 /** 검색할 때 붙이는 공통 지시 */
-const LATEST = "구글 검색으로 최신 공식 정보(제조사·가게 공식 홈페이지, 제품 영양성분표, 식약처 식품영양성분 DB)를 찾아서 그 값을 우선으로 써. 찾은 출처는 note에 짧게.";
+const LATEST = "구글 검색으로 최신 공식 정보(제조사·가게 공식 홈페이지, 제품 영양성분표, 식약처 식품영양성분 DB)를 찾아서 그 값을 우선으로 써. 못 찾으면 비슷한 음식으로 추정해. note에는 어떤 기준(몇 개·몇 g·몇 인분)으로 계산했는지만 짧게 쓰고, 출처나 '포장지 기준'·'공식 정보' 같은 말은 쓰지 마(출처는 앱이 검색 기록으로 따로 보여 줘).";
 
 const NUTRIENT_PROPS = {
   kcal: { type: "number", description: "칼로리 (kcal)" },
@@ -221,8 +234,9 @@ export interface IngredientAnswer {
   match: number; // candidates 인덱스, 없으면 -1
   nutrients: Nutrients | null; // match가 -1일 때 그 양 전체의 추정 영양성분
 }
+export interface IngredientResult { answers: IngredientAnswer[]; sources: WebSource[] }
 
-export async function resolveIngredients(settings: Settings, queries: IngredientQuery[]): Promise<IngredientAnswer[]> {
+export async function resolveIngredients(settings: Settings, queries: IngredientQuery[]): Promise<IngredientResult> {
   const prompt = `사용자가 집에서 요리할 때 넣은 식재료 목록이야.
 각 식재료마다:
 1. grams: 적힌 양을 그램(g)으로 환산해. (예: 계란 1개≈50g, 밥 1공기≈210g, 1큰술≈15g, 양이 없으면 1인분 기준으로 추정)
@@ -250,15 +264,16 @@ ${queries.map((q, i) => `[${i}] ${q.text}\n후보: ${q.candidates.map((c, j) => 
     },
     required: ["items"],
   };
-  const res = await searchJson<{ items: { index: number; grams: number; match: number; nutrients: Nutrients }[] }>(
+  const { value: res, sources } = await searchJson<{ items: { index: number; grams: number; match: number; nutrients: Nutrients }[] }>(
     settings, [{ text: prompt }], schema, (r) => Array.isArray(r.items),
   );
-  return queries.map((q, i) => {
+  const answers = queries.map((q, i) => {
     const a = res.items.find((x) => x.index === i);
     if (!a) return { grams: 0, match: -1, nutrients: null };
     const match = a.match >= 0 && a.match < q.candidates.length ? a.match : -1;
     return { grams: Math.max(0, a.grams || 0), match, nutrients: match === -1 ? toNutrients(a.nutrients) : null };
   });
+  return { answers, sources };
 }
 
 // ---------- 외식 메뉴 ----------
@@ -267,6 +282,8 @@ export interface MenuEstimate {
   grams: number;
   nutrients: Nutrients;
   note: string;
+  /** 검색에서 실제로 참고한 페이지. 비어 있으면 검색 근거 없이 AI가 추정한 값 */
+  sources?: WebSource[];
 }
 
 /**
@@ -280,15 +297,15 @@ export async function askFood(settings: Settings, question: string): Promise<Men
       name: { type: "string", description: "음식 이름" },
       grams: { type: "number", description: "중량(g)" },
       nutrients: { type: "object", properties: NUTRIENT_PROPS, required: NUTRIENT_REQ },
-      note: { type: "string", description: "답변" },
+      note: { type: "string", description: "어떤 기준(몇 개·몇 g·몇 인분)으로 계산했는지 한 문장. 출처는 쓰지 마" },
     },
     required: ["name", "grams", "nutrients", "note"],
   };
   const parts = [{ text: `${question}
 
 ${LATEST}` }];
-  const res = await searchJson<MenuEstimate>(settings, parts, schema, (r) => !!r.nutrients);
-  return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients) };
+  const { value: res, sources } = await searchJson<MenuEstimate>(settings, parts, schema, (r) => !!r.nutrients);
+  return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients), sources };
 }
 
 // ---------- 음식 사진 · 영양성분표 사진 ----------
@@ -303,6 +320,7 @@ export interface PhotoResult {
   items: PhotoFood[];
   note: string;
   place?: string; // 설명·사진에서 알아낸 가게 이름
+  sources?: WebSource[];
 }
 
 /** memo: 사용자가 자유롭게 적은 설명 (가게·메뉴·사이즈·먹은 양). 적었으면 공식 메뉴 정보를 구글 검색으로 참고 */
@@ -339,12 +357,13 @@ export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: st
     required: ["type", "items", "note", "place"],
   };
   const parts = [{ inlineData: image }, { text: prompt }];
-  const res = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length);
+  const { value: res, sources } = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length);
   if (!res?.items?.length) throw new GeminiError("사진에서 음식이나 영양성분표를 찾지 못했어요. 다시 찍어 주세요.");
   return {
     type: res.type === "label" ? "label" : "food",
     note: res.note ?? "",
     place: String(res.place ?? "").trim() || undefined,
+    sources,
     items: res.items.map((i) => ({ name: String(i.name || "음식"), amount: String(i.amount ?? ""), grams: Math.max(0, Number(i.grams) || 0), nutrients: toNutrients(i.nutrients) })),
   };
 }

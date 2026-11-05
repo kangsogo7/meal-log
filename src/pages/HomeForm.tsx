@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { db, scaleNutrients, sourceLabel, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
 import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
-import { GeminiError, resolveIngredients } from "../gemini";
+import { GeminiError, resolveIngredients, type WebSource } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
-import { DataNote, NumInput, NutrientEditor, NutrientLine, SrcTag } from "../components/ui";
+import { DataNote, NumInput, SourceLinks, NutrientEditor, NutrientLine, SrcTag } from "../components/ui";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
 import { norm, rankUserFoods, type UserFoodCand } from "../userFoods";
@@ -78,10 +78,13 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [aiUsed, setAiUsed] = useState(false);
+  // AI가 검색에서 실제로 참고한 페이지 (비어 있으면 근거 없이 추정)
+  const [aiSources, setAiSources] = useState<WebSource[] | undefined>();
 
   const askAi = async (base: Row[]) => {
-    const answers = await resolveIngredients(settings, base.map((r) => ({ text: r.line.text, candidates: r.candidates.map(foodLabel) })));
+    const { answers, sources } = await resolveIngredients(settings, base.map((r) => ({ text: r.line.text, candidates: r.candidates.map(foodLabel) })));
     setAiUsed(true);
+    setAiSources(sources);
     return base.map((r, i) => {
       const a = answers[i];
       const grams = r.line.grams ?? (a.grams || null);
@@ -142,7 +145,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     amountText: r.line.amountText || (r.grams ? `${r.grams}g` : ""),
     grams: r.grams,
     source: r.choice <= PREV ? "saved" : r.choice >= 0 ? "db" : r.choice === AI ? "ai" : "manual",
-    ...(r.choice === AI ? { via: "web" as const } : {}),
+    ...(r.choice === AI ? { via: aiSources?.length ? ("web" as const) : ("guess" as const) } : {}),
     matchName: r.choice >= 0 ? r.candidates[r.choice].name : undefined,
     nutrients: rowNutrients(r),
   }));
@@ -202,6 +205,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               </li>
             ))}
           </ul>
+          {rows.some((r) => r.choice === AI) && <SourceLinks sources={aiSources} />}
           <DataNote />
           {settings.geminiKey && !aiUsed && (
             <button className="block" onClick={retryAi} disabled={busy}>AI로 다시 확인</button>

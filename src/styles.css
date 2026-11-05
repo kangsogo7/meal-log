@@ -378,6 +378,7 @@ label.inline input { width: 110px; margin: 0; }
 .entry-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .src-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.72rem; font-weight: 400; color: var(--muted); vertical-align: 1px; white-space: nowrap; }
 .data-note { margin: 10px 2px 4px; }
+.src-links a { color: inherit; text-decoration: underline; overflow-wrap: anywhere; }
 .result-row { position: relative; }
 .result-row .result { padding-right: 44px; }
 .result-star { position: absolute; top: 4px; right: 2px; }

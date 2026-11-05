@@ -6,7 +6,7 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBran
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, NutrientEditor, NutrientLine, SrcTag } from "../components/ui";
+import { DataNote, NutrientEditor, NutrientLine, SourceLinks, SrcTag } from "../components/ui";
 import { AmountEditor, makePortion, storedPortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar, type FavDraft } from "../favorites";
@@ -54,10 +54,10 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
   const aiSaved = useLiveQuery(() => (query.trim() ? getKV<AiSaved | null>(aiKey(kind, query, true), null) : null), [kind, query]) ?? null;
   const aiChoice = useMemo<Choice | null>(
     () => aiSaved ? {
-      id: "ai", label: `AI 답 · ${aiSaved.est.name}`, title: aiSaved.title, place: aiSaved.place, source: "ai", via: "web", portion: makePortion(aiSaved.est.nutrients, aiSaved.est.grams), note: aiSaved.est.note,
+      id: "ai", label: `AI 답 · ${aiSaved.est.name}`, title: aiSaved.title, place: aiSaved.place, source: "ai", via: !aiSaved.est.sources ? undefined : aiSaved.est.sources.length ? "web" : "guess", portion: makePortion(aiSaved.est.nutrients, aiSaved.est.grams), note: aiSaved.est.note,
     } : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aiSaved?.at],
+    [aiSaved?.at, aiSaved?.title],
   );
   const aiTime = aiSaved?.time ?? "";
   const aiError = aiJob.error;
@@ -219,7 +219,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
           {savedHits.map((h) => (
             <ResultButton key={h.id} tag="내 기록" label={h.label} n={portionNutrients(h.portion)} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
           ))}
-          {aiChoice && <ResultButton tag="AI 검색" label={aiChoice.label} n={portionNutrients(aiChoice.portion)} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
+          {aiChoice && <ResultButton tag={sourceLabel(aiChoice)} label={aiChoice.label} n={portionNutrients(aiChoice.portion)} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
           {results.map((f, i) => (
             <ResultButton
               key={`${f.name}|${f.brand}|${i}`}
@@ -257,6 +257,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
             <FavStar getDraft={() => toDraft(choice)} />
           </div>
           {choice.note && <p className="muted small">{choice.note}</p>}
+          {choice.id === "ai" && <SourceLinks sources={aiSaved?.est.sources} />}
           {choice.id === "ai" && aiTime && <p className="muted small">{aiTime}</p>}
           <AmountEditor portion={choice.portion} onChange={(portion) => setChoice({ ...choice, portion })} />
           <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, source: "manual", via: undefined, portion: withNutrients(choice.portion, n) })} />

@@ -174,6 +174,20 @@ const fmt = (v: number) => `${Math.round(v * 10) / 10}g`;
 /** 영양정보 출처 작은 표시 (식약처·포장지·AI 검색·AI 추정·내 기록·직접 입력) */
 export const SrcTag = ({ label }: { label: string }) => <span className="src-tag">{label}</span>;
 
+/** AI 답의 근거: 구글 검색에서 실제로 참고한 페이지. 없으면 추정이라고 밝힘 (모르면 아무것도 안 보임) */
+export function SourceLinks({ sources }: { sources?: { title: string; uri: string }[] }) {
+  if (!sources) return null;
+  if (!sources.length) return <p className="muted small">검색에서 근거를 찾지 못해 AI가 추정한 값이에요.</p>;
+  return (
+    <p className="muted small src-links">
+      AI가 참고한 곳:{" "}
+      {sources.map((s, i) => (
+        <span key={s.uri}>{i > 0 && " · "}<a href={s.uri} target="_blank" rel="noreferrer">{s.title}</a></span>
+      ))}
+    </p>
+  );
+}
+
 /** 검색 결과 아래 안내 */
 export const DataNote = () => <p className="muted small data-note">영양정보는 참고용이라 실제와 다를 수 있어요. 포장지 영양성분표가 가장 정확해요.</p>;
 
