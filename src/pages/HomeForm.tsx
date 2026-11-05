@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { scaleNutrients, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
+import { db, scaleNutrients, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
 import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
 import { GeminiError, resolveIngredients } from "../gemini";
 import { useSettings } from "../hooks";
@@ -10,17 +10,62 @@ import { FavStar } from "../favorites";
 
 const AI = -1;
 const MANUAL = -2;
+/** 이전 기록·즐겨찾기 j번 = PREV - j */
+const PREV = -10;
+
+/** 예전에 먹은 것 (즐겨찾기 또는 이전 기록의 음식·재료) */
+interface Prev { label: string; grams: number | null; nutrients: Nutrients; exact: boolean }
+
+const norm = (x: string) => x.replace(/s+/g, "").toLowerCase();
+
+/** 재료 이름이 들어간 즐겨찾기·이전 기록. 즐겨찾기 → 이름이 똑같은 것 → 최근 순, 최대 5개 */
+async function findPrev(names: string[]): Promise<Prev[][]> {
+  const [saved, entries] = await Promise.all([db.saved.toArray(), db.entries.orderBy("createdAt").reverse().toArray()]);
+  const pool: (Prev & { name: string; fav: boolean; at: number })[] = [];
+  const seen = new Set<string>();
+  for (const f of saved) {
+    const name = `${f.place ? f.place + " " : ""}${f.title}`;
+    const g = f.items.every((i) => i.grams) ? f.items.reduce((a, i) => a + (i.grams ?? 0), 0) : null;
+    seen.add(norm(f.title));
+    pool.push({ name: f.title, fav: f.groupId != null, at: f.updatedAt, label: `${f.groupId != null ? "★ " : "이전 기록 · "}${name}${g ? ` ${Math.round(g)}g` : ""}`, grams: g, nutrients: f.total, exact: false });
+  }
+  // 조리로 기록한 재료 하나하나도 (같은 이름은 가장 최근 것만)
+  for (const e of entries) {
+    if (e.items.length < 2) continue;
+    for (const i of e.items) {
+      const key = norm(i.name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pool.push({ name: i.name, fav: false, at: e.createdAt, label: `이전 기록 · ${i.name}${i.grams ? ` ${Math.round(i.grams)}g` : ""}`, grams: i.grams, nutrients: i.nutrients, exact: false });
+    }
+  }
+  return names.map((n) => {
+    const q = norm(n);
+    if (!q) return [];
+    return pool
+      .filter((p) => norm(p.name).includes(q))
+      .map((p) => ({ ...p, exact: norm(p.name) === q }))
+      .sort((a, b) => Number(b.fav) - Number(a.fav) || Number(b.exact) - Number(a.exact) || b.at - a.at)
+      .slice(0, 5)
+      .map(({ label, grams, nutrients, exact }) => ({ label, grams, nutrients, exact }));
+  });
+}
 
 interface Row {
   line: ParsedLine;
   candidates: Food[];
-  choice: number; // 후보 인덱스 / AI / MANUAL
+  prev: Prev[];
+  choice: number; // 후보 인덱스 / AI / MANUAL / PREV - j
   grams: number | null;
   ai?: { grams: number; nutrients: Nutrients };
   manual: Nutrients;
 }
 
+const prevOf = (r: Row) => (r.choice <= PREV ? r.prev[PREV - r.choice] : undefined);
+
 function rowNutrients(r: Row): Nutrients {
+  const p = prevOf(r);
+  if (p) return p.grams ? scaleNutrients(p.nutrients, (r.grams ?? p.grams) / p.grams) : p.nutrients;
   if (r.choice >= 0) return scaleNutrients(r.candidates[r.choice].per100, (r.grams ?? 0) / 100);
   if (r.choice === AI && r.ai) return r.ai.grams ? scaleNutrients(r.ai.nutrients, (r.grams ?? r.ai.grams) / r.ai.grams) : r.ai.nutrients;
   return r.manual;
@@ -41,6 +86,8 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     return base.map((r, i) => {
       const a = answers[i];
       const grams = r.line.grams ?? (a.grams || null);
+      // 이전 기록·즐겨찾기를 골라 둔 재료는 그대로 (AI 답은 목록에서 고를 수 있게만)
+      if (r.choice <= PREV) return { ...r, ...(a.nutrients ? { ai: { grams: a.grams, nutrients: a.nutrients } } : {}) };
       if (a.match >= 0) return { ...r, choice: a.match, grams };
       if (a.nutrients) return { ...r, choice: AI, grams, ai: { grams: a.grams, nutrients: a.nutrients } };
       return { ...r, grams };
@@ -53,10 +100,13 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     setBusy(true);
     setError("");
     try {
-      const list = await loadFoodDb();
-      let next: Row[] = lines.map((line) => {
+      const [list, prevs] = await Promise.all([loadFoodDb(), findPrev(lines.map((l) => l.name))]);
+      let next: Row[] = lines.map((line, i) => {
         const candidates = searchFoods(list, line.name, { prefer: "ingredient", limit: 8 });
-        return { line, candidates, choice: candidates.length ? 0 : MANUAL, grams: line.grams, manual: { ...ZERO } };
+        const prev = prevs[i];
+        // 이름이 똑같은 즐겨찾기·이전 기록이 있으면 그걸 먼저 고름 (g을 안 적었으면 그때 양)
+        const p = prev[0]?.exact ? prev[0] : undefined;
+        return { line, candidates, prev, choice: p ? PREV : candidates.length ? 0 : MANUAL, grams: line.grams ?? (p ? p.grams : null), manual: { ...ZERO } };
       });
       if (settings.geminiKey) {
         try {
@@ -92,7 +142,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     name: r.line.name,
     amountText: r.line.amountText || (r.grams ? `${r.grams}g` : ""),
     grams: r.grams,
-    source: r.choice >= 0 ? "db" : r.choice === AI ? "ai" : "manual",
+    source: r.choice <= PREV ? "saved" : r.choice >= 0 ? "db" : r.choice === AI ? "ai" : "manual",
     matchName: r.choice >= 0 ? r.candidates[r.choice].name : undefined,
     nutrients: rowNutrients(r),
   }));
@@ -128,7 +178,12 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
                   <NutrientLine n={items[i].nutrients} />
                 </div>
                 <div className="ing-controls">
-                  <select value={r.choice} onChange={(e) => update(i, { choice: Number(e.target.value) })}>
+                  <select value={r.choice} onChange={(e) => {
+                    const choice = Number(e.target.value);
+                    const p = choice <= PREV ? r.prev[PREV - choice] : undefined;
+                    update(i, { choice, ...(p && !r.grams && p.grams ? { grams: p.grams } : {}) });
+                  }}>
+                    {r.prev.map((p, j) => <option key={`p${j}`} value={PREV - j}>{p.label}</option>)}
                     {r.candidates.map((c, j) => <option key={j} value={j}>{foodLabel(c)}</option>)}
                     {r.ai && <option value={AI}>AI 추정값</option>}
                     <option value={MANUAL}>직접 입력</option>
