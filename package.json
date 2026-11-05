@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "build:food-db": "node scripts/build-food-db.mjs",
     "build:native": "tsc --noEmit && vite build --mode native",
+    "build:firebase": "tsc --noEmit && vite build --mode firebase",
+    "deploy:firebase": "npm run build:firebase && npx firebase-tools deploy --only hosting",
     "cap:sync": "npm run build:native && cap sync"
   },
   "dependencies": {

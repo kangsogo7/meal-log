@@ -9,8 +9,9 @@ const BASE = "/meal-log/";
 const VERSION = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 16).replace("T", " ");
 
 // `vite build --mode native`: 안드로이드·아이폰 앱용 (앱 안에서 / 경로로 열리고 서비스 워커 불필요)
+// `vite build --mode firebase`: Firebase Hosting용 (https://meal-log-f1b13.web.app/ 처럼 주소 맨 앞에서 열림)
 export default defineConfig(({ command, mode }) => ({
-  base: command === "build" && mode !== "native" ? BASE : "/",
+  base: command === "build" && mode !== "native" && mode !== "firebase" ? BASE : "/",
   define: { __APP_VERSION__: JSON.stringify(VERSION) },
   plugins: [
     react(),
