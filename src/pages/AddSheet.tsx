@@ -10,9 +10,8 @@ import type { CartItem } from "./FavoritesTab";
 import QuickAdd from "./QuickAdd";
 import { useTargets } from "../hooks";
 
-/** quick: 자주 먹는 것 카드 / search: 외식·식품 검색 / home: 재료 입력(조리) / manual: 직접 입력(숫자) / photo: 사진으로 */
+/** quick: 자주 먹는 것 카드 / search: 음식 검색(가게 메뉴·식품) / home: 재료 입력(조리) / manual: 직접 입력(숫자) / photo: 사진으로 */
 type Mode = "quick" | "search" | "home" | "manual" | "photo";
-type Kind = "out" | "food";
 
 export interface Draft {
   kind: Entry["kind"];
@@ -35,7 +34,7 @@ export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: strin
 
 // 기록 창을 연 채 홈 화면에 갔다가 폰이 앱을 정리해도, 30분 안에 돌아오면 쓰던 그대로 다시 열기
 const DRAFT_KEY = "meal-log-add-draft";
-export interface AddDraft { date: string; meal: Meal; mode: Mode; kind?: Kind; query: string; at: number }
+export interface AddDraft { date: string; meal: Meal; mode: Mode; query: string; at: number }
 export function loadAddDraft(): AddDraft | null {
   try {
     const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null") as AddDraft | null;
@@ -62,9 +61,8 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
   // 예전 형식(외식/식품/즐겨찾기 탭)으로 저장된 쓰던 창도 이어서 열기
   const old = restore?.mode as string | undefined;
   const [mode, setMode] = useState<Mode>(old === "out" || old === "food" ? "search" : old === "home" || old === "manual" || old === "search" || old === "photo" ? (old as Mode) : "quick");
-  const [kind, setKind] = useState<Kind>(old === "food" ? "food" : restore?.kind ?? "out");
   const [query, setQuery] = useState(restore?.query ?? "");
-  useEffect(() => saveAddDraft({ date, meal, mode, kind, query, at: Date.now() }), [date, meal, mode, kind, query]);
+  useEffect(() => saveAddDraft({ date, meal, mode, query, at: Date.now() }), [date, meal, mode, query]);
   const { target } = useTargets(date);
   const dayTotal = useLiveQuery(async () => sumNutrients((await db.entries.where("date").equals(date).toArray()).map((e) => e.total)).kcal, [date], 0);
 
@@ -162,16 +160,8 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
 
       {mode === "search" && (
         <>
-          <div className="row-between search-head">
-            {back}
-            <div className="seg mini">
-              <button className={kind === "out" ? "on" : ""} onClick={() => setKind("out")}>외식</button>
-              <button className={kind === "food" ? "on" : ""} onClick={() => setKind("food")}>식품</button>
-            </div>
-          </div>
+          <div className="row-between search-head">{back}<b>음식 검색</b></div>
           <SearchForm
-            key={kind}
-            kind={kind}
             onSave={addDraft}
             actionLabel="담기"
             autoFocus
