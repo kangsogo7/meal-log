@@ -1,0 +1,43 @@
+name: Deploy to Firebase Hosting
+
+# main에 올릴 때마다 https://meal-log-f1b13.web.app/ 에도 배포
+# 저장소 Secrets의 FIREBASE_SERVICE_ACCOUNT(서비스 계정 키 JSON)가 없으면 배포는 건너뜀
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["android/**", "ios/**", ".github/workflows/android.yml", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-hosting
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+    steps:
+      - if: env.HAS_KEY != 'true'
+        run: echo "FIREBASE_SERVICE_ACCOUNT secret이 없어서 배포를 건너뜁니다."
+      - if: env.HAS_KEY == 'true'
+        uses: actions/checkout@v5
+      - if: env.HAS_KEY == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - if: env.HAS_KEY == 'true'
+        run: npm ci
+      - if: env.HAS_KEY == 'true'
+        run: npm run build:firebase
+      - if: env.HAS_KEY == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: meal-log-f1b13
+          channelId: live
