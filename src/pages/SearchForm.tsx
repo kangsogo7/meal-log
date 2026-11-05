@@ -62,10 +62,13 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
   const aiTime = aiSaved?.time ?? "";
   const aiError = aiJob.error;
   useEffect(() => onQueryChange?.(query), [query]);
-  // 방금 요청한 AI 결과가 오면 바로 상세를 보여 줌 (다른 결과를 골라 둔 경우는 그대로)
+  // 방금 요청한 AI 결과가 오면 (다른 결과를 골라 뒀어도) 바로 AI 결과 상세를 보여 줌
   const askedAt = useRef(0);
   useEffect(() => {
-    if (aiChoice && aiSaved && aiSaved.at >= askedAt.current && askedAt.current > 0) setChoice((c) => (!c || c.id === "ai" ? aiChoice : c));
+    if (aiChoice && aiSaved && aiSaved.at >= askedAt.current && askedAt.current > 0) {
+      askedAt.current = 0;
+      setChoice(aiChoice);
+    }
   }, [aiChoice]);
   const detailRef = useRef<HTMLDivElement>(null);
   const copy = COPY[kind];
