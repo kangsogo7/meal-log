@@ -1,4 +1,4 @@
-// 그룹 초대 링크: https://kangsogo7.github.io/meal-log/?join=코드&g=그룹이름
+// 그룹 초대 링크: https://meal-log-f1b13.web.app/?join=코드&g=그룹이름
 // 링크로 앱(웹)을 열면 초대를 기억해 두고 그룹 탭에서 바로 참여할 수 있게 함.
 // 안드로이드에서 링크를 열면 바로 설치된 앱(meallog://join?code=…)으로 넘김. 앱이 없으면 noapp=1을 붙여 웹으로 돌아옴
 import { Capacitor } from "@capacitor/core";
@@ -12,7 +12,7 @@ export interface Invite {
 
 const KEY = "meal-log-invite";
 const EVENT = "meal-invite";
-export const WEB_URL = "https://kangsogo7.github.io/meal-log/";
+export const WEB_URL = "https://meal-log-f1b13.web.app/";
 const ANDROID_PACKAGE = "io.github.kangsogo7.meallog";
 
 export const inviteLink = (code: string, group: string) => `${WEB_URL}?join=${code}&g=${encodeURIComponent(group)}`;

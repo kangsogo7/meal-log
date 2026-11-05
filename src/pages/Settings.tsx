@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { db, setKV } from "../db";
+import { setKV } from "../db";
+import { exportBackup, importBackup } from "../backup";
 import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini } from "../gemini";
 import { useSettings } from "../hooks";
 import { getTheme, setTheme, type Theme } from "../theme";
@@ -41,59 +42,6 @@ export default function SettingsPage() {
     }
   };
 
-  const exportData = async () => {
-    const data = {
-      app: "meal-log",
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      entries: await db.entries.toArray(),
-      body: await db.body.toArray(),
-      saved: await db.saved.toArray(),
-      sets: await db.sets.toArray(),
-      groups: await db.groups.toArray(),
-      activity: await db.activity.toArray(),
-      // API 키는 백업 파일에 넣지 않음
-      kv: (await db.kv.toArray()).filter((r) => r.key !== "settings"),
-    };
-    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `식단기록-백업-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-
-  const importData = async (file: File) => {
-    try {
-      const data = JSON.parse(await file.text());
-      if (data.app !== "meal-log" || !Array.isArray(data.entries)) throw new Error();
-      if (!confirm(`식단 ${data.entries.length}개, 체중 ${data.body?.length ?? 0}개를 가져올게요.\n지금 기록은 모두 바뀌어요. 계속할까요?`)) return;
-      await db.transaction("rw", [db.entries, db.body, db.saved, db.sets, db.groups, db.activity, db.kv], async () => {
-        await Promise.all([db.entries.clear(), db.body.clear(), db.saved.clear(), db.sets.clear()]);
-        if (data.activity) {
-          await db.activity.clear();
-          await db.activity.bulkPut(data.activity);
-        }
-        await db.entries.bulkAdd(data.entries);
-        await db.body.bulkAdd(data.body ?? []);
-        await db.saved.bulkPut(data.saved ?? []);
-        await db.sets.bulkAdd(data.sets ?? []);
-        // 그룹: 백업에 있으면 그대로, 예전 백업이면 "기본" 그룹 유지하고 ⭐를 거기로
-        if (data.groups?.length) {
-          await db.groups.clear();
-          await db.groups.bulkAdd(data.groups);
-        } else {
-          const def = await db.groups.orderBy("order").first();
-          if (def) await db.saved.toCollection().modify((s) => { if (s.fav) { s.groupId = def.id; delete s.fav; } });
-        }
-        await db.kv.bulkPut((data.kv ?? []).filter((r: { key: string }) => r.key !== "settings"));
-      });
-      alert("가져왔어요.");
-    } catch {
-      alert("올바른 백업 파일이 아니에요.");
-    }
-  };
-
   return (
     <>
       <header className="page-head"><h1>설정</h1></header>
@@ -131,10 +79,10 @@ export default function SettingsPage() {
       <section className="card form">
         <h2>백업</h2>
         <div className="btn-row">
-          <button onClick={exportData}>백업 파일 저장</button>
+          <button onClick={exportBackup}>백업 파일 저장</button>
           <button onClick={() => fileRef.current?.click()}>백업 불러오기</button>
         </div>
-        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importData(f); }} />
+        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importBackup(f); }} />
       </section>
 
       <section className="card">

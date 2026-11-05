@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, getKV, todayStr } from "./db";
 import { onInvite, pendingInvite } from "./invite";
+import MovedNotice, { isOldAddress } from "./components/MovedNotice";
 import { clearFood, onFood, pendingFood, type SharedFood } from "./foodShare";
 import ReceiveFood from "./pages/ReceiveFood";
 import Today from "./pages/Today";
@@ -83,6 +84,7 @@ export default function App() {
   return (
     <div className="app">
       <main className="content">
+        {isOldAddress() && <MovedNotice />}
         {tab === "today" && <Today onGoToGoals={() => setTab("goals")} openChecks={checksReq} />}
         {tab === "activity" && <Activity />}
         {tab === "groups" && <Suspense fallback={<p className="muted small center-pad">불러오는 중...</p>}><Groups /></Suspense>}

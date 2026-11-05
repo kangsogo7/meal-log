@@ -198,7 +198,8 @@ export function watchGroup(gid: string, cb: (g: Group | null) => void): Unsubscr
 }
 
 /** 그룹에 들어가 있는지를 폰에 기억 (그룹이 없으면 자동 올리기를 하지 않음) */
-async function afterMembershipChange() {
+/** 그룹에 들어가 있는지 다시 확인해서 공유를 켜고 끔 (백업을 불러온 뒤에도) */
+export async function afterMembershipChange() {
   const u = await currentUser();
   const n = u ? (await getDocs(query(collection(fs, "groups"), where("members", "array-contains", u.uid)))).size : 0;
   await setKV("shareOn", n > 0);
@@ -384,3 +385,38 @@ export async function deleteComment(gid: string, kind: "days" | "weeks", id: str
   await deleteDoc(doc(fs, "groups", gid, kind, id, "comments", cid));
 }
 
+
+// ---------- 주소 옮기기 (백업으로 그룹도 같이) ----------
+export interface GroupBackup { name: string; groups: { code: string; name: string }[] }
+
+/** 백업 파일에 넣을 내 닉네임과 들어가 있는 그룹의 초대 코드 (그룹을 안 쓰면 null) */
+export async function groupsForBackup(): Promise<GroupBackup | null> {
+  const me = await loadMe();
+  if (!me) return null;
+  const gs = await getDocs(query(collection(fs, "groups"), where("members", "array-contains", me.uid)));
+  return gs.empty ? null : { name: me.name, groups: gs.docs.map((d) => ({ code: d.data().code as string, name: d.data().name as string })) };
+}
+
+/** 백업을 불러온 뒤 같은 그룹에 다시 들어가기. 들어간 그룹 수 */
+export async function rejoinGroups(b: GroupBackup): Promise<number> {
+  const me = (await loadMe()) ?? (await createMe(b.name));
+  let n = 0;
+  for (const g of b.groups) {
+    try {
+      await joinGroup(me, g.code);
+      n++;
+    } catch {
+      // 없어진 그룹은 건너뜀
+    }
+  }
+  return n;
+}
+
+/** 예전 주소에서 정리: 들어가 있는 그룹에서 모두 나가기 (새 주소의 나와 겹치지 않게) */
+export async function leaveAllGroups(): Promise<number> {
+  const me = await loadMe();
+  if (!me) return 0;
+  const gs = await getDocs(query(collection(fs, "groups"), where("members", "array-contains", me.uid)));
+  for (const d of gs.docs) await leaveGroup(me, toGroup(d.id, d.data()));
+  return gs.size;
+}
