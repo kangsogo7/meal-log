@@ -7,6 +7,7 @@ import { parseLines, type ParsedLine } from "../parse";
 import { NumInput, NutrientEditor, NutrientLine } from "../components/ui";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
+import { norm, rankUserFoods, type UserFoodCand } from "../userFoods";
 
 const AI = -1;
 const MANUAL = -2;
@@ -16,18 +17,16 @@ const PREV = -10;
 /** 예전에 먹은 것 (즐겨찾기 또는 이전 기록의 음식·재료) */
 interface Prev { label: string; grams: number | null; nutrients: Nutrients; exact: boolean }
 
-const norm = (x: string) => x.replace(/s+/g, "").toLowerCase();
-
-/** 재료 이름이 들어간 즐겨찾기·이전 기록. 즐겨찾기 → 이름이 똑같은 것 → 최근 순, 최대 5개 */
+/** 재료와 비슷한 즐겨찾기·이전 기록 전부 (순서는 rankUserFoods: 즐겨찾기 → 이전 기록, 이름이 가까운 것 먼저) */
 async function findPrev(names: string[]): Promise<Prev[][]> {
   const [saved, entries] = await Promise.all([db.saved.toArray(), db.entries.orderBy("createdAt").reverse().toArray()]);
-  const pool: (Prev & { name: string; fav: boolean; at: number })[] = [];
+  const pool: (Prev & UserFoodCand)[] = [];
   const seen = new Set<string>();
   for (const f of saved) {
     const name = `${f.place ? f.place + " " : ""}${f.title}`;
     const g = f.items.every((i) => i.grams) ? f.items.reduce((a, i) => a + (i.grams ?? 0), 0) : null;
     seen.add(norm(f.title));
-    pool.push({ name: f.title, fav: f.groupId != null, at: f.updatedAt, label: `${f.groupId != null ? "★ " : "이전 기록 · "}${name}${g ? ` ${Math.round(g)}g` : ""}`, grams: g, nutrients: f.total, exact: false });
+    pool.push({ name: f.title, place: f.place, fav: f.groupId != null, at: f.updatedAt, label: `${f.groupId != null ? "★ " : "이전 기록 · "}${name}${g ? ` ${Math.round(g)}g` : ""}`, grams: g, nutrients: f.total, exact: false });
   }
   // 조리로 기록한 재료 하나하나도 (같은 이름은 가장 최근 것만)
   for (const e of entries) {
@@ -39,16 +38,7 @@ async function findPrev(names: string[]): Promise<Prev[][]> {
       pool.push({ name: i.name, fav: false, at: e.createdAt, label: `이전 기록 · ${i.name}${i.grams ? ` ${Math.round(i.grams)}g` : ""}`, grams: i.grams, nutrients: i.nutrients, exact: false });
     }
   }
-  return names.map((n) => {
-    const q = norm(n);
-    if (!q) return [];
-    return pool
-      .filter((p) => norm(p.name).includes(q))
-      .map((p) => ({ ...p, exact: norm(p.name) === q }))
-      .sort((a, b) => Number(b.fav) - Number(a.fav) || Number(b.exact) - Number(a.exact) || b.at - a.at)
-      .slice(0, 5)
-      .map(({ label, grams, nutrients, exact }) => ({ label, grams, nutrients, exact }));
-  });
+  return names.map((n) => rankUserFoods(pool, n).map(({ label, grams, nutrients, exact }) => ({ label, grams, nutrients, exact })));
 }
 
 interface Row {

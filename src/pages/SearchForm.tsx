@@ -10,6 +10,7 @@ import { NutrientEditor, NutrientLine } from "../components/ui";
 import { AmountEditor, makePortion, storedPortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar, type FavDraft } from "../favorites";
+import { rankUserFoods } from "../userFoods";
 
 interface Choice {
   id: string;
@@ -29,7 +30,7 @@ const COPY = {
 
 /** AI 결과는 검색어별로 저장 (요청 중에 화면을 떠났다 와도, 앱이 다시 시작돼도 결과가 남아 있게) */
 interface AiSaved { est: MenuEstimate; place?: string; title: string; time: string; at: number; prompt?: string }
-const aiKey = (kind: string, q: string, search: boolean) => `aiMenu:${kind}|${q.trim().replace(/s+/g, " ").toLowerCase()}|${search ? 1 : 0}`;
+const aiKey = (kind: string, q: string, search: boolean) => `aiMenu:${kind}|${q.trim().replace(/\s+/g, " ").toLowerCase()}|${search ? 1 : 0}`;
 
 export default function SearchForm({ kind, onSave, initialQuery = "", onQueryChange, actionLabel = "저장", autoFocus }: {
   kind: "out" | "food"; onSave: (d: Draft) => void; initialQuery?: string; onQueryChange?: (q: string) => void; actionLabel?: string;
@@ -101,21 +102,13 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
           const strong = q.includes(" ") ? [] : fromBase.filter((f) => f.name.startsWith(head));
           found = [...new Set([...strong.slice(0, 2), ...fromProducts, ...fromBase])].slice(0, 10);
         }
-        // 이전에 기록한 음식 중 검색어가 들어간 것을 DB 목록보다 위에 (검색어 그대로인 것, 이 탭 종류, 자주·최근 순)
-        const norm = (x: string) => x.replace(/\s+/g, "").toLowerCase();
-        const words = q.split(/\s+/).map(norm).filter(Boolean);
-        const exact = norm(q);
-        const prev = (await db.saved.toArray())
-          .filter((s) => words.every((w) => norm(`${s.place ?? ""}${s.title}`).includes(w)))
-          .map((s) => ({ s, score: (norm(`${s.place ?? ""}${s.title}`) === exact || norm(s.title) === exact ? 4 : 0) + (s.kind === kind ? 2 : 0) }))
-          .sort((a, b) => b.score - a.score || b.s.uses - a.s.uses || b.s.updatedAt - a.s.updatedAt)
-          .slice(0, 5)
-          .map(({ s }) => s);
+        // 즐겨찾기·이전 기록 중 비슷한 것 전부를 DB 목록보다 위에 (즐겨찾기 → 이전 기록)
+        const prev = rankUserFoods((await db.saved.toArray()).map((s) => ({ s, name: s.title, place: s.place, fav: s.groupId != null, at: s.updatedAt })), q);
         if (cancelled) return;
         setSplit(sp);
         setResults(found);
-        setSavedHits(prev.map((s, i) => ({
-          id: `saved${i}`, label: `이전 기록 · ${s.place ? s.place + " " : ""}${s.title}`, title: s.title, place: s.place,
+        setSavedHits(prev.map(({ s, fav }, i) => ({
+          id: `saved${i}`, label: `${fav ? "★ " : "이전 기록 · "}${s.place ? s.place + " " : ""}${s.title}`, title: s.title, place: s.place,
           source: "saved", portion: storedPortion(s),
         })));
       } catch (e) {
