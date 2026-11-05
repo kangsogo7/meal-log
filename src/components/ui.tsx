@@ -171,6 +171,12 @@ export function NutrientLine({ n }: { n: Nutrients }) {
 }
 const fmt = (v: number) => `${Math.round(v * 10) / 10}g`;
 
+/** 영양정보 출처 작은 표시 (식약처·포장지·AI 검색·AI 추정·내 기록·직접 입력) */
+export const SrcTag = ({ label }: { label: string }) => <span className="src-tag">{label}</span>;
+
+/** 검색 결과 아래 안내 */
+export const DataNote = () => <p className="muted small data-note">영양정보는 참고용이라 실제와 다를 수 있어요. 포장지 영양성분표가 가장 정확해요.</p>;
+
 /** 영양성분 한눈에: 칼로리 크게 + 탄·단·지(색 점)·나트륨 칸 */
 export function NutrientGrid({ n }: { n: Nutrients }) {
   const cell = (cls: string, label: string, value: string) => (
@@ -195,7 +201,7 @@ export function NutrientGrid({ n }: { n: Nutrients }) {
 
 /** 구성 음식·식재료 카드 목록 (세트 상세, 기록 수정, 즐겨찾기 수정 공통). 아래 막대 = 전체 칼로리 중 그 음식 몫 */
 export function PartsList({ label, parts, onPick, open, editor }: {
-  label: string; parts: { name: string; place?: string; amount?: string; n: Nutrients }[];
+  label: string; parts: { name: string; place?: string; amount?: string; n: Nutrients; tag?: string }[];
   /** 누르면 그 카드 아래에 editor를 펼침 (open = 펼친 카드 번호) */
   onPick?: (i: number) => void; open?: number | null; editor?: ReactNode;
 }) {
@@ -210,6 +216,7 @@ export function PartsList({ label, parts, onPick, open, editor }: {
               <span className="sp-name">
                 {p.place && <span className="muted">{p.place} </span>}
                 <b>{p.name}</b>
+                {p.tag && <SrcTag label={p.tag} />}
               </span>
               <span className="muted small">
                 {[p.amount, `탄 ${Math.round(p.n.carb)} · 단 ${Math.round(p.n.protein)} · 지 ${Math.round(p.n.fat)}g`].filter(Boolean).join(" · ")}

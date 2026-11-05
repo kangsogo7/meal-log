@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { db, scaleNutrients, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
+import { db, scaleNutrients, sourceLabel, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
 import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
 import { GeminiError, resolveIngredients } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
-import { NumInput, NutrientEditor, NutrientLine } from "../components/ui";
+import { DataNote, NumInput, NutrientEditor, NutrientLine, SrcTag } from "../components/ui";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
 import { norm, rankUserFoods, type UserFoodCand } from "../userFoods";
@@ -142,6 +142,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     amountText: r.line.amountText || (r.grams ? `${r.grams}g` : ""),
     grams: r.grams,
     source: r.choice <= PREV ? "saved" : r.choice >= 0 ? "db" : r.choice === AI ? "ai" : "manual",
+    ...(r.choice === AI ? { via: "web" as const } : {}),
     matchName: r.choice >= 0 ? r.candidates[r.choice].name : undefined,
     nutrients: rowNutrients(r),
   }));
@@ -174,7 +175,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               <li key={i} className="card inset">
                 <div className="ing-head">
                   <b>{r.line.text}</b>
-                  <NutrientLine n={items[i].nutrients} />
+                  <span><NutrientLine n={items[i].nutrients} /><SrcTag label={sourceLabel(items[i])} /></span>
                 </div>
                 <div className="ing-controls">
                   <select value={r.choice} onChange={(e) => {
@@ -201,6 +202,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               </li>
             ))}
           </ul>
+          <DataNote />
           {settings.geminiKey && !aiUsed && (
             <button className="block" onClick={retryAi} disabled={busy}>AI로 다시 확인</button>
           )}

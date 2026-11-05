@@ -1,12 +1,12 @@
 // 외식 / 식품 공통: 입력칸 하나 → 목록 → 누르면 영양성분 상세 + 저장
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, getKV, setKV, scaleNutrients, type ItemSource, type Nutrients } from "../db";
+import { db, getKV, setKV, scaleNutrients, sourceLabel, type Item, type ItemSource, type Nutrients } from "../db";
 import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBrand, type Food } from "../foodDb";
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { NutrientEditor, NutrientLine } from "../components/ui";
+import { DataNote, NutrientEditor, NutrientLine, SrcTag } from "../components/ui";
 import { AmountEditor, makePortion, storedPortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar, type FavDraft } from "../favorites";
@@ -18,6 +18,7 @@ interface Choice {
   title: string; // 저장할 이름
   place?: string; // 저장할 상호/제조사
   source: ItemSource;
+  via?: Item["via"];
   matchName?: string;
   portion: Portion; // 먹은 양 (공통 양 조절)
   note?: string;
@@ -53,7 +54,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
   const aiSaved = useLiveQuery(() => (query.trim() ? getKV<AiSaved | null>(aiKey(kind, query, true), null) : null), [kind, query]) ?? null;
   const aiChoice = useMemo<Choice | null>(
     () => aiSaved ? {
-      id: "ai", label: `AI 답 · ${aiSaved.est.name}`, title: aiSaved.title, place: aiSaved.place, source: "ai", portion: makePortion(aiSaved.est.nutrients, aiSaved.est.grams), note: aiSaved.est.note,
+      id: "ai", label: `AI 답 · ${aiSaved.est.name}`, title: aiSaved.title, place: aiSaved.place, source: "ai", via: "web", portion: makePortion(aiSaved.est.nutrients, aiSaved.est.grams), note: aiSaved.est.note,
     } : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [aiSaved?.at],
@@ -188,7 +189,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
       items: [{
         name: title,
         amountText: grams ? `${grams}g` : "",
-        grams, source: c.source, matchName: c.matchName, nutrients: portionNutrients(c.portion),
+        grams, source: c.source, via: c.via, matchName: c.matchName, nutrients: portionNutrients(c.portion),
       }],
       k: c.portion.k,
     };
@@ -216,12 +217,13 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
       {q && (
         <div className="results">
           {savedHits.map((h) => (
-            <ResultButton key={h.id} label={h.label} n={portionNutrients(h.portion)} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
+            <ResultButton key={h.id} tag="내 기록" label={h.label} n={portionNutrients(h.portion)} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
           ))}
-          {aiChoice && <ResultButton label={aiChoice.label} n={portionNutrients(aiChoice.portion)} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
+          {aiChoice && <ResultButton tag="AI 검색" label={aiChoice.label} n={portionNutrients(aiChoice.portion)} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
           {results.map((f, i) => (
             <ResultButton
               key={`${f.name}|${f.brand}|${i}`}
+              tag="식약처"
               label={foodLabel(f)}
               n={scaleNutrients(f.per100, listGrams(f) / 100)}
               suffix={`${listGrams(f)}g`}
@@ -231,6 +233,7 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
             />
           ))}
           {!busy && results.length === 0 && savedHits.length === 0 && !aiChoice && <p className="muted small">{copy.empty}</p>}
+          {(results.length > 0 || savedHits.length > 0 || aiChoice) && <DataNote />}
           {settings.geminiKey && (aiJob.running ? (
             <button className="block" disabled>AI가 최신 공식 정보를 찾는 중... (다른 앱을 써도 돼요)</button>
           ) : prompt !== null ? (
@@ -250,13 +253,13 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
       {choice && (
         <div className="card inset detail" ref={detailRef}>
           <div className="detail-head">
-            <p className="small"><b>{choice.label}</b></p>
+            <p className="small"><b>{choice.label}</b><SrcTag label={sourceLabel(choice)} /></p>
             <FavStar getDraft={() => toDraft(choice)} />
           </div>
           {choice.note && <p className="muted small">{choice.note}</p>}
           {choice.id === "ai" && aiTime && <p className="muted small">{aiTime}</p>}
           <AmountEditor portion={choice.portion} onChange={(portion) => setChoice({ ...choice, portion })} />
-          <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, portion: withNutrients(choice.portion, n) })} />
+          <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, source: "manual", via: undefined, portion: withNutrients(choice.portion, n) })} />
           <button className="primary block" onClick={save}>{actionLabel}</button>
         </div>
       )}
@@ -264,13 +267,13 @@ export default function SearchForm({ kind, onSave, initialQuery = "", onQueryCha
   );
 }
 
-function ResultButton({ label, n, note, suffix, selected, onClick, fav }: {
-  label: string; n: Nutrients; note?: string; suffix?: string; selected: boolean; onClick: () => void; fav?: () => FavDraft | null;
+function ResultButton({ label, tag, n, note, suffix, selected, onClick, fav }: {
+  label: string; tag?: string; n: Nutrients; note?: string; suffix?: string; selected: boolean; onClick: () => void; fav?: () => FavDraft | null;
 }) {
   return (
     <div className="result-row">
       <button className={`result ${selected ? "selected" : ""}`} onClick={onClick}>
-        <div>{label}</div>
+        <div>{label}{tag && <SrcTag label={tag} />}</div>
         <NutrientLine n={n} />
         {suffix && <span className="muted small"> ({suffix})</span>}
         {note && <div className="muted small">{note}</div>}

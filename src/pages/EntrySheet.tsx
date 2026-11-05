@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { db, KIND_LABEL, MEALS, r1, scaleNutrients, sumNutrients, type Entry, type EntryKind, type Item } from "../db";
-import { NumInput, NutrientEditor, PartsList, Sheet } from "../components/ui";
+import { db, KIND_LABEL, MEALS, r1, scaleNutrients, sourceLabel, sumNutrients, type Entry, type EntryKind, type Item } from "../db";
+import { NumInput, NutrientEditor, PartsList, Sheet, SrcTag } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
 import { shareOut } from "./QuickAdd";
@@ -12,7 +12,10 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
   // 재료를 고치면 고친 재료(지금 배수 기준)를 새 기준으로
   const [src, setSrc] = useState<{ items: Item[]; k?: number }>(entry);
   const [open, setOpen] = useState<number | null>(null);
-  const items = portionItems(src, portion);
+  // 영양성분을 직접 고치면 출처는 "직접 입력"
+  const [ownN, setOwnN] = useState(false);
+  const scaled = portionItems(src, portion);
+  const items = ownN && scaled.length === 1 ? [{ ...scaled[0], source: "manual" as const, via: undefined }] : scaled;
   const setItems = (next: Item[]) => {
     setSrc({ items: next, k: portion.k });
     setPortion(storedPortion({ items: next, total: sumNutrients(next.map((i) => i.nutrients)), k: portion.k }));
@@ -38,7 +41,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
         />
         <span className="muted">g</span>
       </label>
-      <NutrientEditor n={it.nutrients} onChange={(n) => editItem(open, { nutrients: n })} />
+      <NutrientEditor n={it.nutrients} onChange={(n) => editItem(open, { nutrients: n, source: "manual", via: undefined })} />
       <div className="btn-row">
         {items.length > 1 && <button className="danger" onClick={() => { setItems(items.filter((_, j) => j !== open)); setOpen(null); }}>재료 빼기</button>}
         <button onClick={() => setOpen(null)}>닫기</button>
@@ -103,12 +106,13 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
         </label>
 
         <AmountEditor portion={portion} onChange={setPortion} />
-        <NutrientEditor n={total} onChange={(n) => setPortion(withNutrients(portion, n))} />
+        <NutrientEditor n={total} onChange={(n) => { setOwnN(true); setPortion(withNutrients(portion, n)); }} />
+        {items.length === 1 && <p className="muted small">출처<SrcTag label={sourceLabel(items[0])} /></p>}
 
         {items.length > 1 && (
           <PartsList
             label="식재료"
-            parts={items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients }))}
+            parts={items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients, tag: sourceLabel(i) }))}
             onPick={(i) => setOpen(open === i ? null : i)}
             open={open}
             editor={itemEditor}

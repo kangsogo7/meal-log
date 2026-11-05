@@ -67,7 +67,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
           kind,
           place: shop,
           title: r.name.trim(),
-          items: [{ name: r.name.trim(), amountText: g ? `${g}g` : "", grams: g, source: "ai" as const, nutrients: portionNutrients(r.portion) }],
+          items: [{ name: r.name.trim(), amountText: g ? `${g}g` : "", grams: g, source: "ai" as const, via: saved?.result.type === "label" ? "label" as const : "photo" as const, nutrients: portionNutrients(r.portion) }],
           k: r.portion.k,
         };
       }),
