@@ -17,6 +17,9 @@ const PREV = -10;
 /** 예전에 먹은 것 (즐겨찾기 또는 이전 기록의 음식·재료) */
 interface Prev { label: string; grams: number | null; nutrients: Nutrients; exact: boolean }
 
+/** 재료의 g: 저장된 g, 없으면 적힌 양에서 ("1회 제공량(110g)" → 110) */
+const itemGrams = (i: Item) => i.grams || Number(i.amountText.match(/(\d+(?:\.\d+)?)\s*g(?![a-z])/i)?.[1]) || null;
+
 /** 재료와 비슷한 즐겨찾기·이전 기록 전부 (순서는 rankUserFoods: 즐겨찾기 → 이전 기록, 이름이 가까운 것 먼저) */
 async function findPrev(names: string[]): Promise<Prev[][]> {
   const [saved, entries] = await Promise.all([db.saved.toArray(), db.entries.orderBy("createdAt").reverse().toArray()]);
@@ -24,7 +27,8 @@ async function findPrev(names: string[]): Promise<Prev[][]> {
   const seen = new Set<string>();
   for (const f of saved) {
     const name = `${f.place ? f.place + " " : ""}${f.title}`;
-    const g = f.items.every((i) => i.grams) ? f.items.reduce((a, i) => a + (i.grams ?? 0), 0) : null;
+    const gs = f.items.map(itemGrams);
+    const g = gs.every(Boolean) ? gs.reduce((a, x) => a! + x!, 0) : null;
     seen.add(norm(f.title));
     pool.push({ name: f.title, place: f.place, fav: f.groupId != null, at: f.updatedAt, label: `${f.groupId != null ? "★ " : "이전 기록 · "}${name}${g ? ` ${Math.round(g)}g` : ""}`, grams: g, nutrients: f.total, exact: false });
   }
@@ -35,7 +39,7 @@ async function findPrev(names: string[]): Promise<Prev[][]> {
       const key = norm(i.name);
       if (seen.has(key)) continue;
       seen.add(key);
-      pool.push({ name: i.name, fav: false, at: e.createdAt, label: `이전 기록 · ${i.name}${i.grams ? ` ${Math.round(i.grams)}g` : ""}`, grams: i.grams, nutrients: i.nutrients, exact: false });
+      pool.push({ name: i.name, fav: false, at: e.createdAt, label: `이전 기록 · ${i.name}${itemGrams(i) ? ` ${Math.round(itemGrams(i)!)}g` : ""}`, grams: itemGrams(i), nutrients: i.nutrients, exact: false });
     }
   }
   return names.map((n) => rankUserFoods(pool, n).map(({ label, grams, nutrients, exact }) => ({ label, grams, nutrients, exact })));
@@ -49,13 +53,18 @@ interface Row {
   grams: number | null;
   ai?: { grams: number; nutrients: Nutrients };
   manual: Nutrients;
+  /** g이 저장 안 된 즐겨찾기·이전 기록을 고를 때 적혀 있던 g. 이 g을 그 음식 영양성분의 기준으로 보고 g을 고치면 비율대로 */
+  prevBase?: number | null;
 }
 
 const prevOf = (r: Row) => (r.choice <= PREV ? r.prev[PREV - r.choice] : undefined);
 
 function rowNutrients(r: Row): Nutrients {
   const p = prevOf(r);
-  if (p) return p.grams ? scaleNutrients(p.nutrients, (r.grams ?? p.grams) / p.grams) : p.nutrients;
+  if (p) {
+    const base = p.grams ?? r.prevBase;
+    return base && r.grams ? scaleNutrients(p.nutrients, r.grams / base) : p.nutrients;
+  }
   if (r.choice >= 0) return scaleNutrients(r.candidates[r.choice].per100, (r.grams ?? 0) / 100);
   if (r.choice === AI && r.ai) return r.ai.grams ? scaleNutrients(r.ai.nutrients, (r.grams ?? r.ai.grams) / r.ai.grams) : r.ai.nutrients;
   return r.manual;
@@ -96,7 +105,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
         const prev = prevs[i];
         // 이름이 똑같은 즐겨찾기·이전 기록이 있으면 그걸 먼저 고름 (g을 안 적었으면 그때 양)
         const p = prev[0]?.exact ? prev[0] : undefined;
-        return { line, candidates, prev, choice: p ? PREV : candidates.length ? 0 : MANUAL, grams: line.grams ?? (p ? p.grams : null), manual: { ...ZERO } };
+        return { line, candidates, prev, choice: p ? PREV : candidates.length ? 0 : MANUAL, grams: line.grams ?? (p ? p.grams : null), prevBase: p && !p.grams ? line.grams : undefined, manual: { ...ZERO } };
       });
       if (settings.geminiKey) {
         try {
@@ -171,7 +180,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
                   <select value={r.choice} onChange={(e) => {
                     const choice = Number(e.target.value);
                     const p = choice <= PREV ? r.prev[PREV - choice] : undefined;
-                    update(i, { choice, ...(p && !r.grams && p.grams ? { grams: p.grams } : {}) });
+                    update(i, { choice, prevBase: p && !p.grams ? r.grams : undefined, ...(p && !r.grams && p.grams ? { grams: p.grams } : {}) });
                   }}>
                     {r.prev.map((p, j) => <option key={`p${j}`} value={PREV - j}>{p.label}</option>)}
                     {r.candidates.map((c, j) => <option key={j} value={j}>{foodLabel(c)}</option>)}
@@ -183,6 +192,11 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
                     <em>g</em>
                   </label>
                 </div>
+                {prevOf(r) && !prevOf(r)!.grams && (
+                  <p className="muted small">
+                    {r.prevBase ? `g이 저장되지 않은 음식이라, 고를 때의 ${r.prevBase}g을 기준으로 계산해요` : "g이 저장되지 않은 음식이라 저장된 영양성분 그대로예요"}
+                  </p>
+                )}
                 {r.choice === MANUAL && <NutrientEditor n={r.manual} onChange={(n) => update(i, { manual: n })} />}
               </li>
             ))}
