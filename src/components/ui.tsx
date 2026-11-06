@@ -119,20 +119,20 @@ export function DateNav({ date, onChange }: { date: string; onChange: (d: string
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
-const Chevron = ({ dir }: { dir: "left" | "right" | "down" }) => (
+const Chevron = ({ dir }: { dir: "left" | "right" | "down" | "up" }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d={dir === "left" ? "M15 5l-7 7 7 7" : dir === "right" ? "M9 5l7 7-7 7" : "M5 9l7 7 7-7"} />
+    <path d={{ left: "M15 5l-7 7 7 7", right: "M9 5l7 7-7 7", down: "M5 9l7 7 7-7", up: "M5 15l7-7 7 7" }[dir]} />
   </svg>
 );
 
 /**
  * 앱 달력 (휴대폰 기본 달력은 앱 테마를 따르지 않음). 날짜를 고르고 ✓로 확정, 바깥을 누르면 취소.
- * 제목을 누르면 월 고르기. max 이후는 못 고름
+ * 제목을 누르면 날짜 → 월 → 연도 목록 순으로. max 이후는 못 고름
  */
 function DatePicker({ value, max, onPick, onClose }: { value: string; max?: string; onPick: (d: string) => void; onClose: () => void }) {
   const z = useLayer();
   const [picked, setPicked] = useState(value);
-  const [months, setMonths] = useState(false);
+  const [mode, setMode] = useState<"days" | "months" | "years">("days");
   const [view, setView] = useState(() => {
     const [y, m] = value.split("-").map(Number);
     return { y, m };
@@ -140,38 +140,57 @@ function DatePicker({ value, max, onPick, onClose }: { value: string; max?: stri
   const today = todayStr();
   const ym = (y: number, m: number) => `${y}-${pad2(m)}`;
   const move = (n: number) => setView(({ y, m }) => {
-    if (months) return { y: y + n, m };
+    if (mode !== "days") return { y: y + n * (mode === "years" ? 12 : 1), m };
     const d = new Date(y, m - 1 + n, 1);
     return { y: d.getFullYear(), m: d.getMonth() + 1 };
   });
   const blanks = new Date(view.y, view.m - 1, 1).getDay();
   const days = new Date(view.y, view.m, 0).getDate();
-  const canNext = !max || (months ? String(view.y) < max.slice(0, 4) : ym(view.y, view.m) < max.slice(0, 7));
+  // 연도 목록은 12년씩
+  const firstYear = view.y - (view.y % 12);
+  const canNext = !max || (
+    mode === "years" ? firstYear + 11 < Number(max.slice(0, 4))
+    : mode === "months" ? String(view.y) < max.slice(0, 4)
+    : ym(view.y, view.m) < max.slice(0, 7)
+  );
   const reset = () => {
     const [y, m] = today.split("-").map(Number);
     setPicked(today);
     setView({ y, m });
-    setMonths(false);
+    setMode("days");
   };
   return createPortal(
     <div className="dialog-backdrop dp-backdrop" style={{ zIndex: z }} onClick={onClose}>
       <div className="dialog date-picker" role="dialog" aria-label="날짜 고르기" onClick={(e) => e.stopPropagation()}>
         <div className="dp-head">
-          <button className="dp-title" aria-expanded={months} onClick={() => setMonths(!months)}>
-            {months ? `${view.y}년` : `${view.y}년 ${view.m}월`}
-            <Chevron dir={months ? "down" : "right"} />
+          <button className="dp-title" onClick={() => setMode(mode === "days" ? "months" : mode === "months" ? "years" : "months")}>
+            {mode === "years" ? `${firstYear}–${firstYear + 11}년` : mode === "months" ? `${view.y}년` : `${view.y}년 ${view.m}월`}
+            <Chevron dir={mode === "days" ? "right" : mode === "months" ? "down" : "up"} />
           </button>
-          <button className="dp-arrow" onClick={() => move(-1)} aria-label={months ? "이전 해" : "이전 달"}><Chevron dir="left" /></button>
-          <button className="dp-arrow" onClick={() => move(1)} disabled={!canNext} aria-label={months ? "다음 해" : "다음 달"}><Chevron dir="right" /></button>
+          <button className="dp-arrow" onClick={() => move(-1)} aria-label="이전"><Chevron dir="left" /></button>
+          <button className="dp-arrow" onClick={() => move(1)} disabled={!canNext} aria-label="다음"><Chevron dir="right" /></button>
         </div>
-        {months ? (
+        {mode === "years" ? (
+          <div className="dp-months">
+            {Array.from({ length: 12 }, (_, i) => firstYear + i).map((y) => (
+              <button
+                key={y}
+                className={y === view.y ? "on" : ""}
+                disabled={!!max && y > Number(max.slice(0, 4))}
+                onClick={() => { setView({ y, m: view.m }); setMode("months"); }}
+              >
+                {y}년
+              </button>
+            ))}
+          </div>
+        ) : mode === "months" ? (
           <div className="dp-months">
             {Array.from({ length: 12 }, (_, i) => (
               <button
                 key={i}
                 className={i + 1 === view.m ? "on" : ""}
                 disabled={!!max && ym(view.y, i + 1) > max.slice(0, 7)}
-                onClick={() => { setView({ y: view.y, m: i + 1 }); setMonths(false); }}
+                onClick={() => { setView({ y: view.y, m: i + 1 }); setMode("days"); }}
               >
                 {i + 1}월
               </button>
