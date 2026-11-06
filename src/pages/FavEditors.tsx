@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, r1, savedKey, scaleNutrients, sumNutrients, ZERO, type Item, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { BackIcon, flash, NumInput, NutrientEditor, NutrientLine, Screen, Sheet } from "../components/ui";
+import { BackIcon, flash, NumInput, NutrientEditor, NutrientLine, Screen, FullScreen } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 
 // ---------------------------------------------------------------------------
@@ -46,7 +46,7 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
   };
 
   return (
-    <Sheet
+    <FullScreen
       title="음식 수정"
       onClose={onClose}
       footer={
@@ -84,7 +84,7 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
           <IngredientEditor items={ings} onChange={setIngs} />
         )}
       </div>
-    </Sheet>
+    </FullScreen>
   );
 }
 
@@ -177,7 +177,7 @@ function SavedFoodPicker({ onPick, onClose }: { onPick: (s: SavedFood) => void; 
     .filter((s) => !query || `${s.place ?? ""} ${s.title}`.toLowerCase().includes(query))
     .sort((a, b) => Number(b.groupId != null) - Number(a.groupId != null) || b.uses - a.uses || b.updatedAt - a.updatedAt);
   return (
-    <Sheet title="음식 추가" onClose={onClose} tall>
+    <FullScreen title="음식 추가" onClose={onClose} tall>
       <input className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="즐겨찾기·최근 음식 검색" />
       <ul className="mini-list">
         {list.map((s) => (
@@ -188,7 +188,7 @@ function SavedFoodPicker({ onPick, onClose }: { onPick: (s: SavedFood) => void; 
         ))}
       </ul>
       {list.length === 0 && <p className="muted small">음식이 없어요</p>}
-    </Sheet>
+    </FullScreen>
   );
 }
 

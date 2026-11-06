@@ -9,7 +9,7 @@ import {
 } from "../checks";
 import { askNotifyPermission, canNotify } from "../notify";
 import { useLatestBody } from "../hooks";
-import { BackIcon, flash, NumInput, Screen, Sheet } from "../components/ui";
+import { BackIcon, flash, NumInput, Screen, Sheet, FullScreen } from "../components/ui";
 
 const CheckIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -100,7 +100,7 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
   const time = (t: number) => new Date(t).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
 
   return (
-    <Sheet title="물 · 영양제" onClose={onClose}>
+    <FullScreen title="물 · 영양제" onClose={onClose}>
       <section className="check-section">
         <div className="row-between">
           <b><span className="meal-ic" aria-hidden>💧</span>물</b>
@@ -146,7 +146,7 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
       </section>
 
       <button className="block" onClick={onManage}>영양제 목록 · 물 목표 · 알림</button>
-    </Sheet>
+    </FullScreen>
   );
 }
 

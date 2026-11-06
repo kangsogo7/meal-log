@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { baseServing, db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
-import { BackIcon, flash, MealSeg, Screen } from "../components/ui";
+import { BackIcon, Dialog, flash, MealSeg, Screen } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
@@ -89,9 +89,12 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
     }
   };
 
+  // 이미 기록한 것을 빼기 전에 한 번 더 물어봄
+  const [confirmDel, setConfirmDel] = useState<Entry | null>(null);
   const remove = async (e: Entry) => {
+    setConfirmDel(null);
     await db.entries.delete(e.id!);
-    flash(`${e.title} 뺐어요`, 4000, { label: "되돌리기", run: () => db.entries.add(e) });
+    flash(`${e.title} 삭제했어요`, 4000, { label: "되돌리기", run: () => db.entries.add(e) });
   };
 
   return (
@@ -128,7 +131,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
                     <div key={e.id} className="logged-row">
                       <span className="logged-title">{e.title}</span>
                       <span className="muted">{Math.round(e.total.kcal).toLocaleString()}</span>
-                      <button className="del-btn" aria-label={`${e.title} 빼기`} onClick={() => remove(e)}>✕</button>
+                      <button className="del-btn" aria-label={`${e.title} 빼기`} onClick={() => setConfirmDel(e)}>✕</button>
                     </div>
                   ))}
                 </div>
@@ -142,6 +145,19 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
       {mode === "home" && <HomeForm onSave={(d) => record([d])} actionLabel={recordLabel} />}
       {mode === "photo" && <PhotoForm onSave={(list) => record(list)} />}
       {mode === "manual" && <ManualForm onSave={(d) => record([d])} actionLabel={recordLabel} />}
+      {confirmDel && (
+        <Dialog
+          title="기록 삭제"
+          actions={
+            <>
+              <button onClick={() => setConfirmDel(null)}>취소</button>
+              <button className="danger" onClick={() => remove(confirmDel)}>삭제</button>
+            </>
+          }
+        >
+          <p>{mealLabel}에 기록한 "{confirmDel.title}"({Math.round(confirmDel.total.kcal).toLocaleString()}kcal)을 삭제할까요?</p>
+        </Dialog>
+      )}
     </Screen>
   );
 }

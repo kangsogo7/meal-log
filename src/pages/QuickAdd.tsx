@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
-import { flash, NutrientGrid, PartsList, Sheet } from "../components/ui";
+import { flash, NutrientGrid, PartsList, FullScreen } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import { shareFood, type SharedFood } from "../foodShare";
 import { FolderScreen, FoodEditScreen, savedDraft, servingLine, SetEditScreen } from "./FavoritesTab";
@@ -114,7 +114,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
       )}
 
       {amountOf && (
-        <Sheet
+        <FullScreen
           title={amountOf.food.title}
           onClose={() => setAmountOf(null)}
           action={<FavStar getDraft={() => ({ kind: amountOf.food.kind, title: amountOf.food.title, place: amountOf.food.place, items: amountOf.food.items })} />}
@@ -134,10 +134,10 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
               />
             )}
           </div>
-        </Sheet>
+        </FullScreen>
       )}
       {openSet && (
-        <Sheet title={openSet.name} onClose={() => setOpenSet(null)}>
+        <FullScreen title={openSet.name} onClose={() => setOpenSet(null)}>
           <div className="form food-detail">
             <NutrientGrid n={openSet.total} />
             <PartsList
@@ -154,7 +154,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
               <button className="primary" onClick={() => { onRecord(openSet.entries, openSet.name); setOpenSet(null); }}>{recordLabel}</button>
             </div>
           </div>
-        </Sheet>
+        </FullScreen>
       )}
       {editFood && <SavedFoodEditSheet food={editFood} onClose={() => setEditFood(null)} />}
       {manage === "folders" && (

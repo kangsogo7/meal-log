@@ -82,6 +82,15 @@ export function Screen({ title, left, right, footer, children }: { title: ReactN
   );
 }
 
+/** 내용이 길어 스크롤이 생길 만한 창: 아래 팝업(Sheet) 대신 전체 화면. Sheet와 같은 모양으로 씀 (← 로 닫기) */
+export function FullScreen({ title, onClose, children, footer, action }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; action?: ReactNode; tall?: boolean }) {
+  return (
+    <Screen left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>} title={title} right={action} footer={footer}>
+      {children}
+    </Screen>
+  );
+}
+
 /** 펼친 내용이 창 아래로 잘려 있으면, 그 창 안에서만 보일 만큼 부드럽게 올림 (이미 다 보이면 그대로) */
 export function revealInSheet(el: Element | null | undefined) {
   const box = el?.closest(".sheet-body, .screen-body");

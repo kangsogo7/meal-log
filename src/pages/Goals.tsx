@@ -7,7 +7,7 @@ import { getCheatDays } from "../cheat";
 import { getProfileHistory, lastGoalChange, saveProfile } from "../profileHistory";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
-import { Dialog, flash, NumInput, Sheet } from "../components/ui";
+import { Dialog, flash, NumInput, FullScreen } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
 export default function Goals() {
@@ -405,7 +405,7 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
     }
   };
   return (
-    <Sheet
+    <FullScreen
       title={r.source === "inbody" ? "인바디 결과 확인" : "체중 기록"}
       onClose={onClose}
       footer={
@@ -427,6 +427,6 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
         </div>
         <label>기초대사량 (kcal) <span className="muted">선택</span><NumInput value={r.bmr} onChange={(v) => setR({ ...r, bmr: v ?? undefined })} /></label>
       </div>
-    </Sheet>
+    </FullScreen>
   );
 }

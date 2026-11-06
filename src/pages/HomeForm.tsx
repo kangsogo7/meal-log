@@ -6,7 +6,7 @@ import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
 import { askFood, GeminiError, resolveIngredients, type MenuEstimate, type WebSource } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
-import { DataNote, flash, NumInput, revealInSheet, Sheet, SourceLinks, NutrientEditor } from "../components/ui";
+import { DataNote, flash, NumInput, revealInSheet, FullScreen, SourceLinks, NutrientEditor } from "../components/ui";
 import AiSheet, { type AiView } from "../components/AiSheet";
 import FoodDetail from "../components/FoodDetail";
 import { makePortion, portionGrams, portionNutrients, type Portion } from "../portion";
@@ -372,7 +372,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
       )}
 
       {openRow && (
-        <Sheet title={openRow.line.text} onClose={() => setOpen(null)}>
+        <FullScreen title={openRow.line.text} onClose={() => setOpen(null)}>
           <div className="form">
             <label className="inline ing-g big">먹은 양
               <NumInput value={openRow.grams} onChange={(g) => update(openRow.id, (x) => ({ ...x, grams: g }))} placeholder="g" decimals={1} className={needsGrams(openRow) ? "missing" : ""} />
@@ -404,7 +404,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               <button className="primary" onClick={() => setOpen(null)}>확인</button>
             </div>
           </div>
-        </Sheet>
+        </FullScreen>
       )}
     </div>
   );

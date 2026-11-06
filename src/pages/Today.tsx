@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { DateNav, ExtrasList, NutrientGrid, NutrientLine, Sheet } from "../components/ui";
+import { DateNav, ExtrasList, NutrientGrid, NutrientLine, FullScreen } from "../components/ui";
 import { Ring } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
@@ -173,7 +173,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
         const sub = sumNutrients(list.map((e) => e.total));
         const ev = target && profile && list.length && !cheat ? evaluateMeal(meal.key, sub, target, profile.goal) : null;
         return (
-          <Sheet
+          <FullScreen
             title={`${meal.icon} ${meal.label} · ${Math.round(sub.kcal).toLocaleString()}kcal`}
             onClose={() => setOpenMeal(null)}
             footer={
@@ -213,7 +213,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
             ) : (
               <p className="muted small">기록이 없어요</p>
             )}
-          </Sheet>
+          </FullScreen>
         );
       })()}
 

@@ -1,7 +1,7 @@
 // 그룹: 멤버를 초대해 서로의 식단을 날짜별로 보고 댓글을 남김
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { addDays, formatDate, MEALS, todayStr, type Meal } from "../db";
-import { BackIcon, flash, Screen, Sheet } from "../components/ui";
+import { BackIcon, flash, Screen, Sheet, FullScreen } from "../components/ui";
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { openSharedFood } from "../foodShare";
@@ -485,7 +485,7 @@ ${link}
     }
   };
   return (
-    <Sheet title="멤버" onClose={onClose}>
+    <FullScreen title="멤버" onClose={onClose}>
       <div className="form">
         <div className="card inset invite-box">
           <span className="muted small">초대 코드</span>
@@ -537,7 +537,7 @@ ${link}
         )}
         {error && <p className="error small">{error}</p>}
       </div>
-    </Sheet>
+    </FullScreen>
   );
 }
 
