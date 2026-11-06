@@ -1149,4 +1149,15 @@ label.inline.ing-g.big input { width: 110px; }
 /* 세트 편집: 탭 줄 오른쪽 끝 */
 .qa-tabs button.qa-tabs-manage { margin-left: auto; color: var(--accent); font-size: 0.88rem; font-weight: 600; border-bottom-color: transparent; }
 /* 전체 화면의 입력칸은 카드처럼 흰 바탕 (바탕색과 구분) */
-.screen-page :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) { background: var(--card); }
+.screen-page input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), .screen-page select, .screen-page textarea { background: var(--card); }
+
+/* 먹은 양: 칸 바탕을 하나로 (값 칸만 색이 달라 조각나 보이던 것), g 입력과 배수 조절을 한 줄에 */
+.stepper { background: var(--card); }
+.stepper button { width: 44px; min-height: 44px; }
+.stepper button:disabled { background: transparent; }
+.stepper-value { min-width: 66px; }
+.stepper .stepper-input { background: transparent; }
+.stepper .stepper-input:focus { background: var(--inset); }
+.amount-row, .food-view .amount-row, .food-detail .amount-row, .food-detail-body .amount-row { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.amount-row label.inline input { width: 76px; }
+.amount-row .stepper { align-self: auto; }
