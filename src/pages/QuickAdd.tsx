@@ -54,6 +54,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
         {tabs.map((t) => (
           <button key={t.label} role="tab" aria-selected={t.on} className={t.on ? "on" : ""} onClick={() => setSrc(t.go)}>{t.label}</button>
         ))}
+        {src.kind === "sets" && sets.length > 0 && <button className="qa-tabs-manage" onClick={() => setManage("sets")}>세트 편집</button>}
       </div>
 
       {src.kind === "fav" && groups.length > 1 && (
@@ -80,7 +81,6 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
               />
             ))}
           </div>
-          {sets.length > 0 && <button className="link small quick-manage" onClick={() => setManage("sets")}>세트 편집</button>}
         </>
       ) : (
         <>

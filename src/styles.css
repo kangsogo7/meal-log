@@ -1145,3 +1145,8 @@ label.inline.ing-g.big input { width: 110px; }
 .qa-card .qa-open > span:not(.qa-title) { padding-right: 34px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qa-card .qa-add { top: auto; bottom: 8px; right: 8px; width: 32px; height: 32px; min-height: 32px; }
 .toast-action { flex: none; white-space: nowrap; }
+
+/* 세트 편집: 탭 줄 오른쪽 끝 */
+.qa-tabs button.qa-tabs-manage { margin-left: auto; color: var(--accent); font-size: 0.88rem; font-weight: 600; border-bottom-color: transparent; }
+/* 전체 화면의 입력칸은 카드처럼 흰 바탕 (바탕색과 구분) */
+.screen-page :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) { background: var(--card); }
