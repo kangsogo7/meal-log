@@ -1134,3 +1134,6 @@ label.inline.ing-g.big input { width: 110px; }
 .screen-page .quick-chips button:not(.on) { background: var(--card); border: 1px solid var(--border); }
 .screen-page .qa-card .qa-add { background: var(--inset); }
 .screen-page .ngrid-sum .ng-cell, .screen-page .ngrid-sum .extras > div { background: var(--inset); }
+/* 카드 음식 이름은 두 줄까지 (긴 이름만 카드가 한 줄 높아짐, 같은 줄 카드는 높이를 맞춤) */
+.qa-card .qa-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+.qa-card .qa-open { height: 100%; justify-content: center; }
