@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { db, r1, scaleNutrients, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
-import { BackIcon, MealSeg, NumInput, NutrientEditor, NutrientGrid, PartsList, Screen, SrcTag } from "../components/ui";
-import { AmountEditor, portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
+import { BackIcon, MealSeg, NumInput, NutrientEditor, Screen, SrcTag } from "../components/ui";
+import FoodView, { FoodActions } from "../components/FoodView";
+import { portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
 import { shareOut } from "./QuickAdd";
 
@@ -80,41 +81,40 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
         </>
       }
     >
-      <div className="form entry-edit">
-        <input className="entry-title" value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} aria-label="이름" />
-        {e.place && <span className="muted small entry-place">{e.place}</span>}
-        <MealSeg value={e.meal} onChange={(meal) => setE({ ...e, meal })} />
-
-        <NutrientGrid n={total} />
-        <AmountEditor portion={portion} onChange={setPortion} />
-
-        {items.length > 1 && (
-          <PartsList
-            label="재료"
-            parts={items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients, tag: sourceLabel(i) }))}
-            onPick={(i) => setOpen(open === i ? null : i)}
-            open={open}
-            editor={itemEditor}
-          />
-        )}
-
-        {items.length === 1 && <span className="muted small">출처<SrcTag label={sourceLabel(items[0])} /></span>}
-        <div className="entry-actions">
-          <button className={editN ? "on" : ""} aria-expanded={editN} onClick={() => setEditN(!editN)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 20h4L19 9l-4-4L4 16v4Z" /><path d="M13.5 6.5l4 4" /></svg>
-            영양성분 고치기
-          </button>
-          <button onClick={() => shareOut({ kind: current.kind, title: current.title, place: current.place, items: current.items, k: current.k })}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 15V3" /><path d="M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
-            공유
-          </button>
-        </div>
+      <FoodView
+        top={
+          <>
+            <input className="entry-title" value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} aria-label="이름" />
+            {e.place && <span className="muted small entry-place">{e.place}</span>}
+            <MealSeg value={e.meal} onChange={(meal) => setE({ ...e, meal })} />
+          </>
+        }
+        n={total}
+        portion={portion}
+        onPortion={setPortion}
+        parts={items.length > 1 ? {
+          label: "재료",
+          parts: items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients, tag: sourceLabel(i) })),
+          onPick: (i: number) => setOpen(open === i ? null : i),
+          open,
+          editor: itemEditor,
+        } : undefined}
+        actions={
+          <>
+            {items.length === 1 && <span className="muted small">출처<SrcTag label={sourceLabel(items[0])} /></span>}
+            <FoodActions
+              editOn={editN}
+              onEdit={() => setEditN(!editN)}
+              onShare={() => shareOut({ kind: current.kind, title: current.title, place: current.place, items: current.items, k: current.k })}
+            />
+          </>
+        }
+      >
         {editN && <NutrientEditor n={total} onChange={(n) => { setOwnN(true); setPortion(withNutrients(portion, n)); }} />}
-
         <label>메모
           <input value={e.memo ?? ""} onChange={(ev) => setE({ ...e, memo: ev.target.value })} placeholder="예: 배불렀음" />
         </label>
-      </div>
+      </FoodView>
     </Screen>
   );
 }

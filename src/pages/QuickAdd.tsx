@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
-import { flash, NutrientGrid, PartsList, FullScreen } from "../components/ui";
-import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
+import { flash, FullScreen } from "../components/ui";
+import FoodView, { FoodActions } from "../components/FoodView";
+import { portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import { shareFood, type SharedFood } from "../foodShare";
 import { savedDraft, servingLine, SetEditScreen } from "./FavoritesTab";
 import { SavedFoodEditSheet, SetComposeScreen } from "./FavEditors";
@@ -112,42 +113,48 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
           title={amountOf.food.title}
           onClose={() => setAmountOf(null)}
           action={<FavStar getDraft={() => ({ kind: amountOf.food.kind, title: amountOf.food.title, place: amountOf.food.place, items: amountOf.food.items })} />}
+          footer={<button className="primary block big" onClick={() => { onRecord([savedDraft(amountOf.food, amountOf.portion)]); setAmountOf(null); }}>{recordLabel}</button>}
         >
-          <div className="form food-detail">
-            <NutrientGrid n={portionNutrients(amountOf.portion)} />
-            <AmountEditor portion={amountOf.portion} onChange={(p) => setAmountOf({ ...amountOf, portion: p })} />
-            <button className="primary block big" onClick={() => { onRecord([savedDraft(amountOf.food, amountOf.portion)]); setAmountOf(null); }}>{recordLabel}</button>
-            <div className="row-between detail-links">
-              <button className="text-btn muted" onClick={() => { setEditFood(amountOf.food); setAmountOf(null); }}>영양정보 고치기</button>
-              <button className="text-btn muted" onClick={() => shareOut({ kind: amountOf.food.kind, title: amountOf.food.title, place: amountOf.food.place, items: portionItems(amountOf.food, amountOf.portion), k: amountOf.portion.k })}>공유</button>
-            </div>
-            {amountOf.food.items.length > 1 && (
-              <PartsList
-                label="식재료"
-                parts={portionItems(amountOf.food, amountOf.portion).map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients }))}
+          <FoodView
+            n={portionNutrients(amountOf.portion)}
+            portion={amountOf.portion}
+            onPortion={(p) => setAmountOf({ ...amountOf, portion: p })}
+            parts={amountOf.food.items.length > 1 ? {
+              label: "재료",
+              parts: portionItems(amountOf.food, amountOf.portion).map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients })),
+            } : undefined}
+            actions={
+              <FoodActions
+                onEdit={() => { setEditFood(amountOf.food); setAmountOf(null); }}
+                onShare={() => shareOut({ kind: amountOf.food.kind, title: amountOf.food.title, place: amountOf.food.place, items: portionItems(amountOf.food, amountOf.portion), k: amountOf.portion.k })}
               />
-            )}
-          </div>
+            }
+          />
         </FullScreen>
       )}
       {openSet && (
-        <FullScreen title={openSet.name} onClose={() => setOpenSet(null)}>
-          <div className="form food-detail">
-            <NutrientGrid n={openSet.total} />
-            <PartsList
-              label="구성"
-              parts={openSet.entries.map((e) => ({
+        <FullScreen
+          title={openSet.name}
+          onClose={() => setOpenSet(null)}
+          footer={
+            <>
+              <button onClick={() => { setComposeSet(openSet.id!); setOpenSet(null); }}>구성 수정</button>
+              <button className="primary block big" onClick={() => { onRecord(openSet.entries, openSet.name); setOpenSet(null); }}>{recordLabel}</button>
+            </>
+          }
+        >
+          <FoodView
+            n={openSet.total}
+            parts={{
+              label: "구성",
+              parts: openSet.entries.map((e) => ({
                 name: e.title,
                 place: e.place,
                 amount: e.items.every((x) => x.grams) ? `${Math.round(e.items.reduce((a, x) => a + (x.grams ?? 0), 0))}g` : undefined,
                 n: sumNutrients(e.items.map((x) => x.nutrients)),
-              }))}
-            />
-            <div className="set-actions">
-              <button onClick={() => { setComposeSet(openSet.id!); setOpenSet(null); }}>구성 수정</button>
-              <button className="primary" onClick={() => { onRecord(openSet.entries, openSet.name); setOpenSet(null); }}>{recordLabel}</button>
-            </div>
-          </div>
+              })),
+            }}
+          />
         </FullScreen>
       )}
       {editFood && <SavedFoodEditSheet food={editFood} onClose={() => setEditFood(null)} />}

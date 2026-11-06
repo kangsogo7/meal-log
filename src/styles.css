@@ -1094,13 +1094,13 @@ label.inline.ing-g input { width: 72px; }
 label.inline.ing-g.big input { width: 110px; }
 .ing-many { margin-top: 2px; }
 /* 기록 수정: 덩어리마다 16px, 각 칸 자체 여백은 없앰 */
-.entry-edit { display: flex; flex-direction: column; gap: 16px; }
-.entry-edit > *, .entry-edit > label, .entry-edit > .seg { margin-top: 0; margin-bottom: 0; }
-.entry-edit .amount-row { gap: 10px; }
-.entry-edit .amount-row label { margin-bottom: 0; }
-.entry-edit .entry-place { margin-top: -10px; }
-.entry-edit .entry-links { margin-bottom: 0; }
-.entry-edit > .set-parts-head + .set-parts { margin-top: -8px; }
+.food-view { display: flex; flex-direction: column; gap: 16px; }
+.food-view > *, .food-view > label, .food-view > .seg { margin-top: 0; margin-bottom: 0; }
+.food-view .amount-row { gap: 10px; }
+.food-view .amount-row label { margin-bottom: 0; }
+.food-view .entry-place { margin-top: -10px; }
+.food-view .entry-links { margin-bottom: 0; }
+.food-view > .set-parts-head + .set-parts { margin-top: -8px; }
 
 /* 빼기(✕) 버튼: 글자처럼 보이지 않게 테두리 있는 버튼 (재료 줄·오늘 기록·즐겨찾기 재료 공통) */
 .del-btn { flex: none; display: grid; place-items: center; width: 36px; height: 44px; min-height: 44px; padding: 0; border: none; border-radius: 10px; background: none; color: var(--over); font-size: 1.15rem; font-weight: 700; }
@@ -1137,3 +1137,11 @@ label.inline.ing-g.big input { width: 110px; }
 /* 카드 음식 이름은 두 줄까지 (긴 이름만 카드가 한 줄 높아짐, 같은 줄 카드는 높이를 맞춤) */
 .qa-card .qa-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
 .qa-card .qa-open { height: 100%; justify-content: center; }
+
+/* 자주 먹는 것 카드: 세 줄 높이 고정 (이름 / kcal / 양·재료), +는 오른쪽 아래 → 이름은 카드 폭 전체 */
+.qa-card { height: 84px; }
+.qa-card .qa-open { height: 100%; padding: 10px 12px; justify-content: flex-start; gap: 1px; }
+.qa-card .qa-title { display: block; -webkit-line-clamp: unset; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qa-card .qa-open > span:not(.qa-title) { padding-right: 34px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-card .qa-add { top: auto; bottom: 8px; right: 8px; width: 32px; height: 32px; min-height: 32px; }
+.toast-action { flex: none; white-space: nowrap; }

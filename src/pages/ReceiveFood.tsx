@@ -1,8 +1,9 @@
 // 공유받은 음식(링크·그룹의 "나도 기록")을 양·날짜·끼니만 확인하고 바로 식단에 기록
 import { useState } from "react";
 import { addDays, formatDate, MEALS, sumNutrients, todayStr, type Meal } from "../db";
-import { flash, MealSeg, NutrientGrid, FullScreen } from "../components/ui";
-import { AmountEditor, portionItems, portionNutrients, storedPortion } from "../portion";
+import { flash, MealSeg, FullScreen } from "../components/ui";
+import FoodView from "../components/FoodView";
+import { portionItems, portionNutrients, storedPortion } from "../portion";
 import type { SharedFood } from "../foodShare";
 import { saveEntry } from "./AddSheet";
 import { FavStar } from "../favorites";
@@ -45,7 +46,8 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
       onClose={onClose}
       footer={<button className="primary block big" onClick={save} disabled={busy}>{busy ? "기록하는 중..." : `${dayWord} ${label}으로 기록`}</button>}
     >
-      <div className="form food-detail">
+      <FoodView
+        top={
         <div className="receive-head">
           {from && <span className="muted small">{from}님이 공유한 음식</span>}
           <div className="receive-title">
@@ -55,8 +57,11 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
           </div>
           {food.items.length > 1 && <span className="muted small">재료: {food.items.map((i) => i.name).join(" · ")}</span>}
         </div>
-        <NutrientGrid n={portionNutrients(portion)} />
-        <AmountEditor portion={portion} onChange={setPortion} />
+        }
+        n={portionNutrients(portion)}
+        portion={portion}
+        onPortion={setPortion}
+      >
         <div className="receive-date">
           <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
           <label className="date-label">
@@ -66,7 +71,7 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
           <button className="ghost" onClick={() => setDate(addDays(date, 1))} disabled={date >= today} aria-label="다음 날">▶</button>
         </div>
         <MealSeg value={meal} onChange={setMeal} />
-      </div>
+      </FoodView>
     </FullScreen>
   );
 }
