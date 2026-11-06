@@ -1,11 +1,13 @@
 // 재료로 요리: 재료를 하나씩 검색해 추가(또는 여러 줄 한 번에) → 줄마다 g, 누르면 어떤 값으로 계산할지 고르기
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { db, scaleNutrients, sourceLabel, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
 import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
-import { GeminiError, resolveIngredients, type WebSource } from "../gemini";
+import { askFood, GeminiError, resolveIngredients, type MenuEstimate, type WebSource } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
-import { DataNote, NumInput, Sheet, SourceLinks, NutrientEditor } from "../components/ui";
+import { DataNote, NumInput, NutrientLine, revealInSheet, Sheet, SourceLinks, NutrientEditor, SrcTag } from "../components/ui";
+import AiSheet, { type AiView } from "../components/AiSheet";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
 import { norm, rankUserFoods, type UserFoodCand } from "../userFoods";
@@ -111,6 +113,11 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
   // AI가 검색에서 실제로 참고한 페이지 (비어 있으면 근거 없이 추정)
   const [aiSources, setAiSources] = useState<WebSource[] | undefined>();
   const addRef = useRef<HTMLInputElement>(null);
+  // 재료 추가칸의 "AI에게 묻기" 창
+  const [ai, setAi] = useState<{ line: ParsedLine; candidates: Food[]; prev: Prev[]; view: AiView; prompt: string; est?: MenuEstimate; error?: string; busy: boolean } | null>(null);
+  // 합계·기록 막대는 화면 아래 칸(식단 기록 화면의 #add-foot)에 (입력칸을 가리거나 키보드에 따라 떠다니지 않게)
+  const [footEl, setFootEl] = useState<Element | null>(null);
+  useEffect(() => setFootEl(document.getElementById("add-foot")), []);
 
   // 재료 추가칸: 칠 때마다 내 기록·식약처에서 후보
   useEffect(() => {
@@ -154,6 +161,32 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     setAdd("");
     setSugg(null);
     addRef.current?.focus();
+    // 추가칸이 화면 밖으로 밀렸으면 보일 만큼만
+    setTimeout(() => revealInSheet(addRef.current), 50);
+  };
+
+  const sendAi = async () => {
+    if (!ai) return;
+    const text = ai.prompt.trim();
+    setAi({ ...ai, view: "result", busy: true, error: undefined, est: undefined });
+    try {
+      const est = await askFood(settings, text);
+      setAi((a) => a && { ...a, busy: false, est });
+    } catch (e) {
+      setAi((a) => a && { ...a, busy: false, error: e instanceof GeminiError ? e.message : "AI 확인에 실패했어요." });
+    }
+  };
+  const aiGrams = ai?.est ? ai.line.grams ?? (ai.est.grams || null) : null;
+  const aiN = ai?.est ? (ai.est.grams && aiGrams ? scaleNutrients(ai.est.nutrients, aiGrams / ai.est.grams) : ai.est.nutrients) : null;
+  /** AI 답으로 재료 한 줄 추가 */
+  const addAi = () => {
+    if (!ai?.est) return;
+    const est = ai.est;
+    setAiSources(est.sources);
+    setRows((rs) => [...rs, { ...makeRow(ai.line, ai.candidates, ai.prev, MANUAL), choice: AI, ai: { grams: est.grams, nutrients: est.nutrients }, grams: aiGrams }]);
+    setAi(null);
+    setAdd("");
+    setSugg(null);
   };
 
   /** 여러 줄 한 번에: 줄마다 자동으로 고르고, AI 키가 있으면 AI로 한 번 더 맞춰 봄 */
@@ -262,6 +295,9 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
           </div>
           {sugg && (
             <div className="ing-sugg">
+              {settings.geminiKey && (
+                <button className="ing-ai" onClick={() => setAi({ ...sugg, view: "ask", prompt: sugg.line.text, busy: false })}><b>AI에게 묻기</b><span className="muted small">검색해서 찾아 줘요</span></button>
+              )}
               {sugg.prev.slice(0, 5).map((p, j) => (
                 <button key={`p${j}`} onClick={() => pick(PREV - j)}><span>{p.label}</span><span className="muted small">내 기록{p.grams ? ` · ${Math.round(p.grams)}g` : ""}</span></button>
               ))}
@@ -288,6 +324,10 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
         <>
           {rows.some((r) => r.choice === AI) && <SourceLinks sources={aiSources} />}
           <DataNote />
+        </>
+      )}
+      {(() => {
+        const foot = rows.length > 0 && (
           <div className="ing-foot">
             <div className="cart-sum">
               <b>합계 {Math.round(total.kcal).toLocaleString()}kcal</b>
@@ -295,7 +335,32 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
             </div>
             <button className="primary cart-go" onClick={save} disabled={missing}>{actionLabel}</button>
           </div>
-        </>
+        );
+        return footEl ? createPortal(foot, footEl) : foot;
+      })()}
+
+      {ai && (
+        <AiSheet
+          view={ai.view}
+          prompt={ai.prompt}
+          onPrompt={(prompt) => setAi({ ...ai, prompt })}
+          onSend={sendAi}
+          onClose={() => setAi(null)}
+          onReAsk={() => setAi({ ...ai, view: "ask" })}
+          waiting={ai.busy}
+          error={ai.error}
+          actionLabel="재료로 추가"
+          onAction={addAi}
+        >
+          {ai.est && aiN && (
+            <div className="ai-answer">
+              <div className="ai-name"><b>{ai.est.name}</b><SrcTag label={sourceLabel({ source: "ai", via: ai.est.sources?.length ? "web" : "guess" })} /></div>
+              {ai.est.note && <p className="muted small">{ai.est.note}</p>}
+              <SourceLinks sources={ai.est.sources} />
+              <p>{aiGrams ? `${aiGrams}g · ` : ""}<NutrientLine n={aiN} /></p>
+            </div>
+          )}
+        </AiSheet>
       )}
 
       {openRow && (

@@ -6,11 +6,12 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBran
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, Sheet, NutrientEditor, NutrientLine, SourceLinks, SrcTag } from "../components/ui";
+import { DataNote, NutrientEditor, NutrientLine, SourceLinks, SrcTag } from "../components/ui";
 import { AmountEditor, makePortion, storedPortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar, type FavDraft } from "../favorites";
 import { rankUserFoods } from "../userFoods";
+import AiSheet from "../components/AiSheet";
 
 interface Choice {
   id: string;
@@ -58,7 +59,6 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [aiSaved?.at, aiSaved?.title],
   );
-  const aiTime = aiSaved?.time ?? "";
   const aiError = aiJob.error;
   useEffect(() => onQueryChange?.(query), [query]);
   // AI 창: ask = 질문 입력, result = 결과 (보내면 결과 화면에서 기다림). aiPick은 결과에서 고친 양·영양성분
@@ -268,39 +268,31 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
       )}
 
       {aiView && (
-        <Sheet
-          title={aiView === "ask" ? "AI에게 묻기" : "AI 답"}
+        <AiSheet
+          view={aiView}
+          prompt={prompt ?? ""}
+          onPrompt={setPrompt}
+          onSend={() => { runAi(); setAiPick(null); setAiView("result"); }}
           onClose={() => setAiView(null)}
-          action={aiView === "result" && aiPick && !aiJob.running ? <FavStar getDraft={() => toDraft(aiPick)} /> : undefined}
+          onReAsk={reAsk}
+          waiting={aiJob.running}
+          error={aiError || undefined}
+          actionLabel={actionLabel}
+          onAction={() => { if (aiPick) { setAiView(null); onSave(toDraft(aiPick)); } }}
+          star={aiPick && <FavStar getDraft={() => toDraft(aiPick)} />}
         >
-          {aiView === "ask" ? (
-            <div className="form">
-              <textarea rows={4} value={prompt ?? ""} onChange={(e) => setPrompt(e.target.value)} placeholder="예: 교촌치킨 허니콤보 한 마리" autoFocus />
-              <button className="primary block big" disabled={!(prompt ?? "").trim()} onClick={() => { runAi(); setAiPick(null); setAiView("result"); }}>보내기</button>
-            </div>
-          ) : aiJob.running ? (
-            <div className="form ai-wait">
-              <p>AI가 찾는 중이에요</p>
-              <p className="muted small">다른 앱을 써도 돼요. 다 찾으면 알려 드려요.</p>
-            </div>
-          ) : aiError || !aiPick ? (
-            <div className="form">
-              <p className="error">{aiError || "답을 받지 못했어요."}</p>
-              <button className="block" onClick={reAsk}>다시 묻기</button>
-            </div>
-          ) : (
-            <div className="form">
-              <p><b>{aiSaved?.est.name ?? aiPick.title}</b><SrcTag label={sourceLabel(aiPick)} /></p>
-              {aiPick.note && <p className="muted small">{aiPick.note}</p>}
-              <SourceLinks sources={aiSaved?.est.sources} />
-              {aiTime && <p className="muted small">{aiTime}</p>}
+          {aiPick && (
+            <>
+              <div className="ai-answer">
+                <div className="ai-name"><b>{aiSaved?.est.name ?? aiPick.title}</b><SrcTag label={sourceLabel(aiPick)} /></div>
+                {aiPick.note && <p className="muted small">{aiPick.note}</p>}
+                <SourceLinks sources={aiSaved?.est.sources} />
+              </div>
               <AmountEditor portion={aiPick.portion} onChange={(portion) => setAiPick({ ...aiPick, portion })} />
               <NutrientEditor n={portionNutrients(aiPick.portion)} onChange={(n) => setAiPick({ ...aiPick, source: "manual", via: undefined, portion: withNutrients(aiPick.portion, n) })} />
-              <button className="primary block big" onClick={() => { setAiView(null); onSave(toDraft(aiPick)); }}>{actionLabel}</button>
-              <button className="block" onClick={reAsk}>다시 묻기</button>
-            </div>
+            </>
           )}
-        </Sheet>
+        </AiSheet>
       )}
     </div>
   );

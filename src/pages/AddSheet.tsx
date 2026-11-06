@@ -98,6 +98,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
     <Screen
       left={<button className="icon-btn" onClick={() => (mode === "quick" ? onClose() : setMode("quick"))} aria-label="뒤로"><BackIcon /></button>}
       title={mode === "quick" ? "식단 기록" : MODE_TITLE[mode]}
+      footer={mode === "home" ? <div id="add-foot" /> : undefined}
     >
       <div className="seg meal-seg">
         {MEALS.map((m) => (

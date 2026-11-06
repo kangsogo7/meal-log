@@ -1041,7 +1041,9 @@ input.missing { border-color: var(--over); }
 .ing-sugg button > span:last-child { flex: none; }
 .ing-many { align-self: flex-start; color: var(--muted); }
 .ing-many-box .btn-row { justify-content: flex-end; }
-.ing-foot { position: sticky; bottom: -16px; display: flex; align-items: center; gap: 12px; margin: 4px -16px -16px; padding: 12px 16px 16px; background: var(--card); border-top: 1px solid var(--border); }
+.ing-foot { display: flex; align-items: center; gap: 12px; width: 100%; }
+#add-foot { flex: 1; min-width: 0; display: flex; }
+.screen-foot:has(> #add-foot:empty) { display: none; }
 .ing-opts { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; background: var(--card); overflow: hidden; }
 .ing-opt { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 14px; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: none; color: var(--text); text-align: left; }
 .ing-opt:last-child { border-bottom: none; }
@@ -1058,9 +1060,16 @@ input.missing { border-color: var(--over); }
 .entry-links .link { color: var(--muted); }
 .screen-foot .danger-text { flex: none; border: none; background: none; padding: 0 12px; min-height: 48px; }
 .screen-foot .primary.block { flex: 1; }
-/* 재료로 요리: 전체 화면 아래에 붙는 합계 */
-.screen-body .ing-foot { bottom: calc(-24px - var(--safe-bottom)); margin-bottom: calc(-24px - var(--safe-bottom)); padding-bottom: calc(16px + var(--safe-bottom)); }
 
 /* 검색: 맨 위 AI에게 묻기 */
 .result.ai-row { border: 1.5px solid var(--accent); background: var(--card); }
 .ai-wait { padding: 24px 0 32px; text-align: center; }
+
+/* AI에게 묻기 창 (공통) */
+.ai-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; width: 100%; }
+.ai-actions button { min-height: 52px; border-radius: 14px; font-size: 1rem; }
+.ai-actions button:only-child { grid-column: 1 / -1; }
+.ai-answer { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; }
+.ai-answer p { margin: 0; }
+.ai-name b { font-size: 1.1rem; }
+.ing-sugg .ing-ai { border: none; border-bottom: 1px solid var(--border); background: var(--accent-soft); color: var(--text); }
