@@ -1,11 +1,12 @@
-// 기록 창 첫 화면 아래: 자주 먹는 것·즐겨찾기·세트·최근 목록. 줄을 누르면 양을 정해 기록, 오른쪽 +는 1회 제공량으로 바로 기록
+// 기록 창 첫 화면 아래: 자주 먹는 것·즐겨찾기·세트·최근 카드(두 줄). 카드를 누르면 양을 정해 기록, 모서리 +는 1회 제공량으로 바로 기록
+// 즐겨찾기 폴더 관리(만들기·이름·순서·음식 편집)는 설정에서
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
 import { flash, NutrientGrid, PartsList, FullScreen } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import { shareFood, type SharedFood } from "../foodShare";
-import { FolderScreen, FoodEditScreen, savedDraft, servingLine, SetEditScreen } from "./FavoritesTab";
+import { savedDraft, servingLine, SetEditScreen } from "./FavoritesTab";
 import { SavedFoodEditSheet, SetComposeScreen } from "./FavEditors";
 import { FavStar } from "../favorites";
 import type { Draft } from "./AddSheet";
@@ -25,7 +26,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
   const sets = useLiveQuery(() => db.sets.orderBy("updatedAt").reverse().toArray(), [], []);
   const [src, setSrc] = useState<Source>({ kind: "often" });
   const [amountOf, setAmountOf] = useState<{ food: SavedFood; portion: Portion } | null>(null);
-  const [manage, setManage] = useState<"" | "folders" | "foods" | "sets">("");
+  const [manage, setManage] = useState<"" | "sets">("");
   const [editFood, setEditFood] = useState<SavedFood | null>(null);
   const [composeSet, setComposeSet] = useState<number | null>(null);
   const [openSet, setOpenSet] = useState<MealSet | null>(null);
@@ -39,7 +40,6 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
         : src.kind === "fav"
           ? saved.filter((s) => s.groupId != null && (src.folder == null || s.groupId === src.folder)).sort(byUse)
           : [];
-  const folder = src.kind === "fav" && src.folder != null ? groups.find((g) => g.id === src.folder) : undefined;
   const tabs: { label: string; on: boolean; go: Source }[] = [
     { label: "자주 먹는 것", on: src.kind === "often", go: { kind: "often" } },
     { label: "즐겨찾기", on: src.kind === "fav", go: { kind: "fav" } },
@@ -55,26 +55,21 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
         ))}
       </div>
 
-      {src.kind === "fav" && (
+      {src.kind === "fav" && groups.length > 1 && (
         <div className="quick-chips" aria-label="즐겨찾기 폴더">
-          {groups.length > 1 && (
-            <>
-              <button className={src.folder == null ? "on" : ""} onClick={() => setSrc({ kind: "fav" })}>전체</button>
-              {groups.map((g) => (
-                <button key={g.id} className={src.folder === g.id ? "on" : ""} onClick={() => setSrc({ kind: "fav", folder: g.id })}>{folderEmoji(g)} {g.name}</button>
-              ))}
-            </>
-          )}
-          <button onClick={() => setManage("folders")}>폴더 관리</button>
+          <button className={src.folder == null ? "on" : ""} onClick={() => setSrc({ kind: "fav" })}>전체</button>
+          {groups.map((g) => (
+            <button key={g.id} className={src.folder === g.id ? "on" : ""} onClick={() => setSrc({ kind: "fav", folder: g.id })}>{folderEmoji(g)} {g.name}</button>
+          ))}
         </div>
       )}
 
       {src.kind === "sets" ? (
         <>
           {sets.length === 0 && <p className="muted small quick-empty">식단 화면에서 끼니를 눌러 "식사 세트로 저장"하면 생겨요</p>}
-          <div className="qa-list">
+          <div className="qa-grid">
             {sets.map((s) => (
-              <Row
+              <Card
                 key={s.id}
                 title={s.name}
                 sub={`${s.entries.length}개 · ${s.entries.map((e) => e.title).join(", ")}`}
@@ -93,12 +88,12 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
               {src.kind === "fav" ? "검색 결과나 기록 옆의 ☆를 누르면 여기에 모여요" : "아직 기록한 음식이 없어요"}
             </p>
           )}
-          <div className="qa-list">
+          <div className="qa-grid">
             {foods.map((s) => {
               const portion = storedPortion(s);
               const { place, amount } = servingLine(s);
               return (
-                <Row
+                <Card
                   key={s.key}
                   title={s.title}
                   sub={[place, amount].filter(Boolean).join(" · ")}
@@ -109,7 +104,6 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
               );
             })}
           </div>
-          {folder && <button className="link small quick-manage" onClick={() => setManage("foods")}>음식 편집</button>}
         </>
       )}
 
@@ -157,10 +151,6 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
         </FullScreen>
       )}
       {editFood && <SavedFoodEditSheet food={editFood} onClose={() => setEditFood(null)} />}
-      {manage === "folders" && (
-        <FolderScreen onClose={() => setManage("")} onOpen={(id) => { setSrc({ kind: "fav", folder: id }); setManage(""); }} />
-      )}
-      {manage === "foods" && folder && <FoodEditScreen group={folder} onClose={() => setManage("")} />}
       {manage === "sets" && <SetEditScreen sets={sets} onClose={() => setManage("")} />}
       {composeSet != null && sets.find((s) => s.id === composeSet) && (
         <SetComposeScreen set={sets.find((s) => s.id === composeSet)!} onClose={() => setComposeSet(null)} />
@@ -169,13 +159,13 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
   );
 }
 
-/** 한 줄: 누르면 양 정하기, 오른쪽 +는 바로 기록 */
-function Row({ title, sub, kcal, onOpen, onQuick }: { title: string; sub: string; kcal: number; onOpen: () => void; onQuick: () => void }) {
+/** 카드: 누르면 양 정하기, 모서리 +는 바로 기록 */
+function Card({ title, sub, kcal, onOpen, onQuick }: { title: string; sub: string; kcal: number; onOpen: () => void; onQuick: () => void }) {
   return (
-    <div className="qa-row">
+    <div className="qa-card">
       <button className="qa-open" onClick={onOpen}>
         <span className="qa-title">{title}</span>
-        <span className="muted small qa-sub">{[sub, `${kcal.toLocaleString()}kcal`].filter(Boolean).join(" · ")}</span>
+        <span className="muted small qa-sub"><b className="qa-kcal">{kcal.toLocaleString()}</b> kcal{sub && ` · ${sub}`}</span>
       </button>
       <button className="qa-add" onClick={onQuick} aria-label={`${title} 바로 기록`}>+</button>
     </div>

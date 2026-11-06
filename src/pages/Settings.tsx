@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
-import { setKV } from "../db";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db, setKV } from "../db";
+import { FolderScreen, FoodEditScreen } from "./FavoritesTab";
 import { exportBackup, importBackup } from "../backup";
 import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini } from "../gemini";
 import { useSettings } from "../hooks";
@@ -13,6 +15,10 @@ const THEMES: { key: Theme; label: string }[] = [
 
 export default function SettingsPage() {
   const settings = useSettings();
+  // 즐겨찾기 폴더 관리 → 폴더를 누르면 그 폴더 음식 편집
+  const [folders, setFolders] = useState(false);
+  const [folderId, setFolderId] = useState<number | null>(null);
+  const folderGroup = useLiveQuery(() => (folderId == null ? undefined : db.groups.get(folderId)), [folderId]);
   const [keyInput, setKeyInput] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -56,6 +62,15 @@ export default function SettingsPage() {
           ))}
         </div>
       </section>
+
+      <section className="card">
+        <h2>즐겨찾기</h2>
+        <div className="btn-row">
+          <button onClick={() => setFolders(true)}>폴더 관리</button>
+        </div>
+      </section>
+      {folders && <FolderScreen onClose={() => setFolders(false)} onOpen={(id) => setFolderId(id)} />}
+      {folderGroup && <FoodEditScreen group={folderGroup} onClose={() => setFolderId(null)} />}
 
       <section className="card form">
         <div className="row-between">
