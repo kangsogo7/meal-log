@@ -1114,3 +1114,6 @@ label.inline.ing-g.big input { width: 110px; }
 .ing-row { align-items: center; }
 .ing-row label.inline.ing-g { align-self: center; margin: 0; }
 .ing-row label.inline.ing-g input { height: 44px; margin: 0; box-sizing: border-box; }
+/* 오늘 기록 줄 사이 구분선, + 바로 기록은 ✕처럼 테두리 없이 */
+.logged-row + .logged-row { border-top: 1px solid var(--border); }
+.qa-add { border: none; background: none; width: 36px; height: 44px; min-height: 44px; border-radius: 10px; font-size: 1.5rem; font-weight: 700; }
