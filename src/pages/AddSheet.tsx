@@ -130,7 +130,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
                   {logged.map((e) => (
                     <div key={e.id} className="logged-row">
                       <span className="logged-title">{e.title}</span>
-                      <span className="muted">{Math.round(e.total.kcal).toLocaleString()}</span>
+                      <span className="muted">{Math.round(e.total.kcal).toLocaleString()} kcal</span>
                       <button className="del-btn" aria-label={`${e.title} 빼기`} onClick={() => setConfirmDel(e)}>✕</button>
                     </div>
                   ))}
