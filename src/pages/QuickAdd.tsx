@@ -96,7 +96,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
                 <Card
                   key={s.key}
                   title={s.title}
-                  sub={[place, amount].filter(Boolean).join(" · ")}
+                  sub={[amount, place].filter(Boolean).join(" · ")}
                   kcal={Math.round(portionNutrients(portion).kcal)}
                   onOpen={() => setAmountOf({ food: s, portion })}
                   onQuick={() => onRecord([savedDraft(s, portion)])}
