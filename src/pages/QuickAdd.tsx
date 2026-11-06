@@ -1,4 +1,4 @@
-// 기록 창 첫 화면 아래: 자주 먹는 것·즐겨찾기·세트·최근 카드(두 줄). 카드를 누르면 양을 정해 기록, 모서리 +는 1회 제공량으로 바로 기록
+// 기록 창 첫 화면 아래: 자주 먹는 것·즐겨찾기·세트·최근 카드(음식 이름 / kcal / 양·재료). 카드를 누르면 양을 정해 기록, 모서리 +는 1회 제공량으로 바로 기록
 // 즐겨찾기 폴더 관리(만들기·이름·순서·음식 편집)는 설정에서
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -72,7 +72,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
               <Card
                 key={s.id}
                 title={s.name}
-                sub={`${s.entries.length}개 · ${s.entries.map((e) => e.title).join(", ")}`}
+                sub={s.entries.map((e) => e.title).join(", ")}
                 kcal={Math.round(s.total.kcal)}
                 onOpen={() => setOpenSet(s)}
                 onQuick={() => onRecord(s.entries, s.name)}
@@ -91,12 +91,12 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
           <div className="qa-grid">
             {foods.map((s) => {
               const portion = storedPortion(s);
-              const { place, amount } = servingLine(s);
+              const { amount } = servingLine(s);
               return (
                 <Card
                   key={s.key}
                   title={s.title}
-                  sub={[amount, place].filter(Boolean).join(" · ")}
+                  sub={s.items.length > 1 ? s.items.map((i) => i.name).join(", ") : amount}
                   kcal={Math.round(portionNutrients(portion).kcal)}
                   onOpen={() => setAmountOf({ food: s, portion })}
                   onQuick={() => onRecord([savedDraft(s, portion)])}
@@ -165,7 +165,8 @@ function Card({ title, sub, kcal, onOpen, onQuick }: { title: string; sub: strin
     <div className="qa-card">
       <button className="qa-open" onClick={onOpen}>
         <span className="qa-title">{title}</span>
-        <span className="muted small qa-sub"><b className="qa-kcal">{kcal.toLocaleString()}</b> kcal{sub && ` · ${sub}`}</span>
+        <span className="muted small"><b className="qa-kcal">{kcal.toLocaleString()}</b> kcal</span>
+        {sub && <span className="muted small qa-sub">{sub}</span>}
       </button>
       <button className="qa-add" onClick={onQuick} aria-label={`${title} 바로 기록`}>+</button>
     </div>
