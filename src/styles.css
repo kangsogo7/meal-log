@@ -1060,3 +1060,7 @@ input.missing { border-color: var(--over); }
 .screen-foot .primary.block { flex: 1; }
 /* 재료로 요리: 전체 화면 아래에 붙는 합계 */
 .screen-body .ing-foot { bottom: calc(-24px - var(--safe-bottom)); margin-bottom: calc(-24px - var(--safe-bottom)); padding-bottom: calc(16px + var(--safe-bottom)); }
+
+/* 검색: 맨 위 AI에게 묻기 */
+.result.ai-row { border: 1.5px solid var(--accent); background: var(--card); }
+.ai-wait { padding: 24px 0 32px; text-align: center; }

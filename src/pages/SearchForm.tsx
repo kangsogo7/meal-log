@@ -6,7 +6,7 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBran
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, NutrientEditor, NutrientLine, SourceLinks, SrcTag } from "../components/ui";
+import { DataNote, Sheet, NutrientEditor, NutrientLine, SourceLinks, SrcTag } from "../components/ui";
 import { AmountEditor, makePortion, storedPortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar, type FavDraft } from "../favorites";
@@ -61,14 +61,31 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
   const aiTime = aiSaved?.time ?? "";
   const aiError = aiJob.error;
   useEffect(() => onQueryChange?.(query), [query]);
-  // 방금 요청한 AI 결과가 오면 (다른 결과를 골라 뒀어도) 바로 AI 결과 상세를 보여 줌
+  // AI 창: ask = 질문 입력, result = 결과 (보내면 결과 화면에서 기다림). aiPick은 결과에서 고친 양·영양성분
+  const [aiView, setAiView] = useState<null | "ask" | "result">(null);
+  const [aiPick, setAiPick] = useState<Choice | null>(null);
+  // 방금 요청한 AI 결과가 오면 결과 화면에 그 결과를
   const askedAt = useRef(0);
   useEffect(() => {
     if (aiChoice && aiSaved && aiSaved.at >= askedAt.current && askedAt.current > 0) {
       askedAt.current = 0;
-      setChoice(aiChoice);
+      setAiPick(aiChoice);
     }
   }, [aiChoice]);
+  /** 이전 답이 있으면 결과부터, 없으면 질문부터 */
+  const openAi = () => {
+    if (aiChoice && !aiJob.running) {
+      setAiPick(aiChoice);
+      setAiView("result");
+    } else {
+      setPrompt(aiSaved?.prompt ?? query.trim());
+      setAiView(aiJob.running ? "result" : "ask");
+    }
+  };
+  const reAsk = () => {
+    setPrompt(aiSaved?.prompt ?? query.trim());
+    setAiView("ask");
+  };
   const detailRef = useRef<HTMLDivElement>(null);
 
   // 입력할 때마다 식약처 DB 검색 (기기 안에서 하므로 빠름)
@@ -206,14 +223,20 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
       />
       {split.shop && split.brand && q && <p className="muted small">상호 <b>{split.brand}</b> · 메뉴 <b>{split.rest || "—"}</b></p>}
       {error && <p className="error">{error}</p>}
-      {aiError && <p className="error">{aiError}</p>}
 
       {q && (
         <div className="results">
+          {settings.geminiKey && (
+            <button className="result ai-row" onClick={openAi}>
+              <div><b>AI에게 묻기</b></div>
+              <span className="muted small">
+                {aiJob.running ? "찾는 중... (다른 앱을 써도 돼요)" : aiError ? aiError : aiChoice ? `이전 답 · ${aiSaved!.est.name} ${Math.round(portionNutrients(aiChoice.portion).kcal)}kcal` : "검색해서 영양정보를 찾아 줘요"}
+              </span>
+            </button>
+          )}
           {savedHits.map((h) => (
             <ResultButton key={h.id} tag="내 기록" label={h.label} n={portionNutrients(h.portion)} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
           ))}
-          {aiChoice && <ResultButton tag={sourceLabel(aiChoice)} label={aiChoice.label} n={portionNutrients(aiChoice.portion)} note={aiChoice.note} selected={choice?.id === "ai"} onClick={() => setChoice(aiChoice)} fav={() => toDraft(aiChoice)} />}
           {results.map((f, i) => (
             <ResultButton
               key={`${f.name}|${f.brand}|${i}`}
@@ -228,19 +251,6 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
           ))}
           {!busy && results.length === 0 && savedHits.length === 0 && !aiChoice && <p className="muted small">검색 결과가 없어요</p>}
           {(results.length > 0 || savedHits.length > 0 || aiChoice) && <DataNote />}
-          {settings.geminiKey && (aiJob.running ? (
-            <button className="block" disabled>AI가 최신 공식 정보를 찾는 중... (다른 앱을 써도 돼요)</button>
-          ) : prompt !== null ? (
-            <div className="ai-ask">
-              <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="AI에게 물어볼 내용" autoFocus />
-              <div className="btn-row">
-                <button onClick={() => setPrompt(null)}>취소</button>
-                <button className="primary" onClick={() => runAi()} disabled={!prompt.trim()}>보내기</button>
-              </div>
-            </div>
-          ) : (
-            <button className="block" onClick={() => setPrompt(aiSaved?.prompt ?? q)}>{aiChoice ? "AI에게 다시 묻기" : "AI에게 묻기"}</button>
-          ))}
         </div>
       )}
 
@@ -251,12 +261,46 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
             <FavStar getDraft={() => toDraft(choice)} />
           </div>
           {choice.note && <p className="muted small">{choice.note}</p>}
-          {choice.id === "ai" && <SourceLinks sources={aiSaved?.est.sources} />}
-          {choice.id === "ai" && aiTime && <p className="muted small">{aiTime}</p>}
           <AmountEditor portion={choice.portion} onChange={(portion) => setChoice({ ...choice, portion })} />
           <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, source: "manual", via: undefined, portion: withNutrients(choice.portion, n) })} />
           <button className="primary block" onClick={save}>{actionLabel}</button>
         </div>
+      )}
+
+      {aiView && (
+        <Sheet
+          title={aiView === "ask" ? "AI에게 묻기" : "AI 답"}
+          onClose={() => setAiView(null)}
+          action={aiView === "result" && aiPick && !aiJob.running ? <FavStar getDraft={() => toDraft(aiPick)} /> : undefined}
+        >
+          {aiView === "ask" ? (
+            <div className="form">
+              <textarea rows={4} value={prompt ?? ""} onChange={(e) => setPrompt(e.target.value)} placeholder="예: 교촌치킨 허니콤보 한 마리" autoFocus />
+              <button className="primary block big" disabled={!(prompt ?? "").trim()} onClick={() => { runAi(); setAiPick(null); setAiView("result"); }}>보내기</button>
+            </div>
+          ) : aiJob.running ? (
+            <div className="form ai-wait">
+              <p>AI가 찾는 중이에요</p>
+              <p className="muted small">다른 앱을 써도 돼요. 다 찾으면 알려 드려요.</p>
+            </div>
+          ) : aiError || !aiPick ? (
+            <div className="form">
+              <p className="error">{aiError || "답을 받지 못했어요."}</p>
+              <button className="block" onClick={reAsk}>다시 묻기</button>
+            </div>
+          ) : (
+            <div className="form">
+              <p><b>{aiSaved?.est.name ?? aiPick.title}</b><SrcTag label={sourceLabel(aiPick)} /></p>
+              {aiPick.note && <p className="muted small">{aiPick.note}</p>}
+              <SourceLinks sources={aiSaved?.est.sources} />
+              {aiTime && <p className="muted small">{aiTime}</p>}
+              <AmountEditor portion={aiPick.portion} onChange={(portion) => setAiPick({ ...aiPick, portion })} />
+              <NutrientEditor n={portionNutrients(aiPick.portion)} onChange={(n) => setAiPick({ ...aiPick, source: "manual", via: undefined, portion: withNutrients(aiPick.portion, n) })} />
+              <button className="primary block big" onClick={() => { setAiView(null); onSave(toDraft(aiPick)); }}>{actionLabel}</button>
+              <button className="block" onClick={reAsk}>다시 묻기</button>
+            </div>
+          )}
+        </Sheet>
       )}
     </div>
   );
