@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { baseServing, db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
-import { flash, Sheet } from "../components/ui";
+import { BackIcon, flash, Screen } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
@@ -95,7 +95,10 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
   };
 
   return (
-    <Sheet title="식단 기록" onClose={onClose} tall>
+    <Screen
+      left={<button className="icon-btn" onClick={() => (mode === "quick" ? onClose() : setMode("quick"))} aria-label="뒤로"><BackIcon /></button>}
+      title={mode === "quick" ? "식단 기록" : MODE_TITLE[mode]}
+    >
       <div className="seg meal-seg">
         {MEALS.map((m) => (
           <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
@@ -139,15 +142,9 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
         </>
       )}
 
-      {mode !== "quick" && (
-        <div className="mode-head">
-          <button className="ghost" onClick={() => setMode("quick")} aria-label="뒤로">←</button>
-          <b>{MODE_TITLE[mode]}</b>
-        </div>
-      )}
       {mode === "home" && <HomeForm onSave={(d) => record([d])} actionLabel={recordLabel} />}
       {mode === "photo" && <PhotoForm onSave={(list) => record(list)} />}
       {mode === "manual" && <ManualForm onSave={(d) => record([d])} actionLabel={recordLabel} />}
-    </Sheet>
+    </Screen>
   );
 }

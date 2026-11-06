@@ -1050,3 +1050,13 @@ input.missing { border-color: var(--over); }
 .ing-opt.on .ing-dot { border: 7px solid var(--accent); }
 .ing-opt-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .ing-opt-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 기록 수정 (전체 화면) */
+.entry-title { font-size: 1.15rem; font-weight: 700; }
+.entry-place { margin-top: -6px; padding-left: 2px; }
+.entry-links { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 8px; }
+.entry-links .link { color: var(--muted); }
+.screen-foot .danger-text { flex: none; border: none; background: none; padding: 0 12px; min-height: 48px; }
+.screen-foot .primary.block { flex: 1; }
+/* 재료로 요리: 전체 화면 아래에 붙는 합계 */
+.screen-body .ing-foot { bottom: calc(-24px - var(--safe-bottom)); margin-bottom: calc(-24px - var(--safe-bottom)); padding-bottom: calc(16px + var(--safe-bottom)); }

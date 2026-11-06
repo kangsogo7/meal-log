@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { db, KIND_LABEL, MEALS, r1, scaleNutrients, sourceLabel, sumNutrients, type Entry, type EntryKind, type Item } from "../db";
-import { NumInput, NutrientEditor, PartsList, Sheet, SrcTag } from "../components/ui";
+import { db, MEALS, r1, scaleNutrients, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
+import { BackIcon, NumInput, NutrientEditor, NutrientGrid, PartsList, Screen, SrcTag } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
 import { shareOut } from "./QuickAdd";
 
+/** 기록 수정 (전체 화면): 이름 · 끼니 · 영양 요약 · 먹은 양 · 재료 · 메모. 영양성분 숫자는 "직접 고치기"를 눌러야 보임 */
 export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const [e, setE] = useState<Entry>(entry);
   // 양 조절: 저장할 때의 1회 제공량(×1)과 배수를 그대로 이어서
@@ -14,6 +15,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
   const [open, setOpen] = useState<number | null>(null);
   // 영양성분을 직접 고치면 출처는 "직접 입력"
   const [ownN, setOwnN] = useState(false);
+  const [editN, setEditN] = useState(false);
   const scaled = portionItems(src, portion);
   const items = ownN && scaled.length === 1 ? [{ ...scaled[0], source: "manual" as const, via: undefined }] : scaled;
   const setItems = (next: Item[]) => {
@@ -67,51 +69,32 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
   };
 
   return (
-    <Sheet
+    <Screen
+      left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
       title="기록 수정"
-      onClose={onClose}
+      right={<FavStar getDraft={() => entryDraft(current)} />}
       footer={
         <>
-          <button className="danger" onClick={remove}>삭제</button>
-          <button onClick={() => shareOut({ kind: current.kind, title: current.title, place: current.place, items: current.items, k: current.k })}>공유</button>
-          <span className="spacer" />
-          <button onClick={onClose}>취소</button>
-          <button className="primary" onClick={save}>저장</button>
+          <button className="danger-text" onClick={remove}>삭제</button>
+          <button className="primary block big" onClick={save}>저장</button>
         </>
       }
     >
-      <div className="form">
+      <div className="form entry-edit">
+        <input className="entry-title" value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} aria-label="이름" />
+        {e.place && <span className="muted small entry-place">{e.place}</span>}
         <div className="seg meal-seg">
           {MEALS.map((m) => (
             <button key={m.key} className={e.meal === m.key ? "on" : ""} onClick={() => setE({ ...e, meal: m.key })}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
           ))}
         </div>
-        <div className="seg">
-          {(Object.keys(KIND_LABEL) as EntryKind[]).map((k) => (
-            <button key={k} className={e.kind === k ? "on" : ""} onClick={() => setE({ ...e, kind: k })}>
-              {k === "manual" ? "직접 입력" : KIND_LABEL[k]}
-            </button>
-          ))}
-        </div>
-        {(e.kind === "out" || e.kind === "food") && (
-          <label>{e.kind === "out" ? "가게 이름" : "제조사"}
-            <input value={e.place ?? ""} onChange={(ev) => setE({ ...e, place: ev.target.value })} placeholder="선택" />
-          </label>
-        )}
-        <label>이름
-          <div className="input-with-star">
-            <input value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} />
-            <FavStar getDraft={() => entryDraft(current)} />
-          </div>
-        </label>
 
+        <NutrientGrid n={total} />
         <AmountEditor portion={portion} onChange={setPortion} />
-        <NutrientEditor n={total} onChange={(n) => { setOwnN(true); setPortion(withNutrients(portion, n)); }} />
-        {items.length === 1 && <p className="muted small">출처<SrcTag label={sourceLabel(items[0])} /></p>}
 
         {items.length > 1 && (
           <PartsList
-            label="식재료"
+            label="재료 (눌러서 고치기)"
             parts={items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients, tag: sourceLabel(i) }))}
             onPick={(i) => setOpen(open === i ? null : i)}
             open={open}
@@ -119,10 +102,17 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
           />
         )}
 
+        {editN && <NutrientEditor n={total} onChange={(n) => { setOwnN(true); setPortion(withNutrients(portion, n)); }} />}
+        <div className="entry-links">
+          {items.length === 1 && <span className="muted small">출처<SrcTag label={sourceLabel(items[0])} /></span>}
+          {!editN && <button className="link small" onClick={() => setEditN(true)}>영양성분 직접 고치기</button>}
+          <button className="link small" onClick={() => shareOut({ kind: current.kind, title: current.title, place: current.place, items: current.items, k: current.k })}>공유</button>
+        </div>
+
         <label>메모
           <input value={e.memo ?? ""} onChange={(ev) => setE({ ...e, memo: ev.target.value })} placeholder="예: 배불렀음" />
         </label>
       </div>
-    </Sheet>
+    </Screen>
   );
 }
