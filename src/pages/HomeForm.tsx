@@ -272,7 +272,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
                 <NumInput value={r.grams} onChange={(g) => update(r.id, (x) => ({ ...x, grams: g }))} placeholder="g" decimals={1} className={needsGrams(r) ? "missing" : ""} />
                 <em>g</em>
               </label>
-              <button className="ghost ing-del" aria-label={`${r.line.name} 빼기`} onClick={() => {
+              <button className="del-btn" aria-label={`${r.line.name} 빼기`} onClick={() => {
                 setRows((rs) => rs.filter((x) => x.id !== r.id));
                 flash(`${r.line.name} 뺐어요`, 4000, { label: "되돌리기", run: () => setRows((rs) => [...rs.slice(0, i), r, ...rs.slice(i)]) });
               }}>✕</button>

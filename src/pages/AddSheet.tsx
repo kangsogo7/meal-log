@@ -128,7 +128,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
                     <div key={e.id} className="logged-row">
                       <span className="logged-title">{e.title}</span>
                       <span className="muted">{Math.round(e.total.kcal).toLocaleString()}</span>
-                      <button className="ghost logged-del" aria-label={`${e.title} 빼기`} onClick={() => remove(e)}>✕</button>
+                      <button className="del-btn" aria-label={`${e.title} 빼기`} onClick={() => remove(e)}>✕</button>
                     </div>
                   ))}
                 </div>

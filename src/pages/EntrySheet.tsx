@@ -98,12 +98,18 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
           />
         )}
 
-        {editN && <NutrientEditor n={total} onChange={(n) => { setOwnN(true); setPortion(withNutrients(portion, n)); }} />}
-        <div className="entry-links">
-          {items.length === 1 && <span className="muted small">출처<SrcTag label={sourceLabel(items[0])} /></span>}
-          {!editN && <button className="link small" onClick={() => setEditN(true)}>영양성분 직접 고치기</button>}
-          <button className="link small" onClick={() => shareOut({ kind: current.kind, title: current.title, place: current.place, items: current.items, k: current.k })}>공유</button>
+        {items.length === 1 && <span className="muted small">출처<SrcTag label={sourceLabel(items[0])} /></span>}
+        <div className="entry-actions">
+          <button className={editN ? "on" : ""} aria-expanded={editN} onClick={() => setEditN(!editN)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 20h4L19 9l-4-4L4 16v4Z" /><path d="M13.5 6.5l4 4" /></svg>
+            영양성분 고치기
+          </button>
+          <button onClick={() => shareOut({ kind: current.kind, title: current.title, place: current.place, items: current.items, k: current.k })}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 15V3" /><path d="M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
+            공유
+          </button>
         </div>
+        {editN && <NutrientEditor n={total} onChange={(n) => { setOwnN(true); setPortion(withNutrients(portion, n)); }} />}
 
         <label>메모
           <input value={e.memo ?? ""} onChange={(ev) => setE({ ...e, memo: ev.target.value })} placeholder="예: 배불렀음" />

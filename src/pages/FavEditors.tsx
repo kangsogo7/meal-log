@@ -216,7 +216,7 @@ function IngredientEditor({ items, onChange }: { items: Item[]; onChange: (items
           <li key={i}>
             <div className="ing-top">
               <input value={it.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="재료 이름" aria-label="재료 이름" />
-              <button className="ghost ing-del" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label={`${it.name} 빼기`}>✕</button>
+              <button className="del-btn" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label={`${it.name} 빼기`}>✕</button>
             </div>
             <div className="ing-mid">
               <label className="inline">
