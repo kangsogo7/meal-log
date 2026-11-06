@@ -119,50 +119,89 @@ export function DateNav({ date, onChange }: { date: string; onChange: (d: string
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
-/** 앱 달력 (휴대폰 기본 달력은 앱 테마를 따르지 않음). 날짜를 누르면 바로 골라지고 닫힘. max 이후는 못 고름 */
+const Chevron = ({ dir }: { dir: "left" | "right" | "down" }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d={dir === "left" ? "M15 5l-7 7 7 7" : dir === "right" ? "M9 5l7 7-7 7" : "M5 9l7 7 7-7"} />
+  </svg>
+);
+
+/**
+ * 앱 달력 (휴대폰 기본 달력은 앱 테마를 따르지 않음). 날짜를 고르고 ✓로 확정, 바깥을 누르면 취소.
+ * 제목을 누르면 월 고르기. max 이후는 못 고름
+ */
 function DatePicker({ value, max, onPick, onClose }: { value: string; max?: string; onPick: (d: string) => void; onClose: () => void }) {
   const z = useLayer();
+  const [picked, setPicked] = useState(value);
+  const [months, setMonths] = useState(false);
   const [view, setView] = useState(() => {
     const [y, m] = value.split("-").map(Number);
     return { y, m };
   });
   const today = todayStr();
+  const ym = (y: number, m: number) => `${y}-${pad2(m)}`;
   const move = (n: number) => setView(({ y, m }) => {
+    if (months) return { y: y + n, m };
     const d = new Date(y, m - 1 + n, 1);
     return { y: d.getFullYear(), m: d.getMonth() + 1 };
   });
   const blanks = new Date(view.y, view.m - 1, 1).getDay();
   const days = new Date(view.y, view.m, 0).getDate();
-  const canNext = !max || `${view.y}-${pad2(view.m)}` < max.slice(0, 7);
+  const canNext = !max || (months ? String(view.y) < max.slice(0, 4) : ym(view.y, view.m) < max.slice(0, 7));
+  const reset = () => {
+    const [y, m] = today.split("-").map(Number);
+    setPicked(today);
+    setView({ y, m });
+    setMonths(false);
+  };
   return createPortal(
-    <div className="dialog-backdrop" style={{ zIndex: z }} onClick={onClose}>
+    <div className="dialog-backdrop dp-backdrop" style={{ zIndex: z }} onClick={onClose}>
       <div className="dialog date-picker" role="dialog" aria-label="날짜 고르기" onClick={(e) => e.stopPropagation()}>
         <div className="dp-head">
-          <button onClick={() => move(-1)} aria-label="이전 달">‹</button>
-          <b>{view.y}년 {view.m}월</b>
-          <button onClick={() => move(1)} disabled={!canNext} aria-label="다음 달">›</button>
+          <button className="dp-title" aria-expanded={months} onClick={() => setMonths(!months)}>
+            {months ? `${view.y}년` : `${view.y}년 ${view.m}월`}
+            <Chevron dir={months ? "down" : "right"} />
+          </button>
+          <button className="dp-arrow" onClick={() => move(-1)} aria-label={months ? "이전 해" : "이전 달"}><Chevron dir="left" /></button>
+          <button className="dp-arrow" onClick={() => move(1)} disabled={!canNext} aria-label={months ? "다음 해" : "다음 달"}><Chevron dir="right" /></button>
         </div>
-        <div className="dp-grid">
-          {[..."일월화수목금토"].map((w) => <span key={w} className="dp-week">{w}</span>)}
-          {Array.from({ length: blanks }, (_, i) => <span key={`b${i}`} />)}
-          {Array.from({ length: days }, (_, i) => {
-            const d = `${view.y}-${pad2(view.m)}-${pad2(i + 1)}`;
-            return (
+        {months ? (
+          <div className="dp-months">
+            {Array.from({ length: 12 }, (_, i) => (
               <button
-                key={d}
-                className={`dp-day ${d === value ? "on" : ""} ${d === today ? "today" : ""}`}
-                disabled={!!max && d > max}
-                aria-pressed={d === value}
-                onClick={() => { onPick(d); onClose(); }}
+                key={i}
+                className={i + 1 === view.m ? "on" : ""}
+                disabled={!!max && ym(view.y, i + 1) > max.slice(0, 7)}
+                onClick={() => { setView({ y: view.y, m: i + 1 }); setMonths(false); }}
               >
-                {i + 1}
+                {i + 1}월
               </button>
-            );
-          })}
-        </div>
-        <div className="dialog-actions">
-          <button onClick={() => { onPick(today); onClose(); }}>오늘</button>
-          <button onClick={onClose}>닫기</button>
+            ))}
+          </div>
+        ) : (
+          <div className="dp-grid">
+            {[..."일월화수목금토"].map((w) => <span key={w} className="dp-week">{w}</span>)}
+            {Array.from({ length: blanks }, (_, i) => <span key={`b${i}`} />)}
+            {Array.from({ length: days }, (_, i) => {
+              const d = `${ym(view.y, view.m)}-${pad2(i + 1)}`;
+              return (
+                <button
+                  key={d}
+                  className={`dp-day ${d === picked ? "on" : ""} ${d === today ? "today" : ""}`}
+                  disabled={!!max && d > max}
+                  aria-pressed={d === picked}
+                  onClick={() => setPicked(d)}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="dp-foot">
+          <button className="dp-reset" onClick={reset}>재설정</button>
+          <button className="dp-ok" onClick={() => { onPick(picked); onClose(); }} aria-label="확인">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+          </button>
         </div>
       </div>
     </div>,
