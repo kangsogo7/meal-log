@@ -1,7 +1,7 @@
 // 공유받은 음식(링크·그룹의 "나도 기록")을 양·날짜·끼니만 확인하고 바로 식단에 기록
 import { useState } from "react";
 import { addDays, formatDate, MEALS, sumNutrients, todayStr, type Meal } from "../db";
-import { flash, MealSeg, FullScreen } from "../components/ui";
+import { DateButton, flash, MealSeg, FullScreen } from "../components/ui";
 import FoodView from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion } from "../portion";
 import type { SharedFood } from "../foodShare";
@@ -64,10 +64,7 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
       >
         <div className="receive-date">
           <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
-          <label className="date-label">
-            {formatDate(date)}{date === today ? " · 오늘" : ""}
-            <input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value > today ? today : e.target.value)} />
-          </label>
+          <DateButton className="date-label" value={date} max={today} onChange={setDate}>{formatDate(date)}{date === today ? " · 오늘" : ""}</DateButton>
           <button className="ghost" onClick={() => setDate(addDays(date, 1))} disabled={date >= today} aria-label="다음 날">▶</button>
         </div>
         <MealSeg value={meal} onChange={setMeal} />

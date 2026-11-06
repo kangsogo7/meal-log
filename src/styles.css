@@ -159,8 +159,6 @@ input, select, textarea {
 }
 textarea { resize: vertical; }
 /* iOS 날짜칸은 기본 모양이 내용 폭을 고집해서 칸 밖으로 넘침 → 다른 입력칸과 같은 폭·높이로 */
-input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 44px; text-align: left; }
-input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 .muted { color: var(--muted); }
@@ -185,8 +183,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .date-nav .today-slot { padding: 5px 0; }
 .date-nav .today-slot { visibility: hidden; }
 .date-nav .today-slot.show { visibility: visible; }
-.date-nav .date-label { position: relative; text-align: center; font-weight: 700; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.date-nav .date-label input { position: absolute; inset: 0; opacity: 0; }
+.date-nav .date-label { text-align: center; font-weight: 700; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 진행 막대 */
 .progress-row { margin-bottom: 10px; }
@@ -876,8 +873,7 @@ input.missing { border-color: var(--over); }
 /* 나도 기록: 날짜 고르기 (날짜를 누르면 달력) */
 .receive-date { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; background: var(--inset); border-radius: 12px; min-height: 48px; }
 .receive-date button.ghost { color: var(--muted); padding: 10px 0; }
-.receive-date .date-label { position: relative; display: grid; place-items: center; min-height: 48px; margin: 0; font-size: 1rem; font-weight: 700; color: var(--text); }
-.receive-date .date-label input { position: absolute; inset: 0; opacity: 0; min-height: 0; }
+.receive-date .date-label { min-height: 48px; font-size: 1rem; font-weight: 700; color: var(--text); }
 
 /* 물·영양제 주간 */
 .tone-tile.water { background: var(--water-bg); color: var(--water-ink); }
@@ -1152,3 +1148,20 @@ label.inline.ing-g.big input { width: 110px; }
 .set-parts li:last-child { border-bottom: none; }
 .sp-main { padding: 10px 0; }
 .sp-chev { flex: none; margin-left: -4px; color: var(--muted); font-size: 1.15rem; }
+
+/* 앱 달력: 테마 색을 그대로 따름 */
+button.date-label { width: 100%; padding: 0; border: none; background: none; color: inherit; min-width: 0; }
+.date-field { display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); text-align: left; font-size: 16px; font-weight: 400; }
+.dialog.date-picker { padding: 16px; }
+.dp-head { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; text-align: center; margin-bottom: 8px; }
+.dp-head b { font-size: 1.05rem; }
+.dp-head button { width: 44px; height: 44px; min-height: 44px; padding: 0; border: none; background: none; color: var(--text); font-size: 1.5rem; }
+.dp-head button:disabled { color: var(--border); }
+.dp-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; justify-items: center; }
+.dp-week { padding: 4px 0 6px; font-size: 0.8rem; color: var(--muted); }
+.dp-day { width: 40px; height: 40px; min-height: 40px; padding: 0; border: none; border-radius: 50%; background: none; color: var(--text); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.dp-day.today { box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent); font-weight: 700; }
+.dp-day.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; box-shadow: none; }
+.dp-day:disabled { color: var(--border); }
+.date-picker .dialog-actions { margin-top: 10px; }
+.form .field-label { margin-bottom: 12px; font-size: 0.88rem; color: var(--muted); }

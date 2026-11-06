@@ -110,13 +110,74 @@ export function DateNav({ date, onChange }: { date: string; onChange: (d: string
     <header className="page-head date-nav">
       <button className="ghost" onClick={() => onChange(addDays(date, -1))} aria-label="이전 날">◀</button>
       <span aria-hidden />
-      <label className="date-label">
-        {formatDate(date)}
-        <input type="date" value={date} onChange={(e) => e.target.value && onChange(e.target.value)} />
-      </label>
+      <DateButton className="date-label" value={date} onChange={onChange}>{formatDate(date)}</DateButton>
       <button className={`chip today-slot ${isToday ? "" : "show"}`} onClick={() => onChange(todayStr())} tabIndex={isToday ? -1 : 0}>오늘</button>
       <button className="ghost" onClick={() => onChange(addDays(date, 1))} aria-label="다음 날">▶</button>
     </header>
+  );
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** 앱 달력 (휴대폰 기본 달력은 앱 테마를 따르지 않음). 날짜를 누르면 바로 골라지고 닫힘. max 이후는 못 고름 */
+function DatePicker({ value, max, onPick, onClose }: { value: string; max?: string; onPick: (d: string) => void; onClose: () => void }) {
+  const z = useLayer();
+  const [view, setView] = useState(() => {
+    const [y, m] = value.split("-").map(Number);
+    return { y, m };
+  });
+  const today = todayStr();
+  const move = (n: number) => setView(({ y, m }) => {
+    const d = new Date(y, m - 1 + n, 1);
+    return { y: d.getFullYear(), m: d.getMonth() + 1 };
+  });
+  const blanks = new Date(view.y, view.m - 1, 1).getDay();
+  const days = new Date(view.y, view.m, 0).getDate();
+  const canNext = !max || `${view.y}-${pad2(view.m)}` < max.slice(0, 7);
+  return createPortal(
+    <div className="dialog-backdrop" style={{ zIndex: z }} onClick={onClose}>
+      <div className="dialog date-picker" role="dialog" aria-label="날짜 고르기" onClick={(e) => e.stopPropagation()}>
+        <div className="dp-head">
+          <button onClick={() => move(-1)} aria-label="이전 달">‹</button>
+          <b>{view.y}년 {view.m}월</b>
+          <button onClick={() => move(1)} disabled={!canNext} aria-label="다음 달">›</button>
+        </div>
+        <div className="dp-grid">
+          {[..."일월화수목금토"].map((w) => <span key={w} className="dp-week">{w}</span>)}
+          {Array.from({ length: blanks }, (_, i) => <span key={`b${i}`} />)}
+          {Array.from({ length: days }, (_, i) => {
+            const d = `${view.y}-${pad2(view.m)}-${pad2(i + 1)}`;
+            return (
+              <button
+                key={d}
+                className={`dp-day ${d === value ? "on" : ""} ${d === today ? "today" : ""}`}
+                disabled={!!max && d > max}
+                aria-pressed={d === value}
+                onClick={() => { onPick(d); onClose(); }}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
+        </div>
+        <div className="dialog-actions">
+          <button onClick={() => { onPick(today); onClose(); }}>오늘</button>
+          <button onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** 눌러서 앱 달력을 여는 날짜 버튼 */
+export function DateButton({ value, max, onChange, className, children }: { value: string; max?: string; onChange: (d: string) => void; className?: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className={className} onClick={() => setOpen(true)}>{children}</button>
+      {open && <DatePicker value={value} max={max} onPick={onChange} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 

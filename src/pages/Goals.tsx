@@ -1,13 +1,13 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { addDays, db, getKV, setKV, sumNutrients, todayStr, type BodyRecord, type ExerciseKind, type Goal, type Nutrients, type Profile } from "../db";
+import { addDays, db, formatDate, getKV, setKV, sumNutrients, todayStr, type BodyRecord, type ExerciseKind, type Goal, type Nutrients, type Profile } from "../db";
 import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion, type DietDay } from "../nutrition";
 import { targetsFor } from "../share";
 import { getCheatDays } from "../cheat";
 import { getProfileHistory, lastGoalChange, saveProfile } from "../profileHistory";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
-import { Dialog, flash, NumInput, FullScreen } from "../components/ui";
+import { DateButton, Dialog, flash, NumInput, FullScreen } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
 export default function Goals() {
@@ -419,7 +419,7 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
     >
       <div className="form">
         {r.source === "inbody" && !r.id && <p className="muted small">AI가 읽은 값이에요. 결과지와 다르면 고쳐 주세요.</p>}
-        <label>날짜<input type="date" value={r.date} onChange={(e) => setR({ ...r, date: e.target.value })} /></label>
+        <div className="field-label">날짜<DateButton className="date-field" value={r.date} onChange={(date) => setR({ ...r, date })}>{formatDate(r.date)}</DateButton></div>
         <label>체중 (kg)<NumInput value={r.weight || null} onChange={(v) => setR({ ...r, weight: v ?? 0 })} /></label>
         <div className="two">
           <label>체지방률 (%) <span className="muted">선택</span><NumInput value={r.bodyFat} onChange={(v) => setR({ ...r, bodyFat: v ?? undefined })} /></label>
