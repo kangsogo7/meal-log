@@ -1124,3 +1124,13 @@ label.inline.ing-g.big input { width: 110px; }
 .qa-card .qa-title { font-size: 0.92rem; font-weight: 600; }
 .qa-kcal { color: var(--text); font-variant-numeric: tabular-nums; }
 .qa-card .qa-add { position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; min-height: 34px; border: none; border-radius: 999px; background: var(--card); color: var(--accent); font-size: 1.2rem; font-weight: 700; }
+
+/* 전체 화면은 바탕(--bg)이 연해서 --inset 칸이 묻힘 → 흰 칸 + 얇은 테두리로 구분 */
+.screen-page .qa-card,
+.screen-page .logged,
+.screen-page .result,
+.screen-page .card.inset,
+.screen-page .ngrid-sum,
+.screen-page .quick-chips button:not(.on) { background: var(--card); border: 1px solid var(--border); }
+.screen-page .qa-card .qa-add { background: var(--inset); }
+.screen-page .ngrid-sum .ng-cell, .screen-page .ngrid-sum .extras > div { background: var(--inset); }
