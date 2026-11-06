@@ -6,8 +6,10 @@ import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
 import { askFood, GeminiError, resolveIngredients, type MenuEstimate, type WebSource } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
-import { DataNote, NumInput, NutrientLine, revealInSheet, Sheet, SourceLinks, NutrientEditor, SrcTag } from "../components/ui";
+import { DataNote, NumInput, revealInSheet, Sheet, SourceLinks, NutrientEditor } from "../components/ui";
 import AiSheet, { type AiView } from "../components/AiSheet";
+import FoodDetail from "../components/FoodDetail";
+import { makePortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
 import { norm, rankUserFoods, type UserFoodCand } from "../userFoods";
@@ -114,7 +116,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
   const [aiSources, setAiSources] = useState<WebSource[] | undefined>();
   const addRef = useRef<HTMLInputElement>(null);
   // 재료 추가칸의 "AI에게 묻기" 창
-  const [ai, setAi] = useState<{ line: ParsedLine; candidates: Food[]; prev: Prev[]; view: AiView; prompt: string; est?: MenuEstimate; error?: string; busy: boolean } | null>(null);
+  const [ai, setAi] = useState<{ line: ParsedLine; candidates: Food[]; prev: Prev[]; view: AiView; prompt: string; est?: MenuEstimate; portion?: Portion; error?: string; busy: boolean } | null>(null);
   // 합계·기록 막대는 화면 아래 칸(식단 기록 화면의 #add-foot)에 (입력칸을 가리거나 키보드에 따라 떠다니지 않게)
   const [footEl, setFootEl] = useState<Element | null>(null);
   useEffect(() => setFootEl(document.getElementById("add-foot")), []);
@@ -171,19 +173,19 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     setAi({ ...ai, view: "result", busy: true, error: undefined, est: undefined });
     try {
       const est = await askFood(settings, text);
-      setAi((a) => a && { ...a, busy: false, est });
+      // 적어 둔 g이 있으면 그 g으로 (AI 기준 g의 배수)
+      const k = ai.line.grams && est.grams ? ai.line.grams / est.grams : 1;
+      setAi((a) => a && { ...a, busy: false, est, portion: makePortion(est.nutrients, est.grams, k) });
     } catch (e) {
       setAi((a) => a && { ...a, busy: false, error: e instanceof GeminiError ? e.message : "AI 확인에 실패했어요." });
     }
   };
-  const aiGrams = ai?.est ? ai.line.grams ?? (ai.est.grams || null) : null;
-  const aiN = ai?.est ? (ai.est.grams && aiGrams ? scaleNutrients(ai.est.nutrients, aiGrams / ai.est.grams) : ai.est.nutrients) : null;
-  /** AI 답으로 재료 한 줄 추가 */
+  /** AI 답 창에서 보고 고친 양·영양성분 그대로 재료 한 줄 추가 */
   const addAi = () => {
-    if (!ai?.est) return;
-    const est = ai.est;
-    setAiSources(est.sources);
-    setRows((rs) => [...rs, { ...makeRow(ai.line, ai.candidates, ai.prev, MANUAL), choice: AI, ai: { grams: est.grams, nutrients: est.nutrients }, grams: aiGrams }]);
+    if (!ai?.est || !ai.portion) return;
+    const grams = portionGrams(ai.portion);
+    setAiSources(ai.est.sources);
+    setRows((rs) => [...rs, { ...makeRow(ai.line, ai.candidates, ai.prev, MANUAL), choice: AI, ai: { grams: grams ?? 0, nutrients: portionNutrients(ai.portion!) }, grams }]);
     setAi(null);
     setAdd("");
     setSugg(null);
@@ -352,13 +354,15 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
           actionLabel="재료로 추가"
           onAction={addAi}
         >
-          {ai.est && aiN && (
-            <div className="ai-answer">
-              <div className="ai-name"><b>{ai.est.name}</b><SrcTag label={sourceLabel({ source: "ai", via: ai.est.sources?.length ? "web" : "guess" })} /></div>
-              {ai.est.note && <p className="muted small">{ai.est.note}</p>}
-              <SourceLinks sources={ai.est.sources} />
-              <p>{aiGrams ? `${aiGrams}g · ` : ""}<NutrientLine n={aiN} /></p>
-            </div>
+          {ai.est && ai.portion && (
+            <FoodDetail
+              title={ai.est.name}
+              tag={sourceLabel({ source: "ai", via: ai.est.sources?.length ? "web" : "guess" })}
+              note={ai.est.note}
+              sources={ai.est.sources ?? []}
+              portion={ai.portion}
+              onPortion={(portion) => setAi({ ...ai, portion })}
+            />
           )}
         </AiSheet>
       )}

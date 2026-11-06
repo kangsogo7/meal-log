@@ -6,8 +6,9 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBran
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, NutrientEditor, NutrientLine, SourceLinks, SrcTag } from "../components/ui";
-import { AmountEditor, makePortion, storedPortion, portionGrams, portionNutrients, withNutrients, type Portion } from "../portion";
+import { DataNote, NutrientLine, SrcTag } from "../components/ui";
+import FoodDetail from "../components/FoodDetail";
+import { makePortion, storedPortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar, type FavDraft } from "../favorites";
 import { rankUserFoods } from "../userFoods";
@@ -256,13 +257,14 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
 
       {choice && (
         <div className="card inset detail" ref={detailRef}>
-          <div className="detail-head">
-            <p className="small"><b>{choice.label}</b><SrcTag label={sourceLabel(choice)} /></p>
-            <FavStar getDraft={() => toDraft(choice)} />
-          </div>
-          {choice.note && <p className="muted small">{choice.note}</p>}
-          <AmountEditor portion={choice.portion} onChange={(portion) => setChoice({ ...choice, portion })} />
-          <NutrientEditor n={portionNutrients(choice.portion)} onChange={(n) => setChoice({ ...choice, source: "manual", via: undefined, portion: withNutrients(choice.portion, n) })} />
+          <FoodDetail
+            title={choice.label}
+            tag={sourceLabel(choice)}
+            note={choice.note}
+            action={<FavStar getDraft={() => toDraft(choice)} />}
+            portion={choice.portion}
+            onPortion={(portion, manual) => setChoice({ ...choice, portion, ...(manual ? { source: "manual" as const, via: undefined } : {}) })}
+          />
           <button className="primary block" onClick={save}>{actionLabel}</button>
         </div>
       )}
@@ -282,15 +284,14 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
           star={aiPick && <FavStar getDraft={() => toDraft(aiPick)} />}
         >
           {aiPick && (
-            <>
-              <div className="ai-answer">
-                <div className="ai-name"><b>{aiSaved?.est.name ?? aiPick.title}</b><SrcTag label={sourceLabel(aiPick)} /></div>
-                {aiPick.note && <p className="muted small">{aiPick.note}</p>}
-                <SourceLinks sources={aiSaved?.est.sources} />
-              </div>
-              <AmountEditor portion={aiPick.portion} onChange={(portion) => setAiPick({ ...aiPick, portion })} />
-              <NutrientEditor n={portionNutrients(aiPick.portion)} onChange={(n) => setAiPick({ ...aiPick, source: "manual", via: undefined, portion: withNutrients(aiPick.portion, n) })} />
-            </>
+            <FoodDetail
+              title={aiSaved?.est.name ?? aiPick.title}
+              tag={sourceLabel(aiPick)}
+              note={aiPick.note}
+              sources={aiSaved?.est.sources ?? []}
+              portion={aiPick.portion}
+              onPortion={(portion, manual) => setAiPick({ ...aiPick, portion, ...(manual ? { source: "manual" as const, via: undefined } : {}) })}
+            />
           )}
         </AiSheet>
       )}

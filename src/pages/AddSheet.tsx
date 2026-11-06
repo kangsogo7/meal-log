@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { baseServing, db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
-import { BackIcon, flash, Screen } from "../components/ui";
+import { BackIcon, flash, MealSeg, Screen } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
@@ -100,11 +100,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
       title={mode === "quick" ? "식단 기록" : MODE_TITLE[mode]}
       footer={mode === "home" ? <div id="add-foot" /> : undefined}
     >
-      <div className="seg meal-seg">
-        {MEALS.map((m) => (
-          <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
-        ))}
-      </div>
+      <MealSeg value={meal} onChange={setMeal} />
 
       {mode === "quick" && (
         <>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { addDays, EXTRAS, formatDate, todayStr, type Nutrients } from "../db";
+import { addDays, EXTRAS, formatDate, MEALS, todayStr, type Meal, type Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
 
 let openLayers = 0;
@@ -411,6 +411,17 @@ export function SwipeRow({ children, onTap, onDelete }: { children: ReactNode; o
 }
 
 /** 잠깐 보였다 사라지는 안내 (어느 화면에서든 호출) */
+/** 아침·점심·간식·저녁 고르기 (기록·기록 수정·나도 기록하기 공통) */
+export function MealSeg({ value, onChange }: { value: Meal; onChange: (m: Meal) => void }) {
+  return (
+    <div className="seg meal-seg">
+      {MEALS.map((m) => (
+        <button key={m.key} className={value === m.key ? "on" : ""} onClick={() => onChange(m.key)}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
+      ))}
+    </div>
+  );
+}
+
 /** 잠깐 뜨는 알림. action을 주면 오른쪽에 버튼 (예: 되돌리기) */
 export function flash(message: string, ms = 1500, action?: { label: string; run: () => void }) {
   document.querySelectorAll(".toast.flash").forEach((el) => el.remove());

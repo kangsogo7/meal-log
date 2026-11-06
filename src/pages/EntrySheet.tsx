@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { db, MEALS, r1, scaleNutrients, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
-import { BackIcon, NumInput, NutrientEditor, NutrientGrid, PartsList, Screen, SrcTag } from "../components/ui";
+import { db, r1, scaleNutrients, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
+import { BackIcon, MealSeg, NumInput, NutrientEditor, NutrientGrid, PartsList, Screen, SrcTag } from "../components/ui";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
 import { shareOut } from "./QuickAdd";
@@ -83,11 +83,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
       <div className="form entry-edit">
         <input className="entry-title" value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} aria-label="이름" />
         {e.place && <span className="muted small entry-place">{e.place}</span>}
-        <div className="seg meal-seg">
-          {MEALS.map((m) => (
-            <button key={m.key} className={e.meal === m.key ? "on" : ""} onClick={() => setE({ ...e, meal: m.key })}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
-          ))}
-        </div>
+        <MealSeg value={e.meal} onChange={(meal) => setE({ ...e, meal })} />
 
         <NutrientGrid n={total} />
         <AmountEditor portion={portion} onChange={setPortion} />
