@@ -37,11 +37,11 @@ const ShareIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 15V3" /><path d="M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
 );
 
-/** [✎ 영양성분 고치기] [⇧ 공유] 버튼 줄. editOn이면 고치기 칸이 열린 상태(강조) */
-export function FoodActions({ onEdit, editOn, onShare }: { onEdit: () => void; editOn?: boolean; onShare: () => void }) {
+/** [✎ 영양성분 고치기] [⇧ 공유] 버튼 줄 */
+export function FoodActions({ onEdit, onShare }: { onEdit: () => void; onShare: () => void }) {
   return (
     <div className="entry-actions">
-      <button className={editOn ? "on" : ""} aria-expanded={editOn} onClick={onEdit}><EditIcon />영양성분 고치기</button>
+      <button onClick={onEdit}><EditIcon />영양성분 고치기</button>
       <button onClick={onShare}><ShareIcon />공유</button>
     </div>
   );

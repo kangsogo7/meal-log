@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { db, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
-import { BackIcon, itemParts, MealSeg, NutrientEditor, Screen, SrcTag } from "../components/ui";
+import { BackIcon, itemParts, MealSeg, Screen, SrcTag } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
 import FoodView, { FoodActions } from "../components/FoodView";
-import { portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
+import { portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
+import { FoodEditScreen } from "./FavEditors";
 import { entryDraft, FavStar } from "../favorites";
 import { shareOut } from "./QuickAdd";
 
-/** 기록 수정 (전체 화면): 이름 · 끼니 · 영양 요약 · 먹은 양 · 재료 · 메모. 영양성분 숫자는 "직접 고치기"를 눌러야 보임 */
+/** 기록 수정 (전체 화면): 이름 · 끼니 · 영양 요약 · 먹은 양 · 재료 · 메모. 영양성분은 "영양성분 고치기"로 여는 음식 수정 화면에서 */
 export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const [e, setE] = useState<Entry>(entry);
   // 양 조절: 저장할 때의 1회 제공량(×1)과 배수를 그대로 이어서
@@ -15,11 +16,8 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
   // 재료를 고치면 고친 재료(지금 배수 기준)를 새 기준으로
   const [src, setSrc] = useState<{ items: Item[]; k?: number }>(entry);
   const [open, setOpen] = useState<number | null>(null);
-  // 영양성분을 직접 고치면 출처는 "직접 입력"
-  const [ownN, setOwnN] = useState(false);
-  const [editN, setEditN] = useState(false);
-  const scaled = portionItems(src, portion);
-  const items = ownN && scaled.length === 1 ? [{ ...scaled[0], source: "manual" as const, via: undefined }] : scaled;
+  const [editFood, setEditFood] = useState(false);
+  const items = portionItems(src, portion);
   const setItems = (next: Item[]) => {
     setSrc({ items: next, k: portion.k });
     setPortion(storedPortion({ items: next, total: sumNutrients(next.map((i) => i.nutrients)), k: portion.k }));
@@ -74,18 +72,26 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
           <>
             {items.length === 1 && <span className="muted small">출처<SrcTag label={sourceLabel(items[0])} /></span>}
             <FoodActions
-              editOn={editN}
-              onEdit={() => setEditN(!editN)}
+              onEdit={() => setEditFood(true)}
               onShare={() => shareOut({ kind: current.kind, title: current.title, place: current.place, items: current.items, k: current.k })}
             />
           </>
         }
       >
-        {editN && <NutrientEditor n={total} onChange={(n) => { setOwnN(true); setPortion(withNutrients(portion, n)); }} />}
         <label>메모
           <input value={e.memo ?? ""} onChange={(ev) => setE({ ...e, memo: ev.target.value })} placeholder="예: 배불렀음" />
         </label>
       </FoodView>
+      {/* 자주 먹는 것과 같은 음식 수정 화면. 완료하면 이 기록에만 반영되고, 아래 저장을 눌러야 저장됨 */}
+      {editFood && (
+        <FoodEditScreen
+          food={{ kind: e.kind, title: e.title, place: e.place, items, total }}
+          saveLabel="완료"
+          amountLabel="먹은 양"
+          onSave={({ title, place, items: next }) => { setE({ ...e, title, place }); setItems(next); setEditFood(false); }}
+          onClose={() => setEditFood(false)}
+        />
+      )}
       {open != null && items[open] && (
         <ItemEditScreen
           item={items[open]}

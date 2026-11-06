@@ -1093,7 +1093,6 @@ label.inline.ing-g.big input { width: 110px; }
 /* 기록 수정: 영양성분 고치기·공유 버튼 */
 .entry-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .entry-actions button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); color: var(--text); font-size: 0.92rem; }
-.entry-actions button.on { border-color: var(--accent); color: var(--accent); }
 
 /* 재료 줄: g칸과 ✕ 같은 높이·가운데 */
 .ing-row { align-items: center; }

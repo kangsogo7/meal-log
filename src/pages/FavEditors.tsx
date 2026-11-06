@@ -7,19 +7,29 @@ import ItemEditScreen from "../components/ItemEditScreen";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 
 // ---------------------------------------------------------------------------
-// 즐겨찾기 음식 수정: 이름·상호·1회 제공량·영양성분
+// 음식 수정 화면 (자주 먹는 것·기록 수정 공통): 이름·상호·1회 제공량·영양성분, 재료가 여럿이면 재료 목록
 // ---------------------------------------------------------------------------
-export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose: () => void }) {
+export type FoodEdit = { title: string; place?: string; items: Item[] };
+
+export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회 제공량", onSave, onClose }: {
+  food: { kind: SavedFood["kind"]; title: string; place?: string; items: Item[]; total: Nutrients };
+  saveLabel?: string;
+  /** 숫자가 어떤 양 기준인지 (기록은 먹은 양) */
+  amountLabel?: string;
+  onSave: (edit: FoodEdit) => void;
+  onClose: () => void;
+}) {
   const single = food.items.length === 1;
   const [title, setTitle] = useState(food.title);
   const [place, setPlace] = useState(food.place ?? "");
   const [grams, setGrams] = useState<number | null>(single ? food.items[0].grams : null);
   const [amountText, setAmountText] = useState(food.items[0]?.amountText ?? "");
-  const [base, setBase] = useState<Nutrients>(food.total);
+  const [base0] = useState<Nutrients>(food.total);
+  const [base, setBase] = useState(base0);
   // 재료 여러 개짜리: 재료마다 이름·양·영양성분 수정, 빼기, 추가
   const [ings, setIngs] = useState<Item[]>(food.items);
 
-  const save = async () => {
+  const save = () => {
     const t = title.trim();
     if (!t) return;
     const p = place.trim() || undefined;
@@ -30,20 +40,12 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
           grams: grams ? r1(grams) : null,
           amountText: grams ? `${r1(grams)}g` : amountText,
           nutrients: base,
+          // 영양성분을 직접 고치면 출처는 "직접 입력"
+          ...(base !== base0 ? { source: "manual" as const, via: undefined } : {}),
         }]
       : ings.filter((i) => i.name.trim()).map((i) => ({ ...i, name: i.name.trim() }));
     if (!items.length) return alert("재료가 하나 이상 있어야 해요.");
-    const key = savedKey(food.kind, p, t);
-    try {
-      await db.transaction("rw", db.saved, async () => {
-        if (key !== food.key) await db.saved.delete(food.key);
-        await db.saved.put({ ...food, key, title: t, place: p, items, total: sumNutrients(items.map((i) => i.nutrients)) });
-      });
-      flash("수정했어요");
-      onClose();
-    } catch (err) {
-      alert(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`);
-    }
+    onSave({ title: t, place: p, items });
   };
 
   return (
@@ -54,7 +56,7 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
         <>
           <span className="spacer" />
           <button onClick={onClose}>취소</button>
-          <button className="primary" onClick={save} disabled={!title.trim()}>저장</button>
+          <button className="primary" onClick={save} disabled={!title.trim()}>{saveLabel}</button>
         </>
       }
     >
@@ -70,15 +72,15 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
         {single ? (
           <>
             {food.items[0]?.grams ? (
-              <label>1회 제공량 (g)
+              <label>{amountLabel} (g)
                 <NumInput value={grams} onChange={setGrams} decimals={1} />
               </label>
             ) : (
-              <label>1회 제공량
+              <label>{amountLabel}
                 <input value={amountText} onChange={(e) => setAmountText(e.target.value)} placeholder="선택 · 예: 1스쿱" />
               </label>
             )}
-            <p className="label">1회 제공량 영양성분</p>
+            <p className="label">{amountLabel} 영양성분</p>
             <NutrientEditor n={base} onChange={setBase} />
           </>
         ) : (
@@ -87,6 +89,24 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
       </div>
     </FullScreen>
   );
+}
+
+/** 저장된 음식(즐겨찾기·자주 먹는 것) 고치기: 저장을 누르면 바로 반영 */
+export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose: () => void }) {
+  const save = async ({ title, place, items }: FoodEdit) => {
+    const key = savedKey(food.kind, place, title);
+    try {
+      await db.transaction("rw", db.saved, async () => {
+        if (key !== food.key) await db.saved.delete(food.key);
+        await db.saved.put({ ...food, key, title, place, items, total: sumNutrients(items.map((i) => i.nutrients)) });
+      });
+      flash("수정했어요");
+      onClose();
+    } catch (err) {
+      alert(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+  return <FoodEditScreen food={food} onSave={save} onClose={onClose} />;
 }
 
 // ---------------------------------------------------------------------------
