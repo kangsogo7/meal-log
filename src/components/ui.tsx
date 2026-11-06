@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { addDays, EXTRAS, formatDate, MEALS, todayStr, type Meal, type Nutrients } from "../db";
+import { addDays, EXTRAS, formatDate, MEALS, r1, sourceLabel, todayStr, type Item, type Meal, type Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
 
 let openLayers = 0;
@@ -223,18 +223,18 @@ export function NutrientGrid({ n }: { n: Nutrients }) {
 }
 
 /** 구성 음식·식재료 카드 목록 (세트 상세, 기록 수정, 즐겨찾기 수정 공통). 아래 막대 = 전체 칼로리 중 그 음식 몫 */
-export function PartsList({ label, parts, onPick, open, editor }: {
-  label: string; parts: { name: string; place?: string; amount?: string; n: Nutrients; tag?: string }[];
-  /** 누르면 그 카드 아래에 editor를 펼침 (open = 펼친 카드 번호) */
-  onPick?: (i: number) => void; open?: number | null; editor?: ReactNode;
+export function PartsList({ label, parts, onPick }: {
+  /** 없으면 "재료 N개" 줄을 숨김 */
+  label?: string; parts: { name: string; place?: string; amount?: string; n: Nutrients; tag?: string }[];
+  /** 누르면 그 재료를 고치는 화면으로 */
+  onPick?: (i: number) => void;
 }) {
-  const total = parts.reduce((a, p) => a + (p.n.kcal || 0), 0);
   return (
     <>
-      <p className="muted small set-parts-head">{label} {parts.length}개{onPick && <span> · 누르면 고칠 수 있어요</span>}</p>
+      {label && <p className="muted small set-parts-head">{label} {parts.length}개</p>}
       <ul className="set-parts">
-        {parts.flatMap((p, i) => [
-          <li key={i} className={onPick ? `pick ${open === i ? "on" : ""}` : undefined} onClick={onPick && (() => onPick(i))}>
+        {parts.map((p, i) => (
+          <li key={i} className={onPick ? "pick" : undefined} onClick={onPick && (() => onPick(i))}>
             <div className="sp-main">
               <span className="sp-name">
                 {p.place && <span className="muted">{p.place} </span>}
@@ -246,14 +246,17 @@ export function PartsList({ label, parts, onPick, open, editor }: {
               </span>
             </div>
             <b className="sp-kcal">{Math.round(p.n.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
-            <span className="sp-share" aria-hidden><i style={{ width: `${total ? Math.round((p.n.kcal / total) * 100) : 0}%` }} /></span>
-          </li>,
-          ...(open === i && editor ? [<li key={`e${i}`} className="sp-edit">{editor}</li>] : []),
-        ])}
+            {onPick && <span className="sp-chev" aria-hidden>›</span>}
+          </li>
+        ))}
       </ul>
     </>
   );
 }
+
+/** 재료들을 PartsList 줄로 */
+export const itemParts = (items: Item[], withSource = false) =>
+  items.map((i) => ({ name: i.name, amount: i.grams ? `${r1(i.grams)}g` : i.amountText, n: i.nutrients, tag: withSource ? sourceLabel(i) : undefined }));
 
 /** 세부 영양(당류·식이섬유·포화·트랜스·불포화지방) 칸. 하나도 모르면 안 보임, 모르는 값은 — */
 export function ExtrasList({ n, always = false }: { n: Nutrients; always?: boolean }) {

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { db, r1, scaleNutrients, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
-import { BackIcon, MealSeg, NumInput, NutrientEditor, Screen, SrcTag } from "../components/ui";
+import { db, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
+import { BackIcon, itemParts, MealSeg, NutrientEditor, Screen, SrcTag } from "../components/ui";
+import ItemEditScreen from "../components/ItemEditScreen";
 import FoodView, { FoodActions } from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion, withNutrients, type Portion } from "../portion";
 import { entryDraft, FavStar } from "../favorites";
@@ -23,34 +24,6 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
     setSrc({ items: next, k: portion.k });
     setPortion(storedPortion({ items: next, total: sumNutrients(next.map((i) => i.nutrients)), k: portion.k }));
   };
-  const editItem = (i: number, patch: Partial<Item>) => setItems(items.map((it, j) => (j === i ? { ...it, ...patch } : it)));
-  const it = open != null ? items[open] : undefined;
-  const itemEditor = it && open != null && (
-    <>
-      <label>재료 이름
-        <input value={it.name} onChange={(ev) => editItem(open, { name: ev.target.value })} />
-      </label>
-      <label className="inline">
-        양
-        <NumInput
-          value={it.grams}
-          onChange={(g) => {
-            if (g == null || g <= 0) return;
-            // g을 바꾸면 영양성분도 같은 비율로
-            editItem(open, { grams: r1(g), amountText: `${r1(g)}g`, nutrients: it.grams ? scaleNutrients(it.nutrients, g / it.grams) : it.nutrients });
-          }}
-          placeholder="g"
-          decimals={1}
-        />
-        <span className="muted">g</span>
-      </label>
-      <NutrientEditor n={it.nutrients} onChange={(n) => editItem(open, { nutrients: n, source: "manual", via: undefined })} />
-      <div className="btn-row">
-        {items.length > 1 && <button className="danger" onClick={() => { setItems(items.filter((_, j) => j !== open)); setOpen(null); }}>재료 빼기</button>}
-        <button onClick={() => setOpen(null)}>닫기</button>
-      </div>
-    </>
-  );
   const total = sumNutrients([portionNutrients(portion)]);
   // 지금 화면 값 그대로의 기록
   const current: Entry = { ...e, items, total, k: portion.k };
@@ -94,10 +67,8 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
         onPortion={setPortion}
         parts={items.length > 1 ? {
           label: "재료",
-          parts: items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients, tag: sourceLabel(i) })),
-          onPick: (i: number) => setOpen(open === i ? null : i),
-          open,
-          editor: itemEditor,
+          parts: itemParts(items, true),
+          onPick: setOpen,
         } : undefined}
         actions={
           <>
@@ -115,6 +86,14 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
           <input value={e.memo ?? ""} onChange={(ev) => setE({ ...e, memo: ev.target.value })} placeholder="예: 배불렀음" />
         </label>
       </FoodView>
+      {open != null && items[open] && (
+        <ItemEditScreen
+          item={items[open]}
+          onDone={(it) => { setItems(items.map((x, j) => (j === open ? it : x))); setOpen(null); }}
+          onRemove={items.length > 1 ? () => { setItems(items.filter((_, j) => j !== open)); setOpen(null); } : undefined}
+          onClose={() => setOpen(null)}
+        />
+      )}
     </Screen>
   );
 }

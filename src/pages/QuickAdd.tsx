@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
-import { flash, FullScreen } from "../components/ui";
+import { flash, FullScreen, itemParts } from "../components/ui";
 import FoodView, { FoodActions } from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import { shareFood, type SharedFood } from "../foodShare";
@@ -121,7 +121,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
             onPortion={(p) => setAmountOf({ ...amountOf, portion: p })}
             parts={amountOf.food.items.length > 1 ? {
               label: "재료",
-              parts: portionItems(amountOf.food, amountOf.portion).map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients })),
+              parts: itemParts(portionItems(amountOf.food, amountOf.portion)),
             } : undefined}
             actions={
               <FoodActions
