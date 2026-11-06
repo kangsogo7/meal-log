@@ -90,7 +90,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
 
         {items.length > 1 && (
           <PartsList
-            label="재료 (눌러서 고치기)"
+            label="재료"
             parts={items.map((i) => ({ name: i.name, amount: i.grams ? `${Math.round(i.grams)}g` : i.amountText, n: i.nutrients, tag: sourceLabel(i) }))}
             onPick={(i) => setOpen(open === i ? null : i)}
             open={open}

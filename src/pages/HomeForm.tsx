@@ -261,11 +261,11 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
           {rows.map((r, i) => (
             <div key={r.id} className="ing-row">
               <button className="ing-open" onClick={() => setOpen(r.id)}>
-                <span>{r.line.text}</span>
+                <span>{r.line.name}</span>
                 {needsGrams(r) ? (
                   <span className="small error-text">g을 넣어 주세요</span>
                 ) : (
-                  <span className="muted small">{sourceText(r)} · {Math.round(items[i].nutrients.kcal)}kcal ›</span>
+                  <span className="muted small">{Math.round(items[i].nutrients.kcal)}kcal · {sourceText(r)}</span>
                 )}
               </button>
               <label className="inline ing-g">

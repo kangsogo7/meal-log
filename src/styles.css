@@ -1079,3 +1079,25 @@ input.missing { border-color: var(--over); }
 .food-detail-action { margin-left: auto; }
 .ai-name b { font-size: 1.1rem; }
 .ing-sugg .ing-ai { border: none; border-bottom: 1px solid var(--border); background: var(--accent-soft); color: var(--text); }
+
+/* 간격 정리 (식단 기록·기록 수정) — 큰 덩어리 사이 16px, 덩어리 안 8~12px */
+.screen-body { padding-top: 12px; }
+.screen-page .meal-seg { margin-bottom: 16px; }
+.add-modes { margin-top: 16px; }
+.qa-tabs { margin-top: 24px; }
+.food-detail-body { display: flex; flex-direction: column; gap: 14px; }
+.food-detail-body label, .food-detail-body .amount-row label { margin-bottom: 0; }
+.food-detail-body .ngrid { margin: 0; }
+.food-detail-body .amount-row { gap: 10px; }
+.detail { display: flex; flex-direction: column; gap: 16px; padding: 16px; margin: 16px 0 0; }
+label.inline.ing-g input { width: 72px; }
+label.inline.ing-g.big input { width: 110px; }
+.ing-many { margin-top: 2px; }
+/* 기록 수정: 덩어리마다 16px, 각 칸 자체 여백은 없앰 */
+.entry-edit { display: flex; flex-direction: column; gap: 16px; }
+.entry-edit > *, .entry-edit > label, .entry-edit > .seg { margin-top: 0; margin-bottom: 0; }
+.entry-edit .amount-row { gap: 10px; }
+.entry-edit .amount-row label { margin-bottom: 0; }
+.entry-edit .entry-place { margin-top: -10px; }
+.entry-edit .entry-links { margin-bottom: 0; }
+.entry-edit > .set-parts-head + .set-parts { margin-top: -8px; }

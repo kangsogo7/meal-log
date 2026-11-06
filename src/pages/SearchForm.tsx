@@ -27,7 +27,7 @@ interface Choice {
   note?: string;
 }
 
-const PLACEHOLDER = "가게 메뉴·식품 (예: 교촌치킨 허니콤보, 바나나)";
+const PLACEHOLDER = "음식 검색 (예: 교촌치킨 허니콤보)";
 
 /** AI 결과는 검색어별로 저장 (요청 중에 화면을 떠났다 와도, 앱이 다시 시작돼도 결과가 남아 있게) */
 interface AiSaved { est: MenuEstimate; kind?: "out" | "food"; place?: string; title: string; time: string; at: number; prompt?: string }

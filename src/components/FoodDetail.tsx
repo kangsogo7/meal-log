@@ -18,7 +18,7 @@ export default function FoodDetail({ title, tag, note, sources, action, portion,
   onPortion: (p: Portion, manual?: boolean) => void;
 }) {
   return (
-    <>
+    <div className="food-detail-body">
       <div className="food-detail-head">
         <div className="ai-name"><b>{title}</b>{tag && <SrcTag label={tag} />}{action && <span className="food-detail-action">{action}</span>}</div>
         {note && <p className="muted small">{note}</p>}
@@ -26,6 +26,6 @@ export default function FoodDetail({ title, tag, note, sources, action, portion,
       </div>
       <AmountEditor portion={portion} onChange={(p) => onPortion(p)} />
       <NutrientEditor n={portionNutrients(portion)} onChange={(n) => onPortion(withNutrients(portion, n), true)} />
-    </>
+    </div>
   );
 }
