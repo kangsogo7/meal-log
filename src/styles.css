@@ -999,3 +999,54 @@ input.missing { border-color: var(--over); }
 .ing-mid label.inline input { width: 84px; background: var(--card); }
 .ing-kcal { margin-left: auto; white-space: nowrap; }
 .ing-kcal .muted { font-weight: 400; font-size: 0.8rem; }
+
+/* 기록 창 (바로 기록) */
+.toast.flash { display: flex; align-items: center; gap: 14px; }
+.toast-action { border: none; background: none; color: var(--accent-soft); font-weight: 700; padding: 4px 2px; min-height: 32px; font-size: 0.9rem; }
+.add-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 12px 0 0; }
+.add-modes button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 64px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); color: var(--text); font-size: 0.85rem; }
+.logged { margin: 16px 0 0; padding: 10px 12px 4px; border-radius: 14px; background: var(--inset); }
+.logged-head { display: flex; justify-content: space-between; margin-bottom: 2px; }
+.logged-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.logged-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.logged-del { min-width: 40px; min-height: 40px; color: var(--muted); }
+.qa-tabs { display: flex; gap: 18px; margin: 20px 0 6px; overflow-x: auto; scrollbar-width: none; }
+.qa-tabs button { flex: none; border: none; background: none; color: var(--muted); padding: 6px 0; min-height: 36px; border-bottom: 2px solid transparent; border-radius: 0; font-size: 0.95rem; }
+.qa-tabs button.on { color: var(--text); font-weight: 700; border-bottom-color: var(--text); }
+.qa-list { display: flex; flex-direction: column; }
+.qa-row { display: flex; align-items: center; gap: 12px; min-height: 62px; border-bottom: 1px solid var(--border); }
+.qa-open { flex: 1; min-width: 0; border: none; background: none; color: inherit; padding: 8px 0; text-align: left; display: flex; flex-direction: column; gap: 2px; border-radius: 0; }
+.qa-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-add { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--accent); font-size: 1.4rem; }
+.mode-head { display: flex; align-items: center; gap: 4px; margin: 10px 0 8px -8px; }
+.mode-head b { font-size: 1.05rem; }
+
+/* 재료로 요리 */
+.error-text { color: var(--over); }
+.ing-rows { display: flex; flex-direction: column; margin-top: 4px; }
+.ing-row { display: flex; align-items: center; gap: 10px; min-height: 60px; border-bottom: 1px solid var(--border); }
+.ing-open { flex: 1; min-width: 0; border: none; background: none; color: inherit; padding: 8px 0; text-align: left; display: flex; flex-direction: column; gap: 2px; border-radius: 0; }
+.ing-open > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ing-g { flex: none; margin: 0; gap: 4px; color: var(--muted); }
+.ing-g input { width: 72px; text-align: right; }
+.ing-g.big input { width: 110px; }
+.ing-add { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 14px; border: 1.5px solid var(--accent); border-radius: 14px; background: var(--card); margin-top: 6px; }
+.ing-add span { color: var(--accent); font-size: 1.3rem; }
+.ing-add input { flex: 1; min-width: 0; border: none; outline: none; background: none; padding: 0; margin: 0; font-size: 1rem; }
+.ing-sugg { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; background: var(--card); overflow: hidden; }
+.ing-sugg button { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: none; color: var(--text); text-align: left; }
+.ing-sugg button:last-child { border-bottom: none; }
+.ing-sugg button > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ing-sugg button > span:last-child { flex: none; }
+.ing-many { align-self: flex-start; color: var(--muted); }
+.ing-many-box .btn-row { justify-content: flex-end; }
+.ing-foot { position: sticky; bottom: -16px; display: flex; align-items: center; gap: 12px; margin: 4px -16px -16px; padding: 12px 16px 16px; background: var(--card); border-top: 1px solid var(--border); }
+.ing-opts { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; background: var(--card); overflow: hidden; }
+.ing-opt { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 14px; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: none; color: var(--text); text-align: left; }
+.ing-opt:last-child { border-bottom: none; }
+.ing-opt.on { background: var(--inset); }
+.ing-dot { flex: none; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid var(--border); }
+.ing-opt.on .ing-dot { border: 7px solid var(--accent); }
+.ing-opt-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ing-opt-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

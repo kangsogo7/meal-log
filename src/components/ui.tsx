@@ -411,11 +411,19 @@ export function SwipeRow({ children, onTap, onDelete }: { children: ReactNode; o
 }
 
 /** 잠깐 보였다 사라지는 안내 (어느 화면에서든 호출) */
-export function flash(message: string, ms = 1500) {
+/** 잠깐 뜨는 알림. action을 주면 오른쪽에 버튼 (예: 되돌리기) */
+export function flash(message: string, ms = 1500, action?: { label: string; run: () => void }) {
   document.querySelectorAll(".toast.flash").forEach((el) => el.remove());
   const el = document.createElement("div");
   el.className = "toast flash";
   el.textContent = message;
+  if (action) {
+    const b = document.createElement("button");
+    b.className = "toast-action";
+    b.textContent = action.label;
+    b.addEventListener("click", () => action.run());
+    el.appendChild(b);
+  }
   // 눌러서 바로 닫기
   el.addEventListener("click", () => el.remove());
   document.body.appendChild(el);

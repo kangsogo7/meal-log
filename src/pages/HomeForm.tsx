@@ -1,10 +1,11 @@
-import { useState } from "react";
+// 재료로 요리: 재료를 하나씩 검색해 추가(또는 여러 줄 한 번에) → 줄마다 g, 누르면 어떤 값으로 계산할지 고르기
+import { useEffect, useRef, useState } from "react";
 import { db, scaleNutrients, sourceLabel, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
 import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
 import { GeminiError, resolveIngredients, type WebSource } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
-import { DataNote, NumInput, SourceLinks, NutrientEditor, NutrientLine, SrcTag } from "../components/ui";
+import { DataNote, NumInput, Sheet, SourceLinks, NutrientEditor } from "../components/ui";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
 import { norm, rankUserFoods, type UserFoodCand } from "../userFoods";
@@ -30,7 +31,7 @@ async function findPrev(names: string[]): Promise<Prev[][]> {
     const gs = f.items.map(itemGrams);
     const g = gs.every(Boolean) ? gs.reduce((a, x) => a! + x!, 0) : null;
     seen.add(norm(f.title));
-    pool.push({ name: f.title, place: f.place, fav: f.groupId != null, at: f.updatedAt, label: `${f.groupId != null ? "★ " : "이전 기록 · "}${name}${g ? ` ${Math.round(g)}g` : ""}`, grams: g, nutrients: f.total, exact: false });
+    pool.push({ name: f.title, place: f.place, fav: f.groupId != null, at: f.updatedAt, label: `${f.groupId != null ? "★ " : ""}${name}`, grams: g, nutrients: f.total, exact: false });
   }
   // 조리로 기록한 재료 하나하나도 (같은 이름은 가장 최근 것만)
   for (const e of entries) {
@@ -39,13 +40,14 @@ async function findPrev(names: string[]): Promise<Prev[][]> {
       const key = norm(i.name);
       if (seen.has(key)) continue;
       seen.add(key);
-      pool.push({ name: i.name, fav: false, at: e.createdAt, label: `이전 기록 · ${i.name}${itemGrams(i) ? ` ${Math.round(itemGrams(i)!)}g` : ""}`, grams: itemGrams(i), nutrients: i.nutrients, exact: false });
+      pool.push({ name: i.name, fav: false, at: e.createdAt, label: i.name, grams: itemGrams(i), nutrients: i.nutrients, exact: false });
     }
   }
   return names.map((n) => rankUserFoods(pool, n).map(({ label, grams, nutrients, exact }) => ({ label, grams, nutrients, exact })));
 }
 
 interface Row {
+  id: number;
   line: ParsedLine;
   candidates: Food[];
   prev: Prev[];
@@ -70,54 +72,108 @@ function rowNutrients(r: Row): Nutrients {
   return r.manual;
 }
 
+/** 값을 바꿀 때: 즐겨찾기·이전 기록이면 그 g을 따르거나(g을 안 적었으면) 지금 g을 기준으로 */
+function choose(r: Row, choice: number): Row {
+  const p = choice <= PREV ? r.prev[PREV - choice] : undefined;
+  return { ...r, choice, prevBase: p && !p.grams ? r.grams : undefined, ...(p && !r.grams && p.grams ? { grams: p.grams } : {}) };
+}
+
+/** 줄 아래 한 줄 설명: 어디 값인지 */
+function sourceText(r: Row) {
+  const p = prevOf(r);
+  if (p) return `내 기록 · ${p.label}`;
+  if (r.choice >= 0) return `식약처 · ${foodLabel(r.candidates[r.choice])}`;
+  if (r.choice === AI) return "AI";
+  return "직접 입력";
+}
+
+const needsGrams = (r: Row) => r.choice >= 0 && !r.grams;
+
+let nextId = 1;
+
+/** 한 줄 → 재료 (이름이 똑같은 즐겨찾기·이전 기록이 있으면 그걸, 아니면 식약처 첫 후보) */
+function makeRow(line: ParsedLine, candidates: Food[], prev: Prev[], choice?: number): Row {
+  const base: Row = { id: nextId++, line, candidates, prev, choice: MANUAL, grams: line.grams, manual: { ...ZERO } };
+  const auto = choice ?? (prev[0]?.exact ? PREV : candidates.length ? 0 : MANUAL);
+  return choose(base, auto);
+}
+
 export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (d: Draft) => void; actionLabel?: string }) {
   const settings = useSettings();
   const [dish, setDish] = useState("");
-  const [text, setText] = useState("");
-  const [rows, setRows] = useState<Row[] | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [add, setAdd] = useState("");
+  const [sugg, setSugg] = useState<{ line: ParsedLine; candidates: Food[]; prev: Prev[] } | null>(null);
+  const [many, setMany] = useState<string | null>(null);
+  const [open, setOpen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [aiUsed, setAiUsed] = useState(false);
   // AI가 검색에서 실제로 참고한 페이지 (비어 있으면 근거 없이 추정)
   const [aiSources, setAiSources] = useState<WebSource[] | undefined>();
+  const addRef = useRef<HTMLInputElement>(null);
+
+  // 재료 추가칸: 칠 때마다 내 기록·식약처에서 후보
+  useEffect(() => {
+    const line = parseLines(add)[0];
+    if (!line) {
+      setSugg(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const [list, [prev]] = await Promise.all([loadFoodDb(), findPrev([line.name])]);
+      if (!cancelled) setSugg({ line, candidates: searchFoods(list, line.name, { prefer: "ingredient", limit: 8 }), prev });
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [add]);
 
   const askAi = async (base: Row[]) => {
     const { answers, sources } = await resolveIngredients(settings, base.map((r) => ({ text: r.line.text, candidates: r.candidates.map(foodLabel) })));
-    setAiUsed(true);
     setAiSources(sources);
     return base.map((r, i) => {
       const a = answers[i];
-      const grams = r.line.grams ?? (a.grams || null);
-      // 이전 기록·즐겨찾기를 골라 둔 재료는 그대로 (AI 답은 목록에서 고를 수 있게만)
-      if (r.choice <= PREV) return { ...r, ...(a.nutrients ? { ai: { grams: a.grams, nutrients: a.nutrients } } : {}) };
-      if (a.match >= 0) return { ...r, choice: a.match, grams };
-      if (a.nutrients) return { ...r, choice: AI, grams, ai: { grams: a.grams, nutrients: a.nutrients } };
+      const grams = r.grams ?? r.line.grams ?? (a.grams || null);
+      const ai = a.nutrients ? { ai: { grams: a.grams, nutrients: a.nutrients } } : {};
+      // 이전 기록·즐겨찾기를 골라 둔 재료는 그대로 (AI 답은 고를 수 있게만)
+      if (r.choice <= PREV) return { ...r, ...ai };
+      if (a.match >= 0) return { ...r, ...ai, choice: a.match, grams };
+      if (a.nutrients) return { ...r, ...ai, choice: AI, grams };
       return { ...r, grams };
     });
   };
 
-  const analyze = async () => {
-    const lines = parseLines(text);
+  const update = (id: number, f: (r: Row) => Row) => setRows((rs) => rs.map((r) => (r.id === id ? f(r) : r)));
+
+  /** 후보를 골라 한 줄 추가 */
+  const pick = (choice: number) => {
+    if (!sugg) return;
+    setRows((rs) => [...rs, makeRow(sugg.line, sugg.candidates, sugg.prev, choice)]);
+    setAdd("");
+    setSugg(null);
+    addRef.current?.focus();
+  };
+
+  /** 여러 줄 한 번에: 줄마다 자동으로 고르고, AI 키가 있으면 AI로 한 번 더 맞춰 봄 */
+  const addMany = async () => {
+    const lines = parseLines(many ?? "");
     if (!lines.length) return;
     setBusy(true);
     setError("");
     try {
       const [list, prevs] = await Promise.all([loadFoodDb(), findPrev(lines.map((l) => l.name))]);
-      let next: Row[] = lines.map((line, i) => {
-        const candidates = searchFoods(list, line.name, { prefer: "ingredient", limit: 8 });
-        const prev = prevs[i];
-        // 이름이 똑같은 즐겨찾기·이전 기록이 있으면 그걸 먼저 고름 (g을 안 적었으면 그때 양)
-        const p = prev[0]?.exact ? prev[0] : undefined;
-        return { line, candidates, prev, choice: p ? PREV : candidates.length ? 0 : MANUAL, grams: line.grams ?? (p ? p.grams : null), prevBase: p && !p.grams ? line.grams : undefined, manual: { ...ZERO } };
-      });
+      let next = lines.map((line, i) => makeRow(line, searchFoods(list, line.name, { prefer: "ingredient", limit: 8 }), prevs[i]));
       if (settings.geminiKey) {
         try {
           next = await askAi(next);
         } catch (e) {
-          setError(e instanceof GeminiError ? `${e.message} (식약처 DB 결과만 보여 드려요)` : "AI 확인에 실패해서 식약처 DB 결과만 보여 드려요.");
+          setError(e instanceof GeminiError ? `${e.message} (식약처 DB 값으로 넣었어요)` : "AI 확인에 실패해서 식약처 DB 값으로 넣었어요.");
         }
       }
-      setRows(next);
+      setRows((rs) => [...rs, ...next]);
+      setMany(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -125,22 +181,22 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     }
   };
 
-  const retryAi = async () => {
-    if (!rows) return;
+  /** 재료 하나를 AI에게 */
+  const askOne = async (r: Row) => {
     setBusy(true);
     setError("");
     try {
-      setRows(await askAi(rows));
+      const [res] = await askAi([r]);
+      if (!res.ai) throw new Error("AI가 값을 찾지 못했어요.");
+      update(r.id, () => ({ ...res, choice: AI }));
     } catch (e) {
-      setError(e instanceof GeminiError ? e.message : "AI 확인에 실패했어요.");
+      setError(e instanceof GeminiError || e instanceof Error ? e.message : "AI 확인에 실패했어요.");
     } finally {
       setBusy(false);
     }
   };
 
-  const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs!.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-
-  const items: Item[] = (rows ?? []).map((r) => ({
+  const items: Item[] = rows.map((r) => ({
     name: r.line.name,
     amountText: r.line.amountText || (r.grams ? `${r.grams}g` : ""),
     grams: r.grams,
@@ -150,75 +206,144 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     nutrients: rowNutrients(r),
   }));
   const total = sumNutrients(items.map((i) => i.nutrients));
-  const missing = (rows ?? []).filter((r) => r.choice >= 0 && !r.grams).map((r) => r.line.name);
-  const missingGrams = missing.length > 0;
-
-  const save = () => {
-    const title = dish.trim() || items.map((i) => i.name).join(", ");
-    onSave({ kind: "home", title, items });
-  };
+  const missing = rows.some(needsGrams);
+  const title = () => dish.trim() || items.map((i) => i.name).join(", ");
+  const save = () => onSave({ kind: "home", title: title(), items });
+  const openRow = rows.find((r) => r.id === open);
 
   return (
     <div className="form">
       <label>요리 이름
-        <input value={dish} onChange={(e) => setDish(e.target.value)} placeholder="선택 · 예: 닭가슴살 볶음밥" />
+        <div className="input-with-star">
+          <input value={dish} onChange={(e) => setDish(e.target.value)} placeholder="선택 · 예: 닭가슴살 볶음밥" />
+          <FavStar getDraft={() => (rows.length && !missing ? { kind: "home", title: title(), items } : null)} />
+        </div>
       </label>
-      <label>식재료
-        <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={"현미밥 200g\n계란 2개\n닭가슴살 100g\n올리브유 1큰술"} />
-      </label>
-      <button className="primary block" onClick={analyze} disabled={!text.trim() || busy}>
-        {busy ? "찾는 중..." : "영양성분 찾기"}
-      </button>
+
+      {rows.length > 0 && (
+        <div className="ing-rows">
+          <span className="muted small">재료 {rows.length}개</span>
+          {rows.map((r, i) => (
+            <div key={r.id} className="ing-row">
+              <button className="ing-open" onClick={() => setOpen(r.id)}>
+                <span>{r.line.text}</span>
+                {needsGrams(r) ? (
+                  <span className="small error-text">g을 넣어 주세요</span>
+                ) : (
+                  <span className="muted small">{sourceText(r)} · {Math.round(items[i].nutrients.kcal)}kcal ›</span>
+                )}
+              </button>
+              <label className="inline ing-g">
+                <NumInput value={r.grams} onChange={(g) => update(r.id, (x) => ({ ...x, grams: g }))} placeholder="g" decimals={1} className={needsGrams(r) ? "missing" : ""} />
+                <em>g</em>
+              </label>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {many === null ? (
+        <>
+          <div className="ing-add">
+            <span aria-hidden>+</span>
+            <input
+              ref={addRef}
+              value={add}
+              onChange={(e) => setAdd(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || !sugg) return;
+                e.preventDefault();
+                pick(sugg.prev[0] ? PREV : sugg.candidates.length ? 0 : MANUAL);
+              }}
+              placeholder="재료 추가 (예: 닭가슴살 150g)"
+              enterKeyHint="done"
+              aria-label="재료 추가"
+            />
+          </div>
+          {sugg && (
+            <div className="ing-sugg">
+              {sugg.prev.slice(0, 5).map((p, j) => (
+                <button key={`p${j}`} onClick={() => pick(PREV - j)}><span>{p.label}</span><span className="muted small">내 기록{p.grams ? ` · ${Math.round(p.grams)}g` : ""}</span></button>
+              ))}
+              {sugg.candidates.map((c, j) => (
+                <button key={j} onClick={() => pick(j)}><span>{foodLabel(c)}</span><span className="muted small">식약처 · 100g당 {Math.round(c.per100.kcal)}</span></button>
+              ))}
+              <button onClick={() => pick(MANUAL)}><span>"{sugg.line.name}" 그대로 추가</span><span className="muted small">값은 나중에</span></button>
+            </div>
+          )}
+          <button className="link small ing-many" onClick={() => setMany("")}>여러 재료를 한 번에 적기</button>
+        </>
+      ) : (
+        <div className="ing-many-box">
+          <textarea rows={5} value={many} onChange={(e) => setMany(e.target.value)} placeholder={"현미밥 200g\n계란 2개\n올리브유 1큰술"} autoFocus />
+          <div className="btn-row">
+            <button onClick={() => setMany(null)}>취소</button>
+            <button className="primary" onClick={addMany} disabled={!many.trim() || busy}>{busy ? "찾는 중..." : "추가"}</button>
+          </div>
+        </div>
+      )}
       {error && <p className="error">{error}</p>}
 
-      {rows && (
+      {rows.length > 0 && (
         <>
-          <ul className="ing-list">
-            {rows.map((r, i) => (
-              <li key={i} className="card inset">
-                <div className="ing-head">
-                  <b>{r.line.text}</b>
-                  <span><NutrientLine n={items[i].nutrients} /><SrcTag label={sourceLabel(items[i])} /></span>
-                </div>
-                <div className="ing-controls">
-                  <select value={r.choice} onChange={(e) => {
-                    const choice = Number(e.target.value);
-                    const p = choice <= PREV ? r.prev[PREV - choice] : undefined;
-                    update(i, { choice, prevBase: p && !p.grams ? r.grams : undefined, ...(p && !r.grams && p.grams ? { grams: p.grams } : {}) });
-                  }}>
-                    {r.prev.map((p, j) => <option key={`p${j}`} value={PREV - j}>{p.label}</option>)}
-                    {r.candidates.map((c, j) => <option key={j} value={j}>{foodLabel(c)}</option>)}
-                    {r.ai && <option value={AI}>AI 추정값</option>}
-                    <option value={MANUAL}>직접 입력</option>
-                  </select>
-                  <label className="inline grams">
-                    <NumInput value={r.grams} onChange={(g) => update(i, { grams: g })} placeholder="g" decimals={1} className={r.choice >= 0 && !r.grams ? "missing" : ""} />
-                    <em>g</em>
-                  </label>
-                </div>
-                {prevOf(r) && !prevOf(r)!.grams && (
-                  <p className="muted small">
-                    {r.prevBase ? `g이 저장되지 않은 음식이라, 고를 때의 ${r.prevBase}g을 기준으로 계산해요` : "g이 저장되지 않은 음식이라 저장된 영양성분 그대로예요"}
-                  </p>
-                )}
-                {r.choice === MANUAL && <NutrientEditor n={r.manual} onChange={(n) => update(i, { manual: n })} />}
-              </li>
-            ))}
-          </ul>
           {rows.some((r) => r.choice === AI) && <SourceLinks sources={aiSources} />}
           <DataNote />
-          {settings.geminiKey && !aiUsed && (
-            <button className="block" onClick={retryAi} disabled={busy}>AI로 다시 확인</button>
-          )}
-          <div className="card inset total">
-            <span>합계</span>
-            <NutrientLine n={total} />
-            <FavStar getDraft={() => (missingGrams ? null : { kind: "home", title: dish.trim() || items.map((i) => i.name).join(", "), items })} />
+          <div className="ing-foot">
+            <div className="cart-sum">
+              <b>합계 {Math.round(total.kcal).toLocaleString()}kcal</b>
+              <span className="muted small">탄 {Math.round(total.carb)} · 단 {Math.round(total.protein)} · 지 {Math.round(total.fat)}</span>
+            </div>
+            <button className="primary cart-go" onClick={save} disabled={missing}>{actionLabel}</button>
           </div>
-          {missingGrams && <p className="error">g 입력 필요: {missing.join(", ")}</p>}
-          <button className="primary block" onClick={save} disabled={missingGrams}>{actionLabel}</button>
         </>
       )}
+
+      {openRow && (
+        <Sheet title={openRow.line.text} onClose={() => setOpen(null)}>
+          <div className="form">
+            <label className="inline ing-g big">먹은 양
+              <NumInput value={openRow.grams} onChange={(g) => update(openRow.id, (x) => ({ ...x, grams: g }))} placeholder="g" decimals={1} className={needsGrams(openRow) ? "missing" : ""} />
+              <em>g</em>
+            </label>
+            {prevOf(openRow) && !prevOf(openRow)!.grams && (
+              <p className="muted small">{openRow.prevBase ? `g이 저장되지 않은 음식이라, 고를 때의 ${openRow.prevBase}g을 기준으로 계산해요` : "g이 저장되지 않은 음식이라 저장된 영양성분 그대로예요"}</p>
+            )}
+            <span className="muted small">어떤 값으로 계산할까요</span>
+            <div className="ing-opts" role="radiogroup">
+              {openRow.prev.map((p, j) => (
+                <Opt key={`p${j}`} on={openRow.choice === PREV - j} label={p.label} sub="내 기록" kcal={rowNutrients(choose(openRow, PREV - j)).kcal} onClick={() => update(openRow.id, (x) => choose(x, PREV - j))} />
+              ))}
+              {openRow.candidates.map((c, j) => (
+                <Opt key={j} on={openRow.choice === j} label={foodLabel(c)} sub="식약처" kcal={openRow.grams ? rowNutrients(choose(openRow, j)).kcal : undefined} onClick={() => update(openRow.id, (x) => choose(x, j))} />
+              ))}
+              {openRow.ai ? (
+                <Opt on={openRow.choice === AI} label="AI 값" sub={sourceLabel({ source: "ai", via: aiSources?.length ? "web" : "guess" })} kcal={rowNutrients(choose(openRow, AI)).kcal} onClick={() => update(openRow.id, (x) => choose(x, AI))} />
+              ) : settings.geminiKey ? (
+                <Opt on={false} label={busy ? "AI가 찾는 중..." : "AI에게 묻기"} sub="검색해서 찾아 줘요" onClick={() => !busy && askOne(openRow)} />
+              ) : null}
+              <Opt on={openRow.choice === MANUAL} label="숫자 직접 입력" onClick={() => update(openRow.id, (x) => choose(x, MANUAL))} />
+            </div>
+            {openRow.choice === MANUAL && <NutrientEditor n={openRow.manual} onChange={(n) => update(openRow.id, (x) => ({ ...x, manual: n }))} />}
+            {openRow.choice === AI && <SourceLinks sources={aiSources} />}
+            {error && <p className="error">{error}</p>}
+            <div className="btn-row">
+              <button className="danger-text" onClick={() => { setRows((rs) => rs.filter((r) => r.id !== openRow.id)); setOpen(null); }}>빼기</button>
+              <button className="primary" onClick={() => setOpen(null)}>확인</button>
+            </div>
+          </div>
+        </Sheet>
+      )}
     </div>
+  );
+}
+
+/** 값 고르기 한 줄 (라디오처럼) */
+function Opt({ on, label, sub, kcal, onClick }: { on: boolean; label: string; sub?: string; kcal?: number; onClick: () => void }) {
+  return (
+    <button role="radio" aria-checked={on} className={`ing-opt ${on ? "on" : ""}`} onClick={onClick}>
+      <span className="ing-dot" aria-hidden />
+      <span className="ing-opt-text"><span>{label}</span>{sub && <span className="muted small">{sub}</span>}</span>
+      {kcal != null && <b className="small">{Math.round(kcal).toLocaleString()}</b>}
+    </button>
   );
 }

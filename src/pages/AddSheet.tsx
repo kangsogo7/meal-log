@@ -6,12 +6,10 @@ import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
 import PhotoForm from "./PhotoForm";
-import type { CartItem } from "./FavoritesTab";
 import QuickAdd from "./QuickAdd";
-import { useTargets } from "../hooks";
 
-/** quick: 자주 먹는 것 카드 / search: 음식 검색(가게 메뉴·식품) / home: 재료 입력(조리) / manual: 직접 입력(숫자) / photo: 사진으로 */
-type Mode = "quick" | "search" | "home" | "manual" | "photo";
+/** quick: 첫 화면(검색칸 + 자주 먹는 것) / home: 재료로 요리 / manual: 숫자 입력 / photo: 사진 */
+type Mode = "quick" | "home" | "manual" | "photo";
 
 export interface Draft {
   kind: Entry["kind"];
@@ -21,15 +19,16 @@ export interface Draft {
   k?: number; // 양 조절 배수
 }
 
-/** 기록 저장 + 다음에 다시 쓰도록 메뉴 저장 */
+/** 기록 저장 + 다음에 다시 쓰도록 메뉴 저장. 저장한 기록의 id */
 export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: string) {
   const total = sumNutrients(d.items.map((i) => i.nutrients));
-  await db.entries.add({ date, meal, kind: d.kind, title: d.title, place: d.place, items: d.items, total, k: d.k, memo, createdAt: Date.now() });
+  const id = await db.entries.add({ date, meal, kind: d.kind, title: d.title, place: d.place, items: d.items, total, k: d.k, memo, createdAt: Date.now() });
   const key = savedKey(d.kind, d.place, d.title);
   const prev = await db.saved.get(key);
   // 즐겨찾기·최근 메뉴에는 양 조절 전 1회 제공량으로
   const base = baseServing(d.items, d.k);
   await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: base, total: sumNutrients(base.map((i) => i.nutrients)), uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
+  return id as number;
 }
 
 // 기록 창을 연 채 홈 화면에 갔다가 폰이 앱을 정리해도, 30분 안에 돌아오면 쓰던 그대로 다시 열기
@@ -52,72 +51,51 @@ const saveAddDraft = (d: AddDraft | null) => {
   }
 };
 
+const MODE_TITLE: Record<Exclude<Mode, "quick">, string> = { photo: "사진", home: "재료로 요리", manual: "숫자 입력" };
+
 export default function AddSheet({ date, meal: initialMeal, onClose: close, restore }: { date: string; meal: Meal; onClose: () => void; restore?: AddDraft | null }) {
   const onClose = () => {
     saveAddDraft(null);
     close();
   };
   const [meal, setMeal] = useState<Meal>(initialMeal);
-  // 예전 형식(외식/식품/즐겨찾기 탭)으로 저장된 쓰던 창도 이어서 열기
+  // 예전 형식(검색·외식·식품 화면)으로 저장된 쓰던 창은 첫 화면 검색으로
   const old = restore?.mode as string | undefined;
-  const [mode, setMode] = useState<Mode>(old === "out" || old === "food" ? "search" : old === "home" || old === "manual" || old === "search" || old === "photo" ? (old as Mode) : "quick");
+  const [mode, setMode] = useState<Mode>(old === "home" || old === "manual" || old === "photo" ? old : "quick");
   const [query, setQuery] = useState(restore?.query ?? "");
+  // 기록하고 나면 검색칸을 비우려고 검색 화면을 새로 만듦
+  const [searchKey, setSearchKey] = useState(0);
   useEffect(() => saveAddDraft({ date, meal, mode, query, at: Date.now() }), [date, meal, mode, query]);
-  const { target } = useTargets(date);
-  const dayTotal = useLiveQuery(async () => sumNutrients((await db.entries.where("date").equals(date).toArray()).map((e) => e.total)).kcal, [date], 0);
 
-  // 담은 것 (카드·검색·직접 입력에서 담은 걸 모아 한 번에 기록)
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const toggle = (c: CartItem) => setCart((p) => (p.some((x) => x.id === c.id) ? p.filter((x) => x.id !== c.id) : [...p, c]));
-  // 담기 또는 담은 것의 양 변경
-  const put = (c: CartItem) => setCart((p) => (p.some((x) => x.id === c.id) ? p.map((x) => (x.id === c.id ? c : x)) : [...p, c]));
-  const count = cart.reduce((n, c) => n + c.drafts.length, 0);
-  const cartKcal = cart.reduce((n, c) => n + c.drafts.reduce((m, d) => m + sumNutrients(d.items.map((i) => i.nutrients)).kcal, 0), 0);
+  const mealLabel = MEALS.find((m) => m.key === meal)!.label;
+  const recordLabel = `${mealLabel}에 기록`;
+  // 이 끼니에 이미 기록한 것 (바로 빼기)
+  const logged = useLiveQuery(async () => (await db.entries.where("date").equals(date).toArray()).filter((e) => e.meal === meal).sort((a, b) => a.createdAt - b.createdAt), [date, meal], []);
+  const loggedKcal = Math.round(sumNutrients(logged.map((e) => e.total)).kcal);
 
-  /** 사진에서 찾은 음식 여러 개: 하나씩 따로 담기 (담은 것에서 하나씩 뺄 수 있게) */
-  const addDrafts = (list: Draft[]) => {
-    const t = Date.now();
-    list.forEach((d, i) => put({ id: `draft:${t}-${i}`, drafts: [d] }));
-    flash(`${list.length}개 담았어요`);
-    setMode("quick");
-  };
-
-  /** 검색·조리·직접 입력에서 고른 음식은 담고 카드 화면으로 */
-  const addDraft = (d: Draft) => {
-    put({ id: `draft:${Date.now()}`, drafts: [d] });
-    flash(`${d.title} 담았어요`);
-    setQuery("");
-    setMode("quick");
-  };
-
-  const recordCart = async () => {
-    if (!count) return;
+  /** 고른 음식은 바로 기록 (알림에서 되돌리기) */
+  const record = async (list: Draft[], label?: string) => {
+    if (!list.length) return;
     try {
-      for (const c of cart) for (const d of c.drafts) await saveEntry(date, meal, d);
-      flash(`${count}개 기록했어요`);
-      onClose();
+      const ids: number[] = [];
+      for (const d of list) ids.push(await saveEntry(date, meal, d));
+      const name = label ?? (list.length === 1 ? list[0].title : `${list.length}개`);
+      flash(`${name} 기록했어요`, 4000, { label: "되돌리기", run: () => db.entries.bulkDelete(ids) });
+      setQuery("");
+      setSearchKey((k) => k + 1);
+      setMode("quick");
     } catch (e) {
       alert(`저장하지 못했어요: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
-  const after = target ? Math.round(target.kcal - dayTotal - cartKcal) : null;
-  const cartFooter =
-    count > 0 ? (
-      <div className="cart-foot">
-        <div className="cart-sum">
-          <b>{count}개 · {Math.round(cartKcal).toLocaleString()}kcal</b>
-          {after != null && <span className="muted small">{after >= 0 ? `기록하면 ${after.toLocaleString()}kcal 남아요` : `기록하면 ${(-after).toLocaleString()}kcal 넘어요`}</span>}
-        </div>
-        <button className="primary cart-go" onClick={recordCart}>기록하기</button>
-      </div>
-    ) : undefined;
-
-  const back = <button className="link" onClick={() => setMode("quick")}>← 자주 먹는 것</button>;
-  const extras = cart.filter((c) => c.id.startsWith("draft:"));
+  const remove = async (e: Entry) => {
+    await db.entries.delete(e.id!);
+    flash(`${e.title} 뺐어요`, 4000, { label: "되돌리기", run: () => db.entries.add(e) });
+  };
 
   return (
-    <Sheet title="식단 기록" onClose={onClose} tall footer={cartFooter}>
+    <Sheet title="식단 기록" onClose={onClose} tall>
       <div className="seg meal-seg">
         {MEALS.map((m) => (
           <button key={m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
@@ -126,71 +104,50 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
 
       {mode === "quick" && (
         <>
-          <button className="search-fake" onClick={() => setMode("search")}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-            음식 검색 (가게·메뉴·식품)
-          </button>
-          <div className="quick-modes">
-            <button className="mode-home" onClick={() => setMode("home")}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
-              <span><b>재료 입력</b><small>집밥·요리 재료</small></span>
-            </button>
-            <button className="mode-manual" onClick={() => setMode("manual")}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2" /></svg>
-              <span><b>직접 입력</b><small>칼로리·탄단지</small></span>
-            </button>
-            <button className="mode-photo" onClick={() => setMode("photo")}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
-              <span><b>사진으로</b><small>음식·성분표</small></span>
-            </button>
-          </div>
-          {extras.length > 0 && (
-            <div className="cart-extras">
-              {extras.map((c) => (
-                <span key={c.id} className="cart-chip">
-                  {c.drafts[0].title}
-                  <button aria-label={`${c.drafts[0].title} 빼기`} onClick={() => toggle(c)}>✕</button>
-                </span>
-              ))}
-            </div>
+          <SearchForm key={searchKey} onSave={(d) => record([d])} actionLabel={recordLabel} initialQuery={query} onQueryChange={setQuery} />
+          {!query.trim() && (
+            <>
+              <div className="add-modes">
+                <button onClick={() => setMode("photo")}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+                  사진
+                </button>
+                <button onClick={() => setMode("home")}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
+                  재료로 요리
+                </button>
+                <button onClick={() => setMode("manual")}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 8h8M8 13h8M8 17h4" /></svg>
+                  숫자 입력
+                </button>
+              </div>
+              {logged.length > 0 && (
+                <div className="logged">
+                  <div className="logged-head muted small"><span>오늘 {mealLabel}</span><span>{logged.length}개 · {loggedKcal.toLocaleString()}kcal</span></div>
+                  {logged.map((e) => (
+                    <div key={e.id} className="logged-row">
+                      <span className="logged-title">{e.title}</span>
+                      <span className="muted">{Math.round(e.total.kcal).toLocaleString()}</span>
+                      <button className="ghost logged-del" aria-label={`${e.title} 빼기`} onClick={() => remove(e)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <QuickAdd onRecord={record} recordLabel={recordLabel} />
+            </>
           )}
-          <QuickAdd cart={cart} toggle={toggle} put={put} />
         </>
       )}
 
-      {mode === "search" && (
-        <>
-          <div className="row-between search-head">{back}<b>음식 검색</b></div>
-          <SearchForm
-            onSave={addDraft}
-            actionLabel="담기"
-            autoFocus
-            initialQuery={query}
-            onQueryChange={setQuery}
-          />
-        </>
+      {mode !== "quick" && (
+        <div className="mode-head">
+          <button className="ghost" onClick={() => setMode("quick")} aria-label="뒤로">←</button>
+          <b>{MODE_TITLE[mode]}</b>
+        </div>
       )}
-
-      {mode === "home" && (
-        <>
-          <div className="row-between search-head">{back}<b>재료 입력</b></div>
-          <HomeForm onSave={addDraft} actionLabel="담기" />
-        </>
-      )}
-
-      {mode === "photo" && (
-        <>
-          <div className="row-between search-head">{back}<b>사진으로</b></div>
-          <PhotoForm onSave={addDrafts} />
-        </>
-      )}
-
-      {mode === "manual" && (
-        <>
-          <div className="row-between search-head">{back}<b>직접 입력</b></div>
-          <ManualForm onSave={addDraft} actionLabel="담기" />
-        </>
-      )}
+      {mode === "home" && <HomeForm onSave={(d) => record([d])} actionLabel={recordLabel} />}
+      {mode === "photo" && <PhotoForm onSave={(list) => record(list)} />}
+      {mode === "manual" && <ManualForm onSave={(d) => record([d])} actionLabel={recordLabel} />}
     </Sheet>
   );
 }
