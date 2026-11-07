@@ -54,7 +54,6 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
         {tabs.map((t) => (
           <button key={t.label} role="tab" aria-selected={t.on} className={t.on ? "on" : ""} onClick={() => setSrc(t.go)}>{t.label}</button>
         ))}
-        {src.kind === "sets" && sets.length > 0 && <button className="qa-tabs-manage" onClick={() => setManage("sets")}>세트 편집</button>}
       </div>
 
       {src.kind === "fav" && groups.length > 1 && (
@@ -69,6 +68,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
       {src.kind === "sets" ? (
         <>
           {sets.length === 0 && <p className="muted small quick-empty">식단 화면에서 끼니를 눌러 "식사 세트로 저장"하면 생겨요</p>}
+          {sets.length > 0 && <div className="qa-manage"><button onClick={() => setManage("sets")}>세트 편집</button></div>}
           <div className="qa-grid">
             {sets.map((s) => (
               <Card

@@ -1126,8 +1126,9 @@ label.inline.ing-g.big input { width: 110px; }
 .qa-card .qa-add { top: auto; bottom: 8px; right: 8px; width: 32px; height: 32px; min-height: 32px; }
 .toast-action { flex: none; white-space: nowrap; }
 
-/* 세트 편집: 탭 줄 오른쪽 끝 */
-.qa-tabs button.qa-tabs-manage { margin-left: auto; color: var(--accent); font-size: 0.88rem; font-weight: 600; border-bottom-color: transparent; }
+/* 세트 편집: 탭 아래, 목록 위 오른쪽 */
+.qa-manage { display: flex; justify-content: flex-end; margin-top: 4px; }
+.qa-manage button { min-height: 40px; padding: 0 0 0 12px; border: none; background: none; color: var(--accent); font-size: 0.88rem; font-weight: 600; }
 /* 전체 화면의 입력칸은 카드처럼 흰 바탕 (바탕색과 구분) */
 .screen-page input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), .screen-page select, .screen-page textarea { background: var(--card); }
 
