@@ -321,7 +321,8 @@ async function doSync() {
     }
     for (const { kind, key, data } of docs) {
       const sig = JSON.stringify(data);
-      const k = `${g.id}/${kind}/${key}`;
+      // 계정(uid)까지 넣어서, 계정이 바뀌면 다시 올림
+      const k = `${u.uid}/${g.id}/${kind}/${key}`;
       if (sigs[k] === sig) continue;
       // 기록이 한 번도 없던 날은 올리지 않음
       if (kind === "days" && !(data as { meals: unknown[] }).meals.length && !sigs[k]) continue;

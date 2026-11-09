@@ -1177,3 +1177,8 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .dp-ok { width: 56px; height: 56px; min-height: 56px; padding: 0; border: none; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
 .form .field-label { margin-bottom: 12px; font-size: 0.88rem; color: var(--muted); }
 .logged-row > .muted { flex: none; white-space: nowrap; }
+
+/* 그룹: 내 기록 올리기 실패 */
+.sync-err { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+.sync-err .error { margin: 0; }
+.sync-err .link { flex: none; min-height: 44px; }

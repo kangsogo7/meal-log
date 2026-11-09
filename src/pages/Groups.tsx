@@ -7,7 +7,7 @@ import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { openSharedFood } from "../foodShare";
 import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isNativeApp, isStandalone, kakaoExternalLink, onInvite, pendingInvite, type Invite } from "../invite";
 import {
-  addComment, createGroup, createMe, deleteComment, joinGroup, leaveGroup, loadMe, renameGroup, renameMe,
+  addComment, afterMembershipChange, createGroup, createMe, deleteComment, joinGroup, leaveGroup, loadMe, renameGroup, renameMe,
   getMyPhoto, makePhoto, setMyPhoto, watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchMemberDay, watchMemberWeek, watchTodayCount,
   type Comment, type Group, type Me, type SharedDay, type SharedWeek,
 } from "../share";
@@ -357,6 +357,17 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
   const start = weekStartOf(date);
 
   useEffect(() => watchGroup(gid, setGroup), [gid]);
+  // 그룹 화면을 열 때마다 내 기록을 다시 올림 (공유가 꺼져 있었으면 켜고). 실패하면 이유를 보여 줌
+  const [syncErr, setSyncErr] = useState("");
+  const [syncBusy, setSyncBusy] = useState(false);
+  const resync = () => {
+    setSyncBusy(true);
+    afterMembershipChange()
+      .then(() => setSyncErr(""))
+      .catch((e) => setSyncErr(errText(e)))
+      .finally(() => setSyncBusy(false));
+  };
+  useEffect(resync, [gid]);
   useEffect(() => watchGroupDay(gid, date, setDays), [gid, date]);
   useEffect(() => watchGroupWeek(gid, start, setWeeks), [gid, start]);
   useEffect(() => {
@@ -382,6 +393,13 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
         <b>{formatDate(date)}</b>
         <button className="ghost" onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</button>
       </div>
+
+      {syncErr && (
+        <div className="sync-err">
+          <p className="error small">내 기록을 그룹에 올리지 못했어요. {syncErr}</p>
+          <button className="link small" onClick={resync} disabled={syncBusy}>{syncBusy ? "올리는 중..." : "다시 올리기"}</button>
+        </div>
+      )}
 
       <div className="meal-tabs" role="tablist">
         {MEALS.map((m) => {
