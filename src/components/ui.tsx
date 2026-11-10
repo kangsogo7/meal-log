@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { addDays, EXTRAS, formatDate, MEALS, r1, sourceLabel, todayStr, type Item, type Meal, type Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
@@ -560,6 +560,14 @@ export function MealSeg({ value, onChange }: { value: Meal; onChange: (m: Meal) 
     </div>
   );
 }
+
+/** 공통 버튼. kind: primary(주 버튼) · secondary(회색) · danger(지우기 등) */
+export function Btn({ kind = "secondary", className, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { kind?: "primary" | "secondary" | "danger" }) {
+  return <button {...rest} className={`btn ${kind} ${className ?? ""}`} />;
+}
+
+/** 버튼 여러 개를 한 줄에 같은 폭으로 */
+export const BtnRow = ({ children }: { children: ReactNode }) => <div className="btn-pair">{children}</div>;
 
 /** 화면 제목 자리의 끼니 (☀️ 아침 기록 ▾). 누르면 끼니를 바꿀 수 있음 (식단 기록·기록 수정 공통) */
 export function MealTitle({ meal, suffix = "", onChange }: { meal: Meal; suffix?: string; onChange: (m: Meal) => void }) {

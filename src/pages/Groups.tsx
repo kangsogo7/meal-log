@@ -1,10 +1,10 @@
 // 그룹: 멤버를 초대해 서로의 식단을 날짜별로 보고 댓글을 남김
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { addDays, formatDate, MEALS, todayStr, type Meal } from "../db";
-import { BackIcon, flash, Screen, Sheet, FullScreen } from "../components/ui";
+import { BackIcon, Btn, BtnRow, flash, Screen, Sheet, FullScreen } from "../components/ui";
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
-import { openSharedFood } from "../foodShare";
+import { openSharedFood, type SharedFood } from "../foodShare";
 import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isNativeApp, isStandalone, kakaoExternalLink, onInvite, pendingInvite, type Invite } from "../invite";
 import {
   addComment, afterMembershipChange, createGroup, createMe, deleteComment, joinGroup, leaveGroup, loadMe, renameGroup, renameMe,
@@ -41,6 +41,16 @@ function Avatar({ uid, name, size = 32, photo }: { uid: string; name: string; si
 function mealNow(): Meal {
   const h = new Date().getHours();
   return h < 10 ? "breakfast" : h < 15 ? "lunch" : h < 17 ? "snack" : "dinner";
+}
+
+/** 그룹 식사 기록의 먹은 양 ("150g", "2개", "1.5인분"). 모르면 안 보임 */
+function Amount({ d }: { d?: SharedFood }) {
+  const items = d?.items ?? [];
+  let text = "";
+  if (items.length === 1) text = items[0].grams ? `${Math.round(items[0].grams * 10) / 10}g` : items[0].amountText ?? "";
+  else if (items.length > 1 && items.every((i) => i.grams)) text = `${Math.round(items.reduce((t, i) => t + (i.grams ?? 0), 0))}g`;
+  else if (d?.k && d.k !== 1) text = `${d.k}인분`;
+  return text ? <span className="muted"> · {text}</span> : null;
 }
 
 /** 내 프로필 사진: 누르면 사진 고르기 (정사각형으로 잘라 작게 저장), 있으면 바꾸기·지우기 */
@@ -80,10 +90,10 @@ function MyPhoto({ me }: { me: Me }) {
       }} />
       {menu && (
         <Sheet title="프로필 사진" onClose={() => setMenu(false)}>
-          <div className="form">
-            <button className="block" onClick={() => input.current?.click()}>다른 사진 고르기</button>
-            <button className="block danger" onClick={() => apply(null)}>사진 지우기</button>
-          </div>
+          <BtnRow>
+            <Btn onClick={() => input.current?.click()}>다른 사진 고르기</Btn>
+            <Btn kind="danger" onClick={() => apply(null)}>사진 지우기</Btn>
+          </BtnRow>
         </Sheet>
       )}
     </>
@@ -429,7 +439,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
                 {m.items.map((it, i) => (
                   <div key={i} className="mm-item">
                     <div className="mm-item-text">
-                      <span>{it.place && <b>{it.place} </b>}{it.title}</span>
+                      <span>{it.place && <b>{it.place} </b>}{it.title}<Amount d={it.d} /></span>
                       <span className="muted small">
                         {it.ing && it.ing.join(", ") !== it.title ? `재료: ${it.ing.join(" · ")}` : `탄 ${Math.round(it.carb)}g · 단 ${Math.round(it.protein)}g · 지 ${Math.round(it.fat)}g`}
                       </span>
@@ -645,7 +655,7 @@ function MemberScreen({ me, gid, group, uid, initialDate, initialTab, onClose }:
               {m.items.map((it, i) => (
                 <div key={i} className="post-item">
                   <div className="row-between post-title">
-                    <span>{it.place && <b>{it.place} </b>}{it.title}</span>
+                    <span>{it.place && <b>{it.place} </b>}{it.title}<Amount d={it.d} /></span>
                     {!isMe && it.d && <button className="me-too" onClick={() => openSharedFood({ ...it.d!, from: name })}>나도 기록</button>}
                   </div>
                   <span className="muted small">

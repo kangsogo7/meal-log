@@ -1216,3 +1216,10 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .meal-pick button { min-height: 56px; border: none; border-radius: 14px; background: var(--card); font-size: var(--fs-main); }
 .meal-pick button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .meal-pick .meal-ic { margin-right: 6px; }
+
+/* 공통 버튼 (Btn) · 한 줄에 같은 폭으로 (BtnRow) */
+.btn { min-height: 48px; padding: 0 14px; border: none; border-radius: 14px; font-size: var(--fs-main); font-weight: 500; white-space: nowrap; }
+.btn.secondary { background: var(--card); color: var(--text); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.danger { background: var(--bad-bg); color: var(--bad-ink); }
+.btn-pair { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; padding-bottom: 8px; }
