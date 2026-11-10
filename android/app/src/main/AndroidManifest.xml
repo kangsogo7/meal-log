@@ -25,8 +25,30 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="meallog" android:host="join" />
                 <data android:scheme="meallog" android:host="food" />
+                <!-- 식단 위젯에서 끼니를 누르면 meallog://add?meal=… -->
+                <data android:scheme="meallog" android:host="add" />
             </intent-filter>
         </activity>
+
+        <!-- 홈 화면 위젯: 물 · 영양제 · 식단 기록 -->
+        <receiver android:name=".WaterWidget" android:label="@string/widget_water" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_water_info" />
+        </receiver>
+        <receiver android:name=".SuppWidget" android:label="@string/widget_supp" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_supp_info" />
+        </receiver>
+        <receiver android:name=".MealWidget" android:label="@string/widget_meal" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_meal_info" />
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

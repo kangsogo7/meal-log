@@ -10,6 +10,8 @@ import Activity from "./pages/Activity";
 import Goals from "./pages/Goals";
 import SettingsPage from "./pages/Settings";
 import { rescheduleReminders, takeChecksRequest } from "./notify";
+import { initWidgets, pushWidgets, takeAddRequest } from "./widgets";
+import type { Meal } from "./db";
 // 그룹 탭은 Firebase 코드가 커서 열 때만 불러옴
 const Groups = lazy(() => import("./pages/Groups"));
 
@@ -60,6 +62,20 @@ function useShareSync() {
   }, [sig]);
 }
 
+/** 안드로이드 위젯: 오늘 기록·물·영양제가 바뀌면 위젯도 다시 그림 */
+function useWidgetSync() {
+  useEffect(() => initWidgets(), []);
+  const today = todayStr();
+  const sig = useLiveQuery(async () => {
+    const entries = await db.entries.where("date").equals(today).toArray();
+    const kv = await db.kv.where("key").anyOf([`check:${today}`, "hydration", "supplements"]).toArray();
+    return JSON.stringify([entries.map((e) => [e.id, e.meal, e.total.kcal]), kv]);
+  }, [today], "");
+  useEffect(() => {
+    if (sig) pushWidgets();
+  }, [sig]);
+}
+
 export default function App() {
   // 그룹 초대 링크로 열었으면 그룹 탭부터
   const [tab, setTab] = useState<Tab>(() => (pendingInvite() ? "groups" : "today"));
@@ -77,6 +93,20 @@ export default function App() {
     return () => window.removeEventListener("open-checks", take);
   }, []);
   useReminderSync();
+  useWidgetSync();
+  // 식단 위젯에서 끼니를 누르면 식단 탭에서 그 끼니 기록 화면 열기
+  const [addReq, setAddReq] = useState<{ meal: Meal; n: number } | null>(null);
+  useEffect(() => {
+    const take = () => {
+      const meal = takeAddRequest();
+      if (!meal) return;
+      setTab("today");
+      setAddReq((r) => ({ meal, n: (r?.n ?? 0) + 1 }));
+    };
+    take();
+    window.addEventListener("open-add", take);
+    return () => window.removeEventListener("open-add", take);
+  }, []);
   // 공유받은 음식(링크·그룹의 나도 기록) → 바로 기록하는 창
   const [food, setFood] = useState<SharedFood | null>(pendingFood);
   useEffect(() => onFood(setFood), []);
@@ -88,7 +118,7 @@ export default function App() {
     <div className="app">
       <main className="content">
         {isOldAddress() && <MovedNotice />}
-        {tab === "today" && <Today onGoToGoals={() => setTab("goals")} openChecks={checksReq} />}
+        {tab === "today" && <Today onGoToGoals={() => setTab("goals")} openChecks={checksReq} openAdd={addReq} />}
         {tab === "activity" && <Activity />}
         {tab === "groups" && <Suspense fallback={<p className="muted small center-pad">불러오는 중...</p>}><Groups /></Suspense>}
         {tab === "goals" && <Goals />}

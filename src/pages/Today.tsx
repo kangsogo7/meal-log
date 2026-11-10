@@ -72,7 +72,11 @@ function SaveSetSheet({ mealLabel, list, onClose }: { mealLabel: string; list: E
   );
 }
 
-export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: () => void; /** 늘어나면 물·영양제 창 열기 (알림을 누른 경우) */ openChecks?: number }) {
+export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
+  onGoToGoals: () => void;
+  /** 늘어나면 물·영양제 창 열기 (알림을 누른 경우) */ openChecks?: number;
+  /** 식단 위젯에서 끼니를 누른 경우: 오늘 그 끼니 기록 화면 */ openAdd?: { meal: Meal; n: number } | null;
+}) {
   // 쓰던 기록 창이 있으면(앱이 다시 시작된 경우) 그대로 다시 열기
   const [restore, setRestore] = useState<AddDraft | null>(loadAddDraft);
   const [date, setDate] = useState(restore?.date ?? todayStr());
@@ -88,6 +92,11 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
     setDate(todayStr());
     setChecksOpen(true);
   }, [openChecks]);
+  useEffect(() => {
+    if (!openAdd) return;
+    setDate(todayStr());
+    setAdding(openAdd.meal);
+  }, [openAdd?.n]);
   // 지난 날은 그때 목표로 평가
   const { target, profile } = useTargets(date);
   // 치팅데이: 그날 끼니는 평가하지 않음 (주간 평가·칼로리 조정 판단에서도 빠짐)

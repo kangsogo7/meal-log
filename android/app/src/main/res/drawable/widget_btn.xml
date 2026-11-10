@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯 주 버튼: 연한 라임 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#C4EA7E" />
+    <corners android:radius="14dp" />
+</shape>

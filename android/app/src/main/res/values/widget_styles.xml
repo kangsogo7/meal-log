@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 영양제 위젯 한 줄 (누르면 체크) -->
+    <style name="WidgetSuppRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textColor">#1B1F17</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:background">@drawable/widget_chip_off</item>
+    </style>
+    <!-- 식단 위젯 끼니 버튼 (누르면 그 끼니 기록 화면) -->
+    <style name="WidgetMealBtn">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">3dp</item>
+        <item name="android:layout_marginEnd">3dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">#1B1F17</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:background">@drawable/widget_chip_off</item>
+    </style>
+    <string name="widget_water">물</string>
+    <string name="widget_water_add">+ 한 잔</string>
+    <string name="widget_supp">영양제</string>
+    <string name="widget_supp_empty">앱에서 영양제를 등록해 주세요</string>
+    <string name="widget_meal">식단 기록</string>
+    <string name="widget_meal_title">오늘 식단</string>
+</resources>
