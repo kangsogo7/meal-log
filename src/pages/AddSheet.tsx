@@ -101,7 +101,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
     <Screen
       left={<button className="icon-btn" onClick={() => (mode === "quick" ? onClose() : setMode("quick"))} aria-label="뒤로"><BackIcon /></button>}
       title={<MealTitle meal={meal} suffix={mode === "quick" ? " 기록" : ` · ${MODE_TITLE[mode]}`} onChange={setMeal} />}
-      footer={mode === "home" ? <div id="add-foot" /> : undefined}
+      footer={mode === "home" || mode === "manual" ? <div id="add-foot" /> : undefined}
     >
       {mode === "quick" && (
         <>
@@ -126,6 +126,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
                     <FoodRow
                       key={e.id}
                       title={e.title}
+                      n={e.total}
                       kcal={e.total.kcal}
                       trailing={<button className="del-btn" aria-label={`${e.title} 빼기`} onClick={() => setConfirmDel(e)}>✕</button>}
                     />

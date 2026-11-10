@@ -1,7 +1,7 @@
 // 그룹: 멤버를 초대해 서로의 식단을 날짜별로 보고 댓글을 남김
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { addDays, formatDate, MEALS, todayStr, type Meal } from "../db";
-import { BackIcon, Btn, BtnRow, flash, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
+import { BackIcon, Btn, BtnRow, flash, FoodList, FoodRow, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { openSharedFood, type SharedFood } from "../foodShare";
@@ -9,7 +9,7 @@ import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isN
 import {
   addComment, afterMembershipChange, createGroup, createMe, deleteComment, joinGroup, leaveGroup, loadMe, renameGroup, renameMe,
   getMyPhoto, makePhoto, setMyPhoto, watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchMemberDay, watchMemberWeek, watchTodayCount,
-  type Comment, type Group, type Me, type SharedDay, type SharedWeek,
+  type Comment, type Group, type Me, type SharedDay, type SharedItem, type SharedWeek,
 } from "../share";
 
 const errText = (e: unknown) => {
@@ -43,15 +43,28 @@ function mealNow(): Meal {
   return h < 10 ? "breakfast" : h < 15 ? "lunch" : h < 17 ? "snack" : "dinner";
 }
 
-/** 그룹 식사 기록의 먹은 양 ("150g", "2개", "1.5인분"). 모르면 안 보임 */
-function Amount({ d }: { d?: SharedFood }) {
+/** 그룹 식사 기록의 먹은 양 ("150g", "2개", "1.5인분"). 모르면 "" */
+function amountOf(d?: SharedFood): string {
   const items = d?.items ?? [];
-  let text = "";
-  if (items.length === 1) text = items[0].grams ? `${Math.round(items[0].grams * 10) / 10}g` : items[0].amountText ?? "";
-  else if (items.length > 1 && items.every((i) => i.grams)) text = `${Math.round(items.reduce((t, i) => t + (i.grams ?? 0), 0))}g`;
-  else if (d?.k && d.k !== 1) text = `${d.k}인분`;
-  return text ? <span className="muted"> · {text}</span> : null;
+  if (items.length === 1) return items[0].grams ? `${Math.round(items[0].grams * 10) / 10}g` : items[0].amountText ?? "";
+  if (items.length > 1 && items.every((i) => i.grams)) return `${Math.round(items.reduce((t, i) => t + (i.grams ?? 0), 0))}g`;
+  return d?.k && d.k !== 1 ? `${d.k}인분` : "";
 }
+
+/** 그룹 식사 기록 한 줄 (공통 음식 목록 줄) */
+function SharedRow({ it, onMeToo }: { it: SharedItem; onMeToo?: () => void }) {
+  return (
+    <FoodRow
+      title={it.title}
+      place={it.place}
+      sub={[amountOf(it.d), it.ing && it.ing.join(", ") !== it.title ? `재료: ${it.ing.join(" · ")}` : ""].filter(Boolean).join(" · ")}
+      n={{ kcal: it.kcal, carb: it.carb, protein: it.protein, fat: it.fat }}
+      kcal={it.kcal}
+      trailing={onMeToo && <button className="me-too" onClick={onMeToo}>나도 기록</button>}
+    />
+  );
+}
+
 
 /** 내 프로필 사진: 누르면 사진 고르기 (정사각형으로 잘라 작게 저장), 있으면 바꾸기·지우기 */
 function MyPhoto({ me }: { me: Me }) {
@@ -435,19 +448,11 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
                 {m.grade && <span className={`grade-chip ${m.grade}`}>{GRADE_LABEL[m.grade as Grade]}</span>}
                 <b className="mm-kcal">{m.kcal.toLocaleString()}<span className="muted"> kcal</span></b>
               </button>
-              <div className="mm-items">
+              <FoodList>
                 {m.items.map((it, i) => (
-                  <div key={i} className="mm-item">
-                    <div className="mm-item-text">
-                      <span>{it.place && <b>{it.place} </b>}{it.title}<Amount d={it.d} /></span>
-                      <span className="muted small">
-                        {it.ing && it.ing.join(", ") !== it.title ? `재료: ${it.ing.join(" · ")}` : `탄 ${Math.round(it.carb)}g · 단 ${Math.round(it.protein)}g · 지 ${Math.round(it.fat)}g`}
-                      </span>
-                    </div>
-                    {uid !== me.uid && it.d && <button className="me-too" onClick={() => openSharedFood({ ...it.d!, from: name })}>나도 기록</button>}
-                  </div>
+                  <SharedRow key={i} it={it} onMeToo={uid !== me.uid && it.d ? () => openSharedFood({ ...it.d!, from: name }) : undefined} />
                 ))}
-              </div>
+              </FoodList>
               <MealComments me={me} gid={gid} dayId={d.id} owner={uid} meal={m.meal} />
             </li>
           );
@@ -652,17 +657,11 @@ function MemberScreen({ me, gid, group, uid, initialDate, initialTab, onClose }:
                 <b>{m.label}{m.grade ? ` · ${GRADE_LABEL[m.grade as Grade]}` : ""}</b>
                 <span className="muted small">{m.kcal}kcal</span>
               </div>
-              {m.items.map((it, i) => (
-                <div key={i} className="post-item">
-                  <div className="row-between post-title">
-                    <span>{it.place && <b>{it.place} </b>}{it.title}<Amount d={it.d} /></span>
-                    {!isMe && it.d && <button className="me-too" onClick={() => openSharedFood({ ...it.d!, from: name })}>나도 기록</button>}
-                  </div>
-                  <span className="muted small">
-                    {it.ing && it.ing.join(", ") !== it.title ? `재료: ${it.ing.join(" · ")}` : `탄 ${Math.round(it.carb)}g · 단 ${Math.round(it.protein)}g · 지 ${Math.round(it.fat)}g`}
-                  </span>
-                </div>
-              ))}
+              <FoodList>
+                {m.items.map((it, i) => (
+                  <SharedRow key={i} it={it} onMeToo={!isMe && it.d ? () => openSharedFood({ ...it.d!, from: name }) : undefined} />
+                ))}
+              </FoodList>
               <Comments me={me} gid={gid} kind="days" id={day.id} owner={uid} meal={m.meal} list={comments.filter((c) => c.meal === m.meal)} />
             </article>
           ))}

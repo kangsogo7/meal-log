@@ -6,7 +6,7 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBran
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, FoodList, FoodRow, macroLine, TextInput } from "../components/ui";
+import { DataNote, FoodList, FoodRow, TextInput } from "../components/ui";
 import FoodDetail from "../components/FoodDetail";
 import { makePortion, storedPortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
@@ -313,7 +313,8 @@ function ResultButton({ label, tag, n, note, suffix, selected, onClick, fav }: {
     <FoodRow
       title={label}
       tag={tag}
-      sub={[suffix, macroLine(n), note].filter(Boolean).join(" · ")}
+      sub={[suffix, note].filter(Boolean).join(" · ")}
+      n={n}
       kcal={n.kcal}
       selected={selected}
       onClick={onClick}

@@ -364,20 +364,21 @@ export const macroLine = (n: Nutrients) => `탄 ${Math.round(n.carb)} · 단 ${M
  * 음식 한 줄 (앱 전체 음식 목록 공통): 이름 / 아래 작은 글씨 / 오른쪽 kcal / 맨 오른쪽 버튼(별·✕ 등).
  * FoodList 안에 넣으면 회색 판 하나에 구분선으로 이어짐
  */
-export function FoodRow({ title, place, tag, sub, kcal, onClick, selected, trailing, chevron }: {
+export function FoodRow({ title, place, tag, sub, n, kcal, onClick, selected, trailing, chevron }: {
   title: ReactNode; place?: string; tag?: string;
-  /** 없으면 아무것도 안 보임 */
-  sub?: ReactNode; kcal?: number; onClick?: () => void; selected?: boolean;
+  /** 작은 글씨 (양 등). n을 주면 뒤에 탄·단·지가 붙음 */
+  sub?: string; n?: Nutrients; kcal?: number; onClick?: () => void; selected?: boolean;
   /** 오른쪽 끝 버튼 (즐겨찾기 별, 빼기 ✕) */
   trailing?: ReactNode;
   /** 누르면 다른 화면으로 가는 줄 (›) */
   chevron?: boolean;
 }) {
+  const line = [sub, n && macroLine(n)].filter(Boolean).join(" · ");
   const body = (
     <>
       <span className="fr-text">
         <span className="fr-title">{place && <span className="muted">{place} </span>}{title}{tag && <SrcTag label={tag} />}</span>
-        {sub && <span className="fr-sub">{sub}</span>}
+        {line && <span className="fr-sub">{line}</span>}
       </span>
       {kcal != null && <span className="fr-kcal">{Math.round(kcal).toLocaleString()}<span className="muted"> kcal</span></span>}
       {chevron && <span className="fr-chev" aria-hidden>›</span>}
@@ -416,7 +417,8 @@ export function PartsList({ label, parts, onPick }: {
             title={p.name}
             place={p.place}
             tag={p.tag}
-            sub={[p.amount, macroLine(p.n)].filter(Boolean).join(" · ")}
+            sub={p.amount}
+            n={p.n}
             kcal={p.n.kcal}
             onClick={onPick && (() => onPick(i))}
             chevron={!!onPick}

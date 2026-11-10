@@ -1314,3 +1314,10 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .sr-tag.carb:not(.on) { fill: var(--carb); }
 .sr-tag.protein:not(.on) { fill: var(--protein); }
 .sr-tag.fat:not(.on) { fill: var(--fat); }
+/* 그룹: 멤버·끼니 카드는 흰 바탕, 안의 음식 목록은 공통 목록(연보라) */
+.meal-member, .card.meal-post { background: var(--surface); border: 1px solid var(--border); }
+/* 입력칸은 전부 연보라 */
+input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), select, textarea,
+.screen-page input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), .screen-page select, .screen-page textarea,
+.key-box input { background: var(--card); border: 1px solid var(--border); }
+.ing-add input, .search-box .search-input, .stepper .stepper-input, .entry-title, .photo-name { border: none; }

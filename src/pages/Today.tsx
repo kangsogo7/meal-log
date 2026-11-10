@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { Btn, BtnRow, DateNav, ExtrasList, flash, FoodList, FoodRow, macroLine, NutrientGrid, FullScreen, Sheet, TextInput } from "../components/ui";
+import { Btn, BtnRow, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput } from "../components/ui";
 import { SplitRing } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
@@ -60,6 +60,7 @@ function SaveSetSheet({ mealLabel, list, onClose }: { mealLabel: string; list: E
             <FoodRow
               key={e.id}
               title={e.title}
+              n={e.total}
               kcal={e.total.kcal}
               onClick={() => toggle(e.id!)}
               trailing={<input type="checkbox" className="fr-check" checked={!off.has(e.id!)} onChange={() => toggle(e.id!)} aria-label={`${e.title} 넣기`} />}
@@ -241,7 +242,8 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
                     key={e.id}
                     title={e.title}
                     place={e.place}
-                    sub={`${KIND_LABEL[e.kind]} · ${macroLine(e.total)}`}
+                    sub={KIND_LABEL[e.kind]}
+                    n={e.total}
                     kcal={e.total.kcal}
                     onClick={() => setEditing(e)}
                     trailing={<FavStar getDraft={() => entryDraft(e)} />}

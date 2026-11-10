@@ -2,7 +2,7 @@
 // 즐겨찾기 폴더 관리(만들기·이름·순서·음식 편집)는 설정에서
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
+import { db, folderEmoji, sumNutrients, type MealSet, type Nutrients, type SavedFood } from "../db";
 import { flash, FoodList, FoodRow, FullScreen, itemParts } from "../components/ui";
 import FoodView, { FoodActions } from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
@@ -75,6 +75,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
                 key={s.id}
                 title={s.name}
                 sub={s.entries.map((e) => e.title).join(", ")}
+                n={s.total}
                 kcal={Math.round(s.total.kcal)}
                 onOpen={() => setOpenSet(s)}
                 onQuick={() => onRecord(s.entries, s.name)}
@@ -98,6 +99,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
                   key={s.key}
                   title={s.title}
                   sub={s.items.length > 1 ? s.items.map((i) => i.name).join(", ") : amount}
+                  n={portionNutrients(portion)}
                   kcal={Math.round(portionNutrients(portion).kcal)}
                   onOpen={() => setAmountOf({ food: s, portion })}
                   onQuick={() => onRecord([savedDraft(s, portion)])}
@@ -167,6 +169,6 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
 }
 
 /** 음식 한 줄: 누르면 양 정하기, 오른쪽 +는 바로 기록 (공통 FoodRow) */
-function Card({ title, sub, kcal, onOpen, onQuick }: { title: string; sub: string; kcal: number; onOpen: () => void; onQuick: () => void }) {
-  return <FoodRow title={title} sub={sub} kcal={kcal} onClick={onOpen} trailing={<button className="fr-plus" onClick={onQuick} aria-label={`${title} 바로 기록`}>+</button>} />;
+function Card({ title, sub, n, kcal, onOpen, onQuick }: { title: string; sub: string; n: Nutrients; kcal: number; onOpen: () => void; onQuick: () => void }) {
+  return <FoodRow title={title} sub={sub} n={n} kcal={kcal} onClick={onOpen} trailing={<button className="fr-plus" onClick={onQuick} aria-label={`${title} 바로 기록`}>+</button>} />;
 }

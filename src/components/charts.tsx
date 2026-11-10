@@ -150,7 +150,7 @@ export function SplitRing({ kcal, macros, size = 216, stroke = 24, children }: {
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label}>
         <defs>
           {/* 입체감: 채워진 막대 아래 그림자 */}
-          <filter id="sr-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id="sr-shadow" filterUnits="userSpaceOnUse" x="0" y="0" width={size} height={size}>
             <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.22" />
           </filter>
         </defs>
@@ -167,7 +167,7 @@ export function SplitRing({ kcal, macros, size = 216, stroke = 24, children }: {
           return (
             <g key={m.key}>
               <path d={d} fill="none" className="ring-track sr-track" strokeWidth={stroke} />
-              {r > 0 && <path d={d} fill="none" className={`seg-bar ${m.key} ${r > 1.05 ? "over" : ""}`} strokeWidth={stroke} strokeDasharray={fill(r, 57)} filter="url(#sr-shadow)" />}
+              {r > 0 && <path d={d} fill="none" className={`seg-bar ${m.key}`} strokeWidth={stroke} strokeDasharray={fill(r, 57)} filter="url(#sr-shadow)" />}
               {/* 칸 이름: 탄·단·지 */}
               <text x={tx} y={ty} className={`sr-tag ${r >= 0.3 ? "on" : ""} ${m.key}`} textAnchor="middle" dominantBaseline="central" aria-hidden>{SHORT[m.key]}</text>
             </g>

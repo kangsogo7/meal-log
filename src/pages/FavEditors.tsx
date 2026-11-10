@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, r1, savedKey, sumNutrients, ZERO, type Item, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { BackIcon, Btn, BtnRow, flash, FoodList, FoodRow, itemParts, macroLine, NutrientLine, PartsList, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
+import { BackIcon, Btn, flash, FoodList, FoodRow, itemParts, macroLine, NutrientLine, PartsList, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
 import { FoodFields } from "../components/FoodFields";
 import { AmountEditor, portionItems, portionNutrients, portionText, storedPortion, type Portion } from "../portion";
@@ -51,14 +51,9 @@ export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회
 
   return (
     <FullScreen
-      title="음식 수정"
+      title="영양성분 고치기"
       onClose={onClose}
-      footer={
-        <BtnRow>
-          <Btn onClick={onClose}>취소</Btn>
-          <Btn kind="primary" onClick={save} disabled={!title.trim()}>{saveLabel}</Btn>
-        </BtnRow>
-      }
+      footer={<Btn kind="primary" className="foot-full" onClick={save} disabled={!title.trim()}>{saveLabel}</Btn>}
     >
       <div className="form">
         {single ? (
@@ -157,16 +152,18 @@ export function SetComposeScreen({ set, onClose }: { set: MealSet; onClose: () =
       footer={<Btn kind="primary" className="foot-full" onClick={save} disabled={!valid}>저장</Btn>}
     >
       <div className="form">
-        <TextInput value={name} onChange={setName} aria-label="세트 이름" placeholder="세트 이름" />
-        <div className="row-between muted small"><span>음식 {rows.length}개</span><span>합계 {Math.round(total.kcal).toLocaleString()}kcal</span></div>
+        <label>세트 이름
+          <TextInput value={name} onChange={setName} placeholder="세트 이름" />
+        </label>
       </div>
-      <FoodList>
+      <FoodList head={<><span>음식 {rows.length}개</span><span>합계 {Math.round(total.kcal).toLocaleString()}kcal</span></>}>
         {rows.map((r) => (
           <FoodRow
             key={r.id}
             title={r.e.title}
             place={r.e.place}
             sub={portionText(r.portion)}
+            n={portionNutrients(r.portion)}
             kcal={portionNutrients(r.portion).kcal}
             onClick={() => setAmountOf(r.id)}
             trailing={<button className="del-btn" onClick={() => setRows((p) => p.filter((x) => x.id !== r.id))} aria-label={`${r.e.title} 빼기`}>✕</button>}
@@ -221,6 +218,7 @@ function SavedFoodPicker({ onPick, onClose }: { onPick: (list: SavedFood[]) => v
             title={s.title}
             place={s.place}
             sub={servingText(s)}
+            n={s.total}
             kcal={s.total.kcal}
             selected={sel.includes(s.key)}
             onClick={() => toggle(s.key)}
