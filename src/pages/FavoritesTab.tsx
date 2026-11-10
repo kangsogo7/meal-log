@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, KIND_LABEL, r1, sumNutrients, type FavGroup, type MealSet, type SavedFood } from "../db";
-import { BackIcon, flash, NutrientLine, revealInSheet, Screen } from "../components/ui";
+import { BackIcon, flash, NutrientLine, revealInSheet, Screen, TextInput } from "../components/ui";
 import { applyFolderEdits, FolderPicker, NewFolderForm } from "../favorites";
 import { AmountEditor, portionGrams, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
@@ -439,11 +439,11 @@ function FolderEdit({ groups, favs, onDone }: { groups: FavGroup[]; favs: SavedF
               <button className="del-dot" onClick={() => remove(g.id!)} aria-label={`${g.name} 삭제`}>✕</button>
               <span className="folder-emoji">{folderEmoji(g)}</span>
               {renaming === g.id ? (
-                <input
+                <TextInput
                   className="rename-input"
                   value={g.name}
                   autoFocus
-                  onChange={(e) => setRows(rows.map((r) => (r.id === g.id ? { ...r, name: e.target.value } : r)))}
+                  onChange={(v) => setRows(rows.map((r) => (r.id === g.id ? { ...r, name: v } : r)))}
                   onBlur={() => setRenaming(null)}
                   onKeyDown={(e) => e.key === "Enter" && setRenaming(null)}
                 />

@@ -6,7 +6,7 @@ import { getKV, setKV } from "../db";
 import { analyzeFoodPhoto, GeminiError, imageToBase64, type PhotoResult } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { NutrientLine, SourceLinks } from "../components/ui";
+import { NutrientLine, SourceLinks, TextInput } from "../components/ui";
 import { AmountEditor, makePortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 
@@ -113,7 +113,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
               <li key={i} className={r.on ? "" : "off"}>
                 <label className="photo-row-head">
                   <input type="checkbox" checked={r.on} onChange={(e) => set({ on: e.target.checked })} />
-                  <input className="photo-name" value={r.name} onChange={(e) => set({ name: e.target.value })} aria-label="음식 이름" />
+                  <TextInput className="photo-name" value={r.name} onChange={(v) => set({ name: v })} aria-label="음식 이름" />
                 </label>
                 {r.on && (
                   <>

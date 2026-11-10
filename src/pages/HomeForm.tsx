@@ -6,7 +6,7 @@ import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
 import { askFood, GeminiError, resolveIngredients, type MenuEstimate, type WebSource } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
-import { Btn, BtnRow, DataNote, flash, NumInput, revealInSheet, FullScreen, SourceLinks, NutrientEditor } from "../components/ui";
+import { Btn, BtnRow, DataNote, flash, NumInput, revealInSheet, FullScreen, SourceLinks, NutrientEditor, TextInput } from "../components/ui";
 import AiSheet, { type AiView } from "../components/AiSheet";
 import FoodDetail from "../components/FoodDetail";
 import { makePortion, portionGrams, portionNutrients, type Portion } from "../portion";
@@ -259,7 +259,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     <div className="form">
       <label>요리 이름
         <div className="input-with-star">
-          <input value={dish} onChange={(e) => setDish(e.target.value)} placeholder="선택 · 예: 닭가슴살 볶음밥" />
+          <TextInput value={dish} onChange={setDish} placeholder="선택 · 예: 닭가슴살 볶음밥" />
           <FavStar getDraft={() => (rows.length && !missing ? { kind: "home", title: title(), items } : null)} />
         </div>
       </label>
@@ -294,10 +294,10 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
         <>
           <div className="ing-add">
             <span aria-hidden>+</span>
-            <input
+            <TextInput
               ref={addRef}
               value={add}
-              onChange={(e) => setAdd(e.target.value)}
+              onChange={setAdd}
               onKeyDown={(e) => {
                 if (e.key !== "Enter" || !sugg) return;
                 e.preventDefault();
@@ -327,10 +327,10 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
       ) : (
         <div className="ing-many-box">
           {many.map((v, i) => (
-            <input
+            <TextInput
               key={i}
               value={v}
-              onChange={(e) => setManyAt(i, e.target.value)}
+              onChange={(v) => setManyAt(i, v)}
               placeholder={MANY_EXAMPLES[i] ?? "재료"}
               enterKeyHint="next"
               aria-label={`재료 ${i + 1}`}

@@ -6,7 +6,7 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBran
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, NutrientLine, SrcTag } from "../components/ui";
+import { DataNote, NutrientLine, SrcTag, TextInput } from "../components/ui";
 import FoodDetail from "../components/FoodDetail";
 import { makePortion, storedPortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
@@ -214,10 +214,10 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
   const q = query.trim();
   return (
     <div className="form">
-      <input
+      <TextInput
         className="search-input"
         value={query}
-        onChange={(e) => { setQuery(e.target.value); setChoice(null); setError(""); setPrompt(null); }}
+        onChange={(v) => { setQuery(v); setChoice(null); setError(""); setPrompt(null); }}
         placeholder={PLACEHOLDER}
         enterKeyHint="search"
         autoFocus={autoFocus}

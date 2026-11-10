@@ -9,7 +9,7 @@ import {
 } from "../checks";
 import { askNotifyPermission, canNotify } from "../notify";
 import { useLatestBody } from "../hooks";
-import { BackIcon, EditButton, flash, NumInput, Screen, Sheet, FullScreen } from "../components/ui";
+import { BackIcon, EditButton, flash, NumInput, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
 
 const CheckIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -301,7 +301,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
                 <input type="time" value={form.time ?? "15:00"} onChange={(e) => e.target.value && setForm({ ...form, time: e.target.value })} />
               </label>
             )}
-            <label>이름<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 비타민C" /></label>
+            <label>이름<TextInput value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="예: 비타민C" /></label>
             <label>한 번에 (정)<NumInput value={form.count} onChange={(v) => setForm({ ...form, count: v ?? 1 })} step="1" /></label>
           </div>
         </Sheet>

@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, r1, savedKey, sumNutrients, ZERO, type Item, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { BackIcon, flash, itemParts, NumInput, NutrientEditor, NutrientLine, PartsList, Screen, FullScreen } from "../components/ui";
+import { BackIcon, flash, itemParts, NumInput, NutrientEditor, NutrientLine, PartsList, Screen, FullScreen, TextInput } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
 import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 
@@ -62,11 +62,11 @@ export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회
     >
       <div className="form">
         <label>이름
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+          <TextInput value={title} onChange={setTitle} />
         </label>
         {(food.kind === "out" || food.kind === "food") && (
           <label>{food.kind === "out" ? "가게 이름" : "제조사"}
-            <input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="선택" />
+            <TextInput value={place} onChange={setPlace} placeholder="선택" />
           </label>
         )}
         {single ? (
@@ -77,7 +77,7 @@ export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회
               </label>
             ) : (
               <label>{amountLabel}
-                <input value={amountText} onChange={(e) => setAmountText(e.target.value)} placeholder="선택 · 예: 1스쿱" />
+                <TextInput value={amountText} onChange={setAmountText} placeholder="선택 · 예: 1스쿱" />
               </label>
             )}
             <p className="label">{amountLabel} 영양성분</p>
@@ -154,7 +154,7 @@ export function SetComposeScreen({ set, onClose }: { set: MealSet; onClose: () =
     >
       <div className="form">
         <label>세트 이름
-          <input value={name} onChange={(e) => setName(e.target.value)} />
+          <TextInput value={name} onChange={setName} />
         </label>
       </div>
       <div className="list-head">
@@ -199,7 +199,7 @@ function SavedFoodPicker({ onPick, onClose }: { onPick: (s: SavedFood) => void; 
     .sort((a, b) => Number(b.groupId != null) - Number(a.groupId != null) || b.uses - a.uses || b.updatedAt - a.updatedAt);
   return (
     <FullScreen title="음식 추가" onClose={onClose} tall>
-      <input className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="즐겨찾기·최근 음식 검색" />
+      <TextInput className="search-input" value={q} onChange={setQ} placeholder="즐겨찾기·최근 음식 검색" />
       <ul className="mini-list">
         {list.map((s) => (
           <li key={s.key} className="pick-row" onClick={() => onPick(s)}>

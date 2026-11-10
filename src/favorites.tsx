@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { baseServing, db, FOLDER_EMOJIS, folderEmoji, savedKey, sumNutrients, type Entry, type EntryKind, type FavGroup, type Item } from "./db";
-import { flash, Sheet } from "./components/ui";
+import { flash, Sheet, TextInput } from "./components/ui";
 
 export interface FavDraft {
   kind: EntryKind;
@@ -67,7 +67,7 @@ export function NewFolderForm({ submitLabel, onDone }: { submitLabel: string; on
       </div>
       <div className="inline-new">
         <span className="emoji-preview">{emoji}</span>
-        <input value={name} onChange={(ev) => setName(ev.target.value)} placeholder="폴더 이름" autoFocus onKeyDown={(ev) => ev.key === "Enter" && submit()} />
+        <TextInput value={name} onChange={setName} placeholder="폴더 이름" autoFocus onKeyDown={(ev) => ev.key === "Enter" && submit()} />
         <button className="primary" onClick={submit} disabled={!name.trim()}>{submitLabel}</button>
       </div>
     </div>

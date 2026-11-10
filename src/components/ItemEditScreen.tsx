@@ -1,7 +1,7 @@
 // 재료 수정 전체 화면 (기록 수정·음식 수정 공통): 이름 · 양 · 영양성분 · 재료 빼기. 완료를 눌러야 반영, ← 는 취소
 import { useState } from "react";
 import { r1, scaleNutrients, type Item, type Nutrients } from "../db";
-import { FullScreen, NumInput, NutrientEditor } from "./ui";
+import { FullScreen, NumInput, NutrientEditor, TextInput } from "./ui";
 
 export default function ItemEditScreen({ item, title = "재료 수정", onDone, onRemove, onClose }: {
   item: Item;
@@ -37,7 +37,7 @@ export default function ItemEditScreen({ item, title = "재료 수정", onDone, 
     >
       <div className="form">
         <label>이름
-          <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="재료 이름" />
+          <TextInput value={draft.name} onChange={(v) => setDraft({ ...draft, name: v })} placeholder="재료 이름" />
         </label>
         <label>양 (g)
           <NumInput value={draft.grams} onChange={setGrams} decimals={1} placeholder="g" />

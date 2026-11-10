@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { db, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
-import { BackIcon, itemParts, MealTitle, Screen, SrcTag } from "../components/ui";
+import { BackIcon, itemParts, MealTitle, Screen, SrcTag, TextInput } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
 import FoodView, { FoodActions } from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
@@ -55,7 +55,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
       <FoodView
         top={
           <>
-            <input className="entry-title" value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} aria-label="이름" />
+            <TextInput className="entry-title" value={e.title} onChange={(v) => setE({ ...e, title: v })} aria-label="이름" />
             {e.place && <span className="muted small entry-place">{e.place}</span>}
           </>
         }
@@ -78,7 +78,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
         }
       >
         <label>메모
-          <input value={e.memo ?? ""} onChange={(ev) => setE({ ...e, memo: ev.target.value })} placeholder="예: 배불렀음" />
+          <TextInput value={e.memo ?? ""} onChange={(v) => setE({ ...e, memo: v })} placeholder="예: 배불렀음" />
         </label>
       </FoodView>
       {/* 자주 먹는 것과 같은 음식 수정 화면. 완료하면 이 기록에만 반영되고, 아래 저장을 눌러야 저장됨 */}

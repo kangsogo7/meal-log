@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { forwardRef, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { addDays, EXTRAS, formatDate, MEALS, r1, sourceLabel, todayStr, type Item, type Meal, type Nutrients } from "../db";
 import { kcalFromMacros } from "../nutrition";
@@ -252,6 +252,13 @@ export const BackIcon = () => (
   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M20 12H5M11 6l-6 6 6 6" />
   </svg>
+);
+
+/** 글자 입력칸 (앱 전체 공통). onChange는 입력한 글자를 바로 받음 */
+export const TextInput = forwardRef<HTMLInputElement, Omit<InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> & { value: string; onChange: (v: string) => void }>(
+  function TextInput({ onChange, className, ...rest }, ref) {
+    return <input ref={ref} {...rest} className={`field ${className ?? ""}`} onChange={(e) => onChange(e.target.value)} />;
+  },
 );
 
 /**

@@ -1,7 +1,7 @@
 // 그룹: 멤버를 초대해 서로의 식단을 날짜별로 보고 댓글을 남김
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { addDays, formatDate, MEALS, todayStr, type Meal } from "../db";
-import { BackIcon, Btn, BtnRow, flash, Screen, Sheet, FullScreen } from "../components/ui";
+import { BackIcon, Btn, BtnRow, flash, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { openSharedFood, type SharedFood } from "../foodShare";
@@ -191,7 +191,7 @@ function Setup({ invite, onDone, error: initialError }: { invite: Invite | null;
         {webJoin ? (
           <>
             <label>닉네임
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="그룹에 보일 이름" maxLength={20} />
+              <TextInput value={name} onChange={setName} placeholder="그룹에 보일 이름" maxLength={20} />
             </label>
             {error && <p className="error small">{error}</p>}
             <button className="primary block" onClick={start} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : invite ? "시작하고 참여하기" : "시작하기"}</button>
@@ -264,7 +264,7 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
         <MyPhoto me={me} />
         {renaming ? (
           <div className="input-with-star" style={{ flex: 1 }}>
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="닉네임" />
+            <TextInput value={name} onChange={setName} maxLength={20} aria-label="닉네임" />
             <button className="text-btn" onClick={() => run("rename", async () => {
               if (!name.trim()) return;
               await renameMe(me, name.trim());
@@ -290,7 +290,7 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
       <section className="card form join-card">
         <label>초대 코드로 그룹 참여
           <div className="input-with-star">
-            <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="6자리 코드" maxLength={8} autoCapitalize="characters" />
+            <TextInput value={code} onChange={(v) => setCode(v.toUpperCase())} placeholder="6자리 코드" maxLength={8} autoCapitalize="characters" />
             <button className="primary" disabled={busy === "join" || code.trim().length < 6} onClick={() => run("join", async () => {
               const g = await joinGroup(me, code);
               setCode("");
@@ -342,7 +342,7 @@ function NewGroupSheet({ me, onClose, onCreated }: { me: Me; onClose: () => void
     <Sheet title="새 그룹" onClose={onClose}>
       <div className="form">
         <label>그룹 이름
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 컷팅 같이해요" maxLength={30} />
+          <TextInput value={name} onChange={setName} placeholder="예: 컷팅 같이해요" maxLength={30} />
         </label>
         {error && <p className="error small">{error}</p>}
         <button className="primary block" onClick={create} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : "만들기"}</button>
@@ -538,7 +538,7 @@ ${link}
 
         {renaming ? (
           <div className="input-with-star">
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={30} aria-label="그룹 이름" />
+            <TextInput value={name} onChange={setName} maxLength={30} aria-label="그룹 이름" />
             <button className="text-btn" onClick={async () => {
               if (!name.trim()) return;
               try {
@@ -789,7 +789,7 @@ function Comments({ me, gid, kind, id, owner, meal, list, placeholder = "댓글 
       ))}
       {showInput && (
         <div className="comment-input">
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} maxLength={500} enterKeyHint="send" onKeyDown={(e) => e.key === "Enter" && send(text)} aria-label="댓글" />
+          <TextInput value={text} onChange={setText} placeholder={placeholder} maxLength={500} enterKeyHint="send" onKeyDown={(e) => e.key === "Enter" && send(text)} aria-label="댓글" />
           <button className="primary" onClick={() => send(text)} disabled={!text.trim()}>등록</button>
         </div>
       )}
