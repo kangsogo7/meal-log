@@ -2,8 +2,9 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, r1, savedKey, sumNutrients, ZERO, type Item, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { BackIcon, Btn, flash, FoodList, FoodRow, itemParts, macroLine, NumInput, NutrientEditor, NutrientLine, PartsList, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
+import { BackIcon, Btn, BtnRow, flash, FoodList, FoodRow, itemParts, macroLine, NutrientLine, PartsList, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
+import { FoodFields } from "../components/FoodFields";
 import { AmountEditor, portionItems, portionNutrients, portionText, storedPortion, type Portion } from "../portion";
 
 // ---------------------------------------------------------------------------
@@ -53,38 +54,39 @@ export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회
       title="음식 수정"
       onClose={onClose}
       footer={
-        <>
-          <span className="spacer" />
-          <button onClick={onClose}>취소</button>
-          <button className="primary" onClick={save} disabled={!title.trim()}>{saveLabel}</button>
-        </>
+        <BtnRow>
+          <Btn onClick={onClose}>취소</Btn>
+          <Btn kind="primary" onClick={save} disabled={!title.trim()}>{saveLabel}</Btn>
+        </BtnRow>
       }
     >
       <div className="form">
-        <label>이름
-          <TextInput value={title} onChange={setTitle} />
-        </label>
-        {(food.kind === "out" || food.kind === "food") && (
-          <label>{food.kind === "out" ? "가게 이름" : "제조사"}
-            <TextInput value={place} onChange={setPlace} placeholder="선택" />
-          </label>
-        )}
         {single ? (
+          <FoodFields
+            title={title}
+            onTitle={setTitle}
+            place={place}
+            onPlace={food.kind === "out" ? setPlace : undefined}
+            grams={grams}
+            onGrams={food.items[0]?.grams ? setGrams : undefined}
+            amountText={amountText}
+            onAmountText={setAmountText}
+            amountLabel={amountLabel}
+            n={base}
+            onN={setBase}
+          />
+        ) : (
           <>
-            {food.items[0]?.grams ? (
-              <label>{amountLabel} (g)
-                <NumInput value={grams} onChange={setGrams} decimals={1} />
-              </label>
-            ) : (
-              <label>{amountLabel}
-                <TextInput value={amountText} onChange={setAmountText} placeholder="선택 · 예: 1스쿱" />
+            <label>음식 이름
+              <TextInput value={title} onChange={setTitle} />
+            </label>
+            {food.kind === "out" && (
+              <label>가게 이름
+                <TextInput value={place} onChange={setPlace} placeholder="선택" />
               </label>
             )}
-            <p className="label">{amountLabel} 영양성분</p>
-            <NutrientEditor n={base} onChange={setBase} />
+            <IngredientEditor items={ings} onChange={setIngs} />
           </>
-        ) : (
-          <IngredientEditor items={ings} onChange={setIngs} />
         )}
       </div>
     </FullScreen>

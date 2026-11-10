@@ -128,35 +128,48 @@ export function WeightChart({ points }: { points: { date: string; weight: number
  * 반으로 나눈 원형 그래프: 왼쪽 반원 = 칼로리(위에서 아래로 참),
  * 오른쪽 반원 = 위에서부터 탄수화물·단백질·지방 세 칸(칸마다 아래에서 위로 참). 목표를 넘으면 --over 색
  */
-export function SplitRing({ kcal, macros, size = 200, stroke = 14, children }: {
+export function SplitRing({ kcal, macros, size = 216, stroke = 24, children }: {
   kcal: { value: number; max: number };
   macros: { key: "carb" | "protein" | "fat"; value: number; max: number }[];
   size?: number; stroke?: number; children?: ReactNode;
 }) {
   const c = size / 2;
-  const R = c - stroke / 2 - 1;
-  const pt = (deg: number) => { const a = (deg * Math.PI) / 180; return `${(c + R * Math.cos(a)).toFixed(2)} ${(c + R * Math.sin(a)).toFixed(2)}`; };
+  const R = c - stroke / 2 - 3;
+  const at = (deg: number, r = R) => { const a = (deg * Math.PI) / 180; return [c + r * Math.cos(a), c + r * Math.sin(a)]; };
+  const pt = (deg: number) => at(deg).map((v) => v.toFixed(2)).join(" ");
   const arcLen = (deg: number) => (Math.PI * R * deg) / 180;
   const fill = (ratio: number, deg: number) => `${(arcLen(deg) * Math.min(1, Math.max(0, ratio))).toFixed(1)} 9999`;
-  // 왼쪽: 맨 위(270°) → 왼쪽 → 맨 아래(90°), 반시계
-  const left = `M${pt(-90 - 2)} A${R} ${R} 0 0 0 ${pt(90 + 2)}`;
+  // 왼쪽: 맨 위 → 왼쪽 → 맨 아래 (반시계)
+  const left = `M${pt(-90 - 1.5)} A${R} ${R} 0 0 0 ${pt(90 + 1.5)}`;
   const kr = kcal.max > 0 ? kcal.value / kcal.max : 0;
-  const label = `칼로리 ${Math.round(kcal.value)} / ${Math.round(kcal.max)}kcal, ` + macros.map((m) => `${m.key} ${Math.round(m.value)}/${Math.round(m.max)}g`).join(", ");
+  const SHORT = { carb: "탄", protein: "단", fat: "지" } as const;
+  const NAME = { carb: "탄수화물", protein: "단백질", fat: "지방" } as const;
+  const label = `칼로리 ${Math.round(kcal.value)} / ${Math.round(kcal.max)}kcal, ` + macros.map((m) => `${NAME[m.key]} ${Math.round(m.value)}/${Math.round(m.max)}g`).join(", ");
   return (
     <div className="split-ring" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label}>
-        <path d={left} fill="none" className="ring-track" strokeWidth={stroke} strokeLinecap="butt" />
-        {kr > 0 && <path d={left} fill="none" className={kr > 1.05 ? "ring-bar over" : "ring-bar"} strokeWidth={stroke} strokeLinecap="butt" strokeDasharray={fill(kr, 176)} />}
+        <defs>
+          {/* 입체감: 채워진 막대 아래 그림자 */}
+          <filter id="sr-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.22" />
+          </filter>
+        </defs>
+        <path d={left} fill="none" className="ring-track sr-track" strokeWidth={stroke} />
+        {kr > 0 && <path d={left} fill="none" className={kr > 1.05 ? "ring-bar over" : "ring-bar"} strokeWidth={stroke} strokeDasharray={fill(kr, 177)} filter="url(#sr-shadow)" />}
         {macros.map((m, i) => {
           // 오른쪽 칸 i (0 = 맨 위): 칸의 아래 끝 → 위 끝 (반시계)
-          const hi = -90 + i * 60 + 2;
-          const lo = -90 + (i + 1) * 60 - 2;
+          const hi = -90 + i * 60 + 1.5;
+          const lo = -90 + (i + 1) * 60 - 1.5;
           const d = `M${pt(lo)} A${R} ${R} 0 0 0 ${pt(hi)}`;
           const r = m.max > 0 ? m.value / m.max : 0;
+          // 이름은 칸의 아래쪽(채워지기 시작하는 곳)에
+          const [tx, ty] = at(lo - 9);
           return (
             <g key={m.key}>
-              <path d={d} fill="none" className="ring-track" strokeWidth={stroke} />
-              {r > 0 && <path d={d} fill="none" className={`seg-bar ${m.key} ${r > 1.05 ? "over" : ""}`} strokeWidth={stroke} strokeDasharray={fill(r, 56)} />}
+              <path d={d} fill="none" className="ring-track sr-track" strokeWidth={stroke} />
+              {r > 0 && <path d={d} fill="none" className={`seg-bar ${m.key} ${r > 1.05 ? "over" : ""}`} strokeWidth={stroke} strokeDasharray={fill(r, 57)} filter="url(#sr-shadow)" />}
+              {/* 칸 이름: 탄·단·지 */}
+              <text x={tx} y={ty} className={`sr-tag ${r >= 0.3 ? "on" : ""} ${m.key}`} textAnchor="middle" dominantBaseline="central" aria-hidden>{SHORT[m.key]}</text>
             </g>
           );
         })}

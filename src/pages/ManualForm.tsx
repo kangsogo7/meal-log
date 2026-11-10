@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ZERO, type Nutrients } from "../db";
-import { NutrientEditor, TextInput } from "../components/ui";
+import { FoodFields } from "../components/FoodFields";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
 
@@ -18,16 +18,15 @@ export default function ManualForm({ onSave, actionLabel = "저장" }: { onSave:
 
   return (
     <div className="form">
-      <label>음식 이름
-        <div className="input-with-star">
-          <TextInput value={title} onChange={setTitle} placeholder="예: 프로틴 쉐이크" />
-          <FavStar getDraft={() => (title.trim() ? { kind: "manual", title: title.trim(), items: [{ name: title.trim(), amountText: amount, grams: null, source: "manual", nutrients: n }] } : null)} />
-        </div>
-      </label>
-      <label>양
-        <TextInput value={amount} onChange={setAmount} placeholder="선택 · 예: 1스쿱" />
-      </label>
-      <NutrientEditor n={n} onChange={setN} />
+      <FoodFields
+        title={title}
+        onTitle={setTitle}
+        star={<FavStar getDraft={() => (title.trim() ? { kind: "manual", title: title.trim(), items: [{ name: title.trim(), amountText: amount, grams: null, source: "manual", nutrients: n }] } : null)} />}
+        amountText={amount}
+        onAmountText={setAmount}
+        n={n}
+        onN={setN}
+      />
       {tried && !title.trim() && <p className="error">음식 이름을 입력해 주세요</p>}
       <button className="primary block" onClick={save}>{actionLabel}</button>
     </div>

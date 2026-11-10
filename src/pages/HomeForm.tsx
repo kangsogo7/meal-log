@@ -102,7 +102,7 @@ function makeRow(line: ParsedLine, candidates: Food[], prev: Prev[], choice?: nu
   return choose(base, auto);
 }
 
-const MANY_EXAMPLES = ["예: 현미밥 200g", "예: 계란 2개", "예: 올리브유 1큰술"];
+const MANY_EXAMPLES = ["예: 닭가슴살 150g", "예: 현미밥 200g", "예: 올리브유 1큰술"];
 
 export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (d: Draft) => void; actionLabel?: string }) {
   const settings = useSettings();
@@ -110,14 +110,9 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
   const [rows, setRows] = useState<Row[]>([]);
   const [add, setAdd] = useState("");
   const [sugg, setSugg] = useState<{ line: ParsedLine; candidates: Food[]; prev: Prev[] } | null>(null);
-  /** 여러 재료 한 번에: 입력칸마다 재료 하나 (마지막 칸에 쓰면 칸이 하나 더 생김) */
+  /** 여러 재료 한 번에: 입력칸 옆 ＋로 칸을 늘리고, 칸마다 재료 하나 */
   const [many, setMany] = useState<string[] | null>(null);
-  const setManyAt = (i: number, v: string) =>
-    setMany((m) => {
-      if (!m) return m;
-      const next = m.map((x, j) => (j === i ? v : x));
-      return i === next.length - 1 && v.trim() ? [...next, ""] : next;
-    });
+  const setManyAt = (i: number, v: string) => setMany((m) => m && m.map((x, j) => (j === i ? v : x)));
   const [open, setOpen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -307,6 +302,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               enterKeyHint="done"
               aria-label="재료 추가"
             />
+            <button className="ing-more" onClick={() => { setMany([add, ""]); setAdd(""); setSugg(null); }} aria-label="입력칸 하나 더">＋</button>
           </div>
           {sugg && (
             <div className="ing-sugg">
@@ -322,20 +318,25 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               <button onClick={() => pick(MANUAL)}><span>"{sugg.line.name}" 그대로 추가</span><span className="muted small">값은 나중에</span></button>
             </div>
           )}
-          <button className="link small ing-many" onClick={() => setMany(["", "", ""])}>여러 재료를 한 번에 검색</button>
         </>
       ) : (
         <div className="ing-many-box">
           {many.map((v, i) => (
-            <TextInput
-              key={i}
-              value={v}
-              onChange={(v) => setManyAt(i, v)}
-              placeholder={MANY_EXAMPLES[i] ?? "재료"}
-              enterKeyHint="next"
-              aria-label={`재료 ${i + 1}`}
-              autoFocus={i === 0}
-            />
+            <div key={i} className="ing-add">
+              <TextInput
+                value={v}
+                onChange={(v) => setManyAt(i, v)}
+                placeholder={MANY_EXAMPLES[i] ?? "재료"}
+                enterKeyHint="next"
+                aria-label={`재료 ${i + 1}`}
+                autoFocus={i === many.length - 1}
+              />
+              {i === many.length - 1 ? (
+                <button className="ing-more" onClick={() => setMany([...many, ""])} aria-label="입력칸 하나 더">＋</button>
+              ) : (
+                <button className="ing-more del" onClick={() => setMany(many.filter((_, j) => j !== i))} aria-label={`재료 ${i + 1} 칸 빼기`}>✕</button>
+              )}
+            </div>
           ))}
           <BtnRow>
             <Btn onClick={() => setMany(null)}>취소</Btn>
