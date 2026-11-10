@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { DateNav, ExtrasList, FoodList, FoodRow, macroLine, NutrientGrid, FullScreen } from "../components/ui";
+import { Btn, BtnRow, DateNav, ExtrasList, flash, FoodList, FoodRow, macroLine, NutrientGrid, FullScreen, Sheet, TextInput } from "../components/ui";
 import { Ring } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
@@ -20,20 +20,55 @@ const mdDow = (d: string) => {
   return `${m}/${day}(${DOWS[new Date(y, m - 1, day).getDay()]})`;
 };
 
-async function saveAsSet(mealLabel: string, list: Entry[]) {
-  const name = prompt("식사 세트 이름", `${mealLabel} 세트`)?.trim();
-  if (!name) return;
-  try {
-    await db.sets.add({
-      name,
-      entries: list.map((e) => ({ kind: e.kind, title: e.title, place: e.place, items: e.items, k: e.k })),
-      total: sumNutrients(list.map((e) => e.total)),
-      updatedAt: Date.now(),
-    });
-    alert(`"${name}" 세트를 저장했어요. 기록할 때 즐겨찾기 탭에서 한 번에 넣을 수 있어요.`);
-  } catch (err) {
-    alert(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`);
-  }
+/** 끼니의 기록들을 식사 세트로 저장하는 창: 이름 + 넣을 음식 고르기 */
+function SaveSetSheet({ mealLabel, list, onClose }: { mealLabel: string; list: Entry[]; onClose: () => void }) {
+  const [name, setName] = useState(`${mealLabel} 세트`);
+  const [off, setOff] = useState<Set<number>>(new Set());
+  const chosen = list.filter((e) => !off.has(e.id!));
+  const kcal = Math.round(sumNutrients(chosen.map((e) => e.total)).kcal);
+  const toggle = (id: number) => setOff((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const save = async () => {
+    try {
+      await db.sets.add({
+        name: name.trim(),
+        entries: chosen.map((e) => ({ kind: e.kind, title: e.title, place: e.place, items: e.items, k: e.k })),
+        total: sumNutrients(chosen.map((e) => e.total)),
+        updatedAt: Date.now(),
+      });
+      flash(`"${name.trim()}" 세트를 저장했어요`);
+      onClose();
+    } catch (err) {
+      flash(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`, 4000);
+    }
+  };
+  return (
+    <Sheet
+      title="식사 세트로 저장"
+      onClose={onClose}
+      footer={
+        <BtnRow>
+          <Btn onClick={onClose}>취소</Btn>
+          <Btn kind="primary" onClick={save} disabled={!name.trim() || !chosen.length}>저장</Btn>
+        </BtnRow>
+      }
+    >
+      <div className="form">
+        <label>세트 이름<TextInput value={name} onChange={setName} /></label>
+        <div className="row-between muted small"><span>넣을 음식</span><span>{chosen.length}개 · {kcal.toLocaleString()}kcal</span></div>
+        <FoodList>
+          {list.map((e) => (
+            <FoodRow
+              key={e.id}
+              title={e.title}
+              kcal={e.total.kcal}
+              onClick={() => toggle(e.id!)}
+              trailing={<input type="checkbox" className="fr-check" checked={!off.has(e.id!)} onChange={() => toggle(e.id!)} aria-label={`${e.title} 넣기`} />}
+            />
+          ))}
+        </FoodList>
+      </div>
+    </Sheet>
+  );
 }
 
 export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: () => void; /** 늘어나면 물·영양제 창 열기 (알림을 누른 경우) */ openChecks?: number }) {
@@ -42,6 +77,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
   const [date, setDate] = useState(restore?.date ?? todayStr());
   const [adding, setAdding] = useState<Meal | null>(restore?.meal ?? null);
   const [editing, setEditing] = useState<Entry | null>(null);
+  const [saveSet, setSaveSet] = useState<{ label: string; list: Entry[] } | null>(null);
   // 끼니 타일을 누르면 그 끼니 기록을 시트로
   const [openMeal, setOpenMeal] = useState<Meal | null>(null);
   // 물·영양제 창 (알림을 눌러 들어오면 오늘 날짜로 열기)
@@ -178,7 +214,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
             onClose={() => setOpenMeal(null)}
             footer={
               <>
-                {list.length > 0 && <button onClick={() => saveAsSet(meal.label, list)}>식사 세트로 저장</button>}
+                {list.length > 0 && <button onClick={() => setSaveSet({ label: meal.label, list })}>식사 세트로 저장</button>}
                 <span className="spacer" />
                 <button className="primary" onClick={() => { setOpenMeal(null); setAdding(meal.key); }}>+ 추가</button>
               </>
@@ -227,6 +263,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
       <CheckWeekCard date={date} />
 
       {adding && <AddSheet date={date} meal={adding} restore={restore?.meal === adding ? restore : null} onClose={() => { setAdding(null); setRestore(null); }} />}
+      {saveSet && <SaveSetSheet mealLabel={saveSet.label} list={saveSet.list} onClose={() => setSaveSet(null)} />}
       {editing && <EntrySheet entry={editing} onClose={() => setEditing(null)} />}
     </>
   );

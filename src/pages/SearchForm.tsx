@@ -1,5 +1,5 @@
 // 음식 검색 (가게 메뉴·식품 한 번에): 입력칸 하나 → 목록 → 누르면 영양성분 상세 + 저장
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, getKV, setKV, scaleNutrients, sourceLabel, type Item, type ItemSource, type Nutrients } from "../db";
 import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBrand, type Food } from "../foodDb";
@@ -33,10 +33,12 @@ const PLACEHOLDER = "음식 검색 (예: 교촌치킨 허니콤보)";
 interface AiSaved { est: MenuEstimate; kind?: "out" | "food"; place?: string; title: string; time: string; at: number; prompt?: string }
 const aiKey = (q: string, search: boolean) => `aiMenu:all|${q.trim().replace(/\s+/g, " ").toLowerCase()}|${search ? 1 : 0}`;
 
-export default function SearchForm({ onSave, initialQuery = "", onQueryChange, actionLabel = "저장", autoFocus }: {
+export default function SearchForm({ onSave, initialQuery = "", onQueryChange, actionLabel = "저장", autoFocus, trailing }: {
   onSave: (d: Draft) => void; initialQuery?: string; onQueryChange?: (q: string) => void; actionLabel?: string;
   /** 사용자가 검색칸을 눌러 들어온 경우에만 바로 입력 */
   autoFocus?: boolean;
+  /** 검색칸 안 오른쪽 버튼들 (식단 기록: 사진·재료로 요리·숫자 입력) */
+  trailing?: ReactNode;
 }) {
   const settings = useSettings();
   const [query, setQuery] = useState(initialQuery);
@@ -214,14 +216,17 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
   const q = query.trim();
   return (
     <div className="form">
-      <TextInput
-        className="search-input"
-        value={query}
-        onChange={(v) => { setQuery(v); setChoice(null); setError(""); setPrompt(null); }}
-        placeholder={PLACEHOLDER}
-        enterKeyHint="search"
-        autoFocus={autoFocus}
-      />
+      <div className="search-box">
+        <TextInput
+          className="search-input"
+          value={query}
+          onChange={(v) => { setQuery(v); setChoice(null); setError(""); setPrompt(null); }}
+          placeholder={PLACEHOLDER}
+          enterKeyHint="search"
+          autoFocus={autoFocus}
+        />
+        {trailing}
+      </div>
       {split.shop && split.brand && q && <p className="muted small">상호 <b>{split.brand}</b> · 메뉴 <b>{split.rest || "—"}</b></p>}
       {error && <p className="error">{error}</p>}
 

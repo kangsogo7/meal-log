@@ -105,23 +105,21 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
     >
       {mode === "quick" && (
         <>
-          <SearchForm key={searchKey} onSave={(d) => record([d])} actionLabel={recordLabel} initialQuery={query} onQueryChange={setQuery} />
+          <SearchForm key={searchKey} onSave={(d) => record([d])} actionLabel={recordLabel} initialQuery={query} onQueryChange={setQuery} trailing={
+            <>
+              <button className="sf-mode" onClick={() => setMode("photo")} aria-label="사진으로 기록">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+              </button>
+              <button className="sf-mode" onClick={() => setMode("home")} aria-label="재료로 요리">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
+              </button>
+              <button className="sf-mode" onClick={() => setMode("manual")} aria-label="숫자로 직접 입력">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 8h8M8 13h8M8 17h4" /></svg>
+              </button>
+            </>
+          } />
           {!query.trim() && (
             <>
-              <div className="add-modes">
-                <button onClick={() => setMode("photo")}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
-                  사진
-                </button>
-                <button onClick={() => setMode("home")}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
-                  재료로 요리
-                </button>
-                <button onClick={() => setMode("manual")}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 8h8M8 13h8M8 17h4" /></svg>
-                  숫자 입력
-                </button>
-              </div>
               {logged.length > 0 && (
                 <FoodList head={<><span>오늘 {mealLabel}</span><span>{logged.length}개 · {loggedKcal.toLocaleString()}kcal</span></>}>
                   {logged.map((e) => (
