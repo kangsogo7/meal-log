@@ -7,7 +7,7 @@ import { getCheatDays } from "../cheat";
 import { getProfileHistory, lastGoalChange, saveProfile } from "../profileHistory";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
-import { DateButton, Dialog, EditButton, flash, NumInput, FullScreen } from "../components/ui";
+import { DateButton, Dialog, EditButton, flash, NumInput, FullScreen, Seg, Btn, BtnRow } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
 export default function Goals() {
@@ -52,7 +52,7 @@ export default function Goals() {
         ) : !saved ? (
           <>
             <p className="muted small">아래 "내 정보"를 내 값으로 고친 뒤 눌러 주세요.{!latest && " 체중도 기록해야 해요."}</p>
-            <button className="primary block" onClick={() => saveProfile(profile)}>이 정보로 목표 계산하기</button>
+            <Btn kind="primary" className="block" onClick={() => saveProfile(profile)}>이 정보로 목표 계산하기</Btn>
           </>
         ) : (
           <p className="muted small">체중을 기록하면 계산해 드려요.</p>
@@ -102,10 +102,10 @@ export default function Goals() {
         </div>
         {latest ? <BodyStats latest={latest} records={records} goal={profile.goal} /> : <p className="muted small">아직 기록이 없어요.</p>}
         <WeightChart points={records.map((r) => ({ date: r.date, weight: r.weight }))} />
-        <div className="btn-row body-btns">
-          <button className="primary" onClick={() => setBodyForm({ date: todayStr(), weight: latest?.weight ?? 0, source: "manual" })}>체중 기록</button>
+        <BtnRow>
+          <Btn kind="primary" onClick={() => setBodyForm({ date: todayStr(), weight: latest?.weight ?? 0, source: "manual" })}>체중 기록</Btn>
           <InBodyButton onRead={setBodyForm} />
-        </div>
+        </BtnRow>
         {records.length > 0 && (
           <details>
             <summary className="small">전체 기록 보기</summary>
@@ -123,11 +123,7 @@ export default function Goals() {
 
       <section className="card form">
         <h2>내 정보</h2>
-        <div className="seg">
-          {(["male", "female"] as const).map((s) => (
-            <button key={s} className={profile.sex === s ? "on" : ""} onClick={() => set({ sex: s })}>{s === "male" ? "남성" : "여성"}</button>
-          ))}
-        </div>
+        <Seg label="성별" value={profile.sex} onChange={(sex) => set({ sex })} options={[{ key: "male", label: "남성" }, { key: "female", label: "여성" }]} />
         <div className="two">
           <label>태어난 해<NumInput value={profile.birthYear} onChange={(v) => set({ birthYear: v ?? 0 })} step="1" /></label>
           <label>키 (cm)<NumInput value={profile.height} onChange={(v) => set({ height: v ?? 0 })} /></label>
@@ -164,11 +160,7 @@ export default function Goals() {
           </tbody>
         </table>
         <p className="label">목표</p>
-        <div className="seg">
-          {GOAL_ORDER.map((g) => (
-            <button key={g} className={profile.goal === g ? "on" : ""} onClick={() => set({ goal: g })}>{GOALS[g].label}</button>
-          ))}
-        </div>
+        <Seg label="목표" value={profile.goal} onChange={(goal) => set({ goal })} options={GOAL_ORDER.map((g) => ({ key: g, label: GOALS[g].label }))} />
         <p className="muted small">{GOALS[profile.goal].label}: {GOALS[profile.goal].desc}, 단백질 체중 1kg당 {GOALS[profile.goal].proteinPerKg}g</p>
       </section>
 
@@ -380,8 +372,8 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
         title="목표 칼로리 조정"
         actions={
           <>
-            <button onClick={onClose}>그대로</button>
-            <button className="primary" onClick={accept}>{cut ? "줄이기" : "늘리기"}</button>
+            <Btn onClick={onClose}>그대로</Btn>
+            <Btn kind="primary" onClick={accept}>{cut ? "줄이기" : "늘리기"}</Btn>
           </>
         }
       >
@@ -412,8 +404,8 @@ function BodyForm({ record, onClose }: { record: BodyRecord; onClose: () => void
         <>
           {r.id && <button className="danger" onClick={remove}>삭제</button>}
           <span className="spacer" />
-          <button onClick={onClose}>취소</button>
-          <button className="primary" onClick={save} disabled={!r.weight}>저장</button>
+          <Btn onClick={onClose}>취소</Btn>
+          <Btn kind="primary" onClick={save} disabled={!r.weight}>저장</Btn>
         </>
       }
     >

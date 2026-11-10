@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { baseServing, db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
-import { BackIcon, Dialog, flash, FoodList, FoodRow, MealTitle, Screen } from "../components/ui";
+import { Dialog, flash, FoodList, FoodRow, MealTitle, Screen, BackButton, Btn } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
@@ -99,7 +99,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
 
   return (
     <Screen
-      left={<button className="icon-btn" onClick={() => (mode === "quick" ? onClose() : setMode("quick"))} aria-label="뒤로"><BackIcon /></button>}
+      left={<BackButton onClick={() => (mode === "quick" ? onClose() : setMode("quick"))} />}
       title={<MealTitle meal={meal} suffix={mode === "quick" ? " 기록" : ` · ${MODE_TITLE[mode]}`} onChange={setMeal} />}
       footer={mode === "home" || mode === "manual" ? <div id="add-foot" /> : undefined}
     >
@@ -147,7 +147,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
           title="기록 삭제"
           actions={
             <>
-              <button onClick={() => setConfirmDel(null)}>취소</button>
+              <Btn onClick={() => setConfirmDel(null)}>취소</Btn>
               <button className="danger" onClick={() => remove(confirmDel)}>삭제</button>
             </>
           }

@@ -211,9 +211,9 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
             onClose={() => setOpenMeal(null)}
             footer={
               <>
-                {list.length > 0 && <button onClick={() => setSaveSet({ label: meal.label, list })}>식사 세트로 저장</button>}
+                {list.length > 0 && <Btn onClick={() => setSaveSet({ label: meal.label, list })}>식사 세트로 저장</Btn>}
                 <span className="spacer" />
-                <button className="primary" onClick={() => { setOpenMeal(null); setAdding(meal.key); }}>+ 추가</button>
+                <Btn kind="primary" onClick={() => { setOpenMeal(null); setAdding(meal.key); }}>+ 추가</Btn>
               </>
             }
           >

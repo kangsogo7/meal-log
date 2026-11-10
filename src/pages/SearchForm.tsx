@@ -6,7 +6,7 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBran
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, FoodList, FoodRow, TextInput } from "../components/ui";
+import { DataNote, FoodList, FoodRow, TextInput, Btn } from "../components/ui";
 import FoodDetail from "../components/FoodDetail";
 import { makePortion, storedPortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
@@ -272,7 +272,7 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
             portion={choice.portion}
             onPortion={(portion, manual) => setChoice({ ...choice, portion, ...(manual ? { source: "manual" as const, via: undefined } : {}) })}
           />
-          <button className="primary block" onClick={save}>{actionLabel}</button>
+          <Btn kind="primary" className="block" onClick={save}>{actionLabel}</Btn>
         </div>
       )}
 

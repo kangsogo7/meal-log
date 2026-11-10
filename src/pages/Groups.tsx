@@ -1,7 +1,7 @@
 // 그룹: 멤버를 초대해 서로의 식단을 날짜별로 보고 댓글을 남김
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { addDays, formatDate, MEALS, todayStr, type Meal } from "../db";
-import { BackIcon, Btn, BtnRow, flash, FoodList, FoodRow, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
+import { Btn, BtnRow, flash, FoodList, FoodRow, Screen, Seg, Sheet, FullScreen, TextInput, BackButton } from "../components/ui";
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { openSharedFood, type SharedFood } from "../foodShare";
@@ -207,7 +207,7 @@ function Setup({ invite, onDone, error: initialError }: { invite: Invite | null;
               <TextInput value={name} onChange={setName} placeholder="그룹에 보일 이름" maxLength={20} />
             </label>
             {error && <p className="error small">{error}</p>}
-            <button className="primary block" onClick={start} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : invite ? "시작하고 참여하기" : "시작하기"}</button>
+            <Btn kind="primary" className="block" onClick={start} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : invite ? "시작하고 참여하기" : "시작하기"}</Btn>
           </>
         ) : (
           <button className="link small" onClick={() => setWebJoin(true)}>앱이 없어요 · 이 브라우저에서 참여</button>
@@ -253,20 +253,20 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
           {groups?.some((g) => g.code === invite.code) ? (
             <>
               <p><b>{invite.group || "이"}</b> 그룹에 이미 들어가 있어요.</p>
-              <button className="primary block" onClick={() => { const g = groups.find((x) => x.code === invite.code)!; dismiss(); setOpen(g.id); }}>그룹 열기</button>
+              <Btn kind="primary" className="block" onClick={() => { const g = groups.find((x) => x.code === invite.code)!; dismiss(); setOpen(g.id); }}>그룹 열기</Btn>
             </>
           ) : (
             <>
               <p><b>{invite.group || "식단"}</b> 그룹 초대를 받았어요.</p>
               <InviteHelp invite={invite} />
               <div className="row-between invite-actions">
-                <button onClick={dismiss}>나중에</button>
-                <button className="primary" disabled={busy === "invite"} onClick={() => run("invite", async () => {
+                <Btn onClick={dismiss}>나중에</Btn>
+                <Btn kind="primary" disabled={busy === "invite"} onClick={() => run("invite", async () => {
                   const g = await joinGroup(me, invite.code);
                   dismiss();
                   flash(`${g.name} 그룹에 들어왔어요`);
                   setOpen(g.id);
-                })}>{busy === "invite" ? "참여하는 중..." : "참여하기"}</button>
+                })}>{busy === "invite" ? "참여하는 중..." : "참여하기"}</Btn>
               </div>
             </>
           )}
@@ -300,16 +300,16 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
         {groups?.map((g) => <GroupCard key={g.id} g={g} onOpen={() => setOpen(g.id)} />)}
       </ul>
 
-      <section className="card form join-card">
+      <section className="form join-card">
         <label>초대 코드로 그룹 참여
           <div className="input-with-star">
             <TextInput value={code} onChange={(v) => setCode(v.toUpperCase())} placeholder="6자리 코드" maxLength={8} autoCapitalize="characters" />
-            <button className="primary" disabled={busy === "join" || code.trim().length < 6} onClick={() => run("join", async () => {
+            <Btn kind="primary" disabled={busy === "join" || code.trim().length < 6} onClick={() => run("join", async () => {
               const g = await joinGroup(me, code);
               setCode("");
               flash(`${g.name} 그룹에 들어왔어요`);
               setOpen(g.id);
-            })}>참여</button>
+            })}>참여</Btn>
           </div>
         </label>
         {error && <p className="error small">{error}</p>}
@@ -358,7 +358,7 @@ function NewGroupSheet({ me, onClose, onCreated }: { me: Me; onClose: () => void
           <TextInput value={name} onChange={setName} placeholder="예: 컷팅 같이해요" maxLength={30} />
         </label>
         {error && <p className="error small">{error}</p>}
-        <button className="primary block" onClick={create} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : "만들기"}</button>
+        <Btn kind="primary" className="block" onClick={create} disabled={busy || !name.trim()}>{busy ? "만드는 중..." : "만들기"}</Btn>
       </div>
     </Sheet>
   );
@@ -407,7 +407,7 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
   return (
     <PhotosCtx.Provider value={group.photos}>
     <Screen
-      left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
+      left={<BackButton onClick={onClose} />}
       title={<>{group.name} <span className="title-count">{group.members.length}명</span></>}
       right={<button className="text-btn" onClick={() => setMembers(true)}>멤버</button>}
     >
@@ -424,16 +424,16 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
         </div>
       )}
 
-      <div className="meal-tabs" role="tablist">
-        {MEALS.map((m) => {
+      <Seg
+        className="meal-tabs"
+        label="끼니"
+        value={meal}
+        onChange={setMeal}
+        options={MEALS.map((m) => {
           const n = days.filter((d) => group.members.includes(d.uid) && d.meals.some((x) => x.meal === m.key)).length;
-          return (
-            <button key={m.key} role="tab" aria-selected={meal === m.key} className={meal === m.key ? "on" : ""} onClick={() => setMeal(m.key)}>
-              <span><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}<span className="meal-n">({n})</span></span>
-            </button>
-          );
+          return { key: m.key, label: <><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}<span className="meal-n">({n})</span></> };
         })}
-      </div>
+      />
 
       <ul className="food-cards">
         {order.filter((uid) => mealOf(uid)).map((uid) => {
@@ -524,9 +524,9 @@ ${link}
           <span className="muted small">초대 코드</span>
           <div className="row-between">
             <b className="invite-code">{group.code}</b>
-            <button onClick={copy}>코드 복사</button>
+            <Btn onClick={copy}>코드 복사</Btn>
           </div>
-          <button className="primary block" onClick={share}>초대 보내기</button>
+          <Btn kind="primary" className="block" onClick={share}>초대 보내기</Btn>
           <span className="muted small">받은 사람이 그룹 탭에서 코드를 입력하면 들어와요</span>
         </div>
 
@@ -613,21 +613,18 @@ function MemberScreen({ me, gid, group, uid, initialDate, initialTab, onClose }:
 
   return (
     <Screen
-      left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
+      left={<BackButton onClick={onClose} />}
       title={<span className="title-2line"><b>{isMe ? "나의 하루" : `${name}의 하루`}</b>{goal && <span className="muted small">{goal}</span>}</span>}
     >
-      <div className="member-tabs" role="tablist">
-        <button role="tab" aria-selected={tab === "day"} className={tab === "day" ? "on" : ""} onClick={() => setTab("day")}>하루 식단</button>
-        <button role="tab" aria-selected={tab === "week"} className={tab === "week" ? "on" : ""} onClick={() => setTab("week")}>주간 평가</button>
-      </div>
+      <Seg label="보기" value={tab} onChange={setTab} options={[{ key: "day", label: "하루 식단" }, { key: "week", label: "주간 평가" }]} />
 
       {tab === "day" ? (
         <>
           <section className="member-hero">
             <div className="hero-date">
-              <button onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
+              <Btn onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</Btn>
               <b>{formatDate(date)}</b>
-              <button onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</button>
+              <Btn onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</Btn>
             </div>
             {day && meals.length ? (
               <>
@@ -789,7 +786,7 @@ function Comments({ me, gid, kind, id, owner, meal, list, placeholder = "댓글 
       {showInput && (
         <div className="comment-input">
           <TextInput value={text} onChange={setText} placeholder={placeholder} maxLength={500} enterKeyHint="send" onKeyDown={(e) => e.key === "Enter" && send(text)} aria-label="댓글" />
-          <button className="primary" onClick={() => send(text)} disabled={!text.trim()}>등록</button>
+          <Btn kind="primary" onClick={() => send(text)} disabled={!text.trim()}>등록</Btn>
         </div>
       )}
       {error && <p className="error small">{error}</p>}

@@ -288,7 +288,6 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
       {many === null ? (
         <>
           <div className="ing-add">
-            <span aria-hidden>+</span>
             <TextInput
               ref={addRef}
               value={add}
@@ -315,7 +314,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               {sugg.candidates.map((c, j) => (
                 <button key={j} onClick={() => pick(j)}><span>{foodLabel(c)}</span><span className="muted small">식약처 · 100g당 {Math.round(c.per100.kcal)}</span></button>
               ))}
-              <button onClick={() => pick(MANUAL)}><span>"{sugg.line.name}" 그대로 추가</span><span className="muted small">값은 나중에</span></button>
+              <Btn onClick={() => pick(MANUAL)}><span>"{sugg.line.name}" 그대로 추가</span><span className="muted small">값은 나중에</span></Btn>
             </div>
           )}
         </>
@@ -359,7 +358,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               <b>합계 {Math.round(total.kcal).toLocaleString()}kcal</b>
               <span className="muted small">탄 {Math.round(total.carb)} · 단 {Math.round(total.protein)} · 지 {Math.round(total.fat)}</span>
             </div>
-            <button className="primary cart-go" onClick={save} disabled={missing}>{actionLabel}</button>
+            <Btn kind="primary" className="cart-go" onClick={save} disabled={missing}>{actionLabel}</Btn>
           </div>
         );
         return footEl ? createPortal(foot, footEl) : foot;
@@ -419,10 +418,10 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
             {openRow.choice === MANUAL && <NutrientEditor n={openRow.manual} onChange={(n) => update(openRow.id, (x) => ({ ...x, manual: n }))} />}
             {openRow.choice === AI && <SourceLinks sources={aiSources} />}
             {error && <p className="error">{error}</p>}
-            <div className="btn-row">
+            <BtnRow>
               <button className="danger-text" onClick={() => { setRows((rs) => rs.filter((r) => r.id !== openRow.id)); setOpen(null); }}>빼기</button>
-              <button className="primary" onClick={() => setOpen(null)}>확인</button>
-            </div>
+              <Btn kind="primary" onClick={() => setOpen(null)}>확인</Btn>
+            </BtnRow>
           </div>
         </FullScreen>
       )}

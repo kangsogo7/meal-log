@@ -3,7 +3,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import type { Nutrients } from "../db";
 import { AmountEditor, type Portion } from "../portion";
-import { EditIcon, NutrientGrid, PartsList } from "./ui";
+import { EditIcon, NutrientGrid, PartsList, Btn } from "./ui";
 
 export default function FoodView({ top, n, portion, onPortion, parts, actions, children }: {
   /** 맨 위 (이름 입력·끼니 고르기 등) */
@@ -38,8 +38,8 @@ const ShareIcon = () => (
 export function FoodActions({ onEdit, onShare }: { onEdit: () => void; onShare: () => void }) {
   return (
     <div className="entry-actions">
-      <button onClick={onEdit}><EditIcon />영양성분 고치기</button>
-      <button onClick={onShare}><ShareIcon />공유</button>
+      <Btn onClick={onEdit}><EditIcon />영양성분 고치기</Btn>
+      <Btn onClick={onShare}><ShareIcon />공유</Btn>
     </div>
   );
 }

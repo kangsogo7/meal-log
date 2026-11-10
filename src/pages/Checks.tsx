@@ -10,7 +10,7 @@ import {
 import { askNotifyPermission, canNotify } from "../notify";
 import { useLatestBody } from "../hooks";
 import { StepBar } from "../components/charts";
-import { BackIcon, EditButton, flash, NumInput, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
+import { EditButton, flash, NumInput, Screen, Sheet, FullScreen, TextInput, BackButton, Btn, BtnRow } from "../components/ui";
 
 const CheckIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -136,11 +136,11 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
             <button key={i} className={i >= cups ? "on extra" : i < filled ? "on" : ""} aria-label={`${i + 1}잔`} aria-pressed={i < filled} onClick={() => tapCup(i)} />
           ))}
         </div>
-        <div className="btn-row">
-          <button onClick={() => addWater(date, -hyd.cupMl)} disabled={!day.waterMl} aria-label="한 잔 빼기">−</button>
+        <BtnRow>
+          <Btn onClick={() => addWater(date, -hyd.cupMl)} disabled={!day.waterMl} aria-label="한 잔 빼기">−</Btn>
           <button className="water-btn" onClick={() => addWater(date, hyd.cupMl)}>+ {hyd.cupMl}ml</button>
           <button className="water-btn" onClick={() => addWater(date, 500)}>+ 500ml</button>
-        </div>
+        </BtnRow>
       </section>
 
       <section className="check-section">
@@ -212,7 +212,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
   const customs = supps.filter((s) => s.when === "custom");
 
   return (
-    <Screen left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>} title="물 · 영양제">
+    <Screen left={<BackButton onClick={onClose} />} title="물 · 영양제">
       <section className="card form">
         <h2><span className="meal-ic" aria-hidden>💧</span>물</h2>
         <div className="two">
@@ -305,8 +305,8 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
             <>
               {supps.some((s) => s.id === form.id) && <button className="danger" onClick={removeForm}>삭제</button>}
               <span className="spacer" />
-              <button onClick={() => setForm(null)}>취소</button>
-              <button className="primary" onClick={saveForm} disabled={!form.name.trim()}>저장</button>
+              <Btn onClick={() => setForm(null)}>취소</Btn>
+              <Btn kind="primary" onClick={saveForm} disabled={!form.name.trim()}>저장</Btn>
             </>
           }
         >

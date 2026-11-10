@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, todayStr, type DayActivity } from "../db";
-import { DateNav, flash } from "../components/ui";
+import { DateNav, flash, Btn } from "../components/ui";
 import { WeekChart, type Tone } from "../components/charts";
 import { HealthError, healthMode, importShortcutText, openHealthSettings, syncFromHealth } from "../health";
 
@@ -136,7 +136,7 @@ function SyncCard({ mode, lastSync }: { mode: ReturnType<typeof healthMode>; las
           <h2>{mode === "android-app" ? "Health Connect" : "건강 앱"}</h2>
           {lastSync && <span className="muted small">{agoText(lastSync)} 가져옴</span>}
         </div>
-        <button className="primary block" onClick={() => sync()} disabled={busy}>{busy ? "가져오는 중..." : "지금 가져오기"}</button>
+        <Btn kind="primary" className="block" onClick={() => sync()} disabled={busy}>{busy ? "가져오는 중..." : "지금 가져오기"}</Btn>
         {error && <p className="error">{error}</p>}
         {mode === "android-app" && (
           <button className="link small settings-link" onClick={() => openHealthSettings().catch(() => {})}>Health Connect 권한 설정</button>
@@ -195,7 +195,7 @@ function ShortcutCard({ lastSync }: { lastSync?: number }) {
         <h2>건강 앱 (단축어)</h2>
         {lastSync && <span className="muted small">{agoText(lastSync)} 가져옴</span>}
       </div>
-      <button className="primary block" onClick={paste}>단축어 데이터 붙여넣기</button>
+      <Btn kind="primary" className="block" onClick={paste}>단축어 데이터 붙여넣기</Btn>
       {manual && (
         <div className="form paste-box">
           <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder="여기를 길게 눌러 붙여넣기" autoFocus />

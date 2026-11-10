@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, sumNutrients, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { flash, FoodList, FoodRow, FullScreen, itemParts } from "../components/ui";
+import { flash, FoodList, FoodRow, FullScreen, itemParts, Tabs, Btn } from "../components/ui";
 import FoodView, { FoodActions } from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import { shareFood, type SharedFood } from "../foodShare";
@@ -50,11 +50,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
 
   return (
     <div className="quick">
-      <div className="qa-tabs" role="tablist" aria-label="음식 모음">
-        {tabs.map((t) => (
-          <button key={t.label} role="tab" aria-selected={t.on} className={t.on ? "on" : ""} onClick={() => setSrc(t.go)}>{t.label}</button>
-        ))}
-      </div>
+      <Tabs label="음식 모음" value={tabs.find((t) => t.on)?.label ?? ""} onChange={(l) => setSrc(tabs.find((t) => t.label === l)!.go)} options={tabs.map((t) => ({ key: t.label, label: t.label }))} />
 
       {src.kind === "fav" && groups.length > 1 && (
         <div className="quick-chips" aria-label="즐겨찾기 폴더">
@@ -68,7 +64,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
       {src.kind === "sets" ? (
         <>
           {sets.length === 0 && <p className="muted small quick-empty">식단 화면에서 끼니를 눌러 "식사 세트로 저장"하면 생겨요</p>}
-          {sets.length > 0 && <div className="qa-manage"><button onClick={() => setManage("sets")}>세트 편집</button></div>}
+          {sets.length > 0 && <div className="qa-manage"><Btn onClick={() => setManage("sets")}>세트 편집</Btn></div>}
           <FoodList>
             {sets.map((s) => (
               <Card
@@ -115,7 +111,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
           title={amountOf.food.title}
           onClose={() => setAmountOf(null)}
           action={<FavStar getDraft={() => ({ kind: amountOf.food.kind, title: amountOf.food.title, place: amountOf.food.place, items: amountOf.food.items })} />}
-          footer={<button className="primary block big" onClick={() => { onRecord([savedDraft(amountOf.food, amountOf.portion)]); setAmountOf(null); }}>{recordLabel}</button>}
+          footer={<Btn kind="primary" className="block big" onClick={() => { onRecord([savedDraft(amountOf.food, amountOf.portion)]); setAmountOf(null); }}>{recordLabel}</Btn>}
         >
           <FoodView
             n={portionNutrients(amountOf.portion)}
@@ -140,8 +136,8 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
           onClose={() => setOpenSet(null)}
           footer={
             <>
-              <button onClick={() => { setComposeSet(openSet.id!); setOpenSet(null); }}>구성 수정</button>
-              <button className="primary block big" onClick={() => { onRecord(openSet.entries, openSet.name); setOpenSet(null); }}>{recordLabel}</button>
+              <Btn onClick={() => { setComposeSet(openSet.id!); setOpenSet(null); }}>구성 수정</Btn>
+              <Btn kind="primary" className="block big" onClick={() => { onRecord(openSet.entries, openSet.name); setOpenSet(null); }}>{recordLabel}</Btn>
             </>
           }
         >

@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, r1, savedKey, sumNutrients, ZERO, type Item, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { BackIcon, Btn, flash, FoodList, FoodRow, itemParts, macroLine, NutrientLine, PartsList, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
+import { Btn, flash, Tabs, FoodList, FoodRow, itemParts, macroLine, NutrientLine, PartsList, Screen, Sheet, FullScreen, TextInput, BackButton } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
 import { FoodFields } from "../components/FoodFields";
 import { AmountEditor, portionItems, portionNutrients, portionText, storedPortion, type Portion } from "../portion";
@@ -147,7 +147,7 @@ export function SetComposeScreen({ set, onClose }: { set: MealSet; onClose: () =
 
   return (
     <Screen
-      left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
+      left={<BackButton onClick={onClose} />}
       title="세트 수정"
       footer={<Btn kind="primary" className="foot-full" onClick={save} disabled={!valid}>저장</Btn>}
     >
@@ -207,9 +207,7 @@ function SavedFoodPicker({ onPick, onClose }: { onPick: (list: SavedFood[]) => v
     >
       <TextInput className="search-input" value={q} onChange={setQ} placeholder="음식 검색" />
       {!query && (
-        <div className="qa-tabs" role="tablist" aria-label="음식 모음">
-          {tabs.map(([k, label]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{label}</button>)}
-        </div>
+        <Tabs label="음식 모음" value={tab} onChange={setTab} options={tabs.map(([key, label]) => ({ key, label }))} />
       )}
       <FoodList>
         {list.map((s) => (

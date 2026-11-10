@@ -6,7 +6,7 @@ import { exportBackup, importBackup } from "../backup";
 import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini } from "../gemini";
 import { useSettings } from "../hooks";
 import { getTheme, setTheme, type Theme } from "../theme";
-import { Btn, BtnRow, FullScreen, TextInput } from "../components/ui";
+import { Btn, BtnRow, FullScreen, Seg, TextInput } from "../components/ui";
 
 const THEMES: { key: Theme; label: string }[] = [
   { key: "system", label: "시스템" },
@@ -31,20 +31,14 @@ export default function SettingsPage() {
 
       <section className="card">
         <h2>화면 테마</h2>
-        <div className="seg">
-          {THEMES.map((t) => (
-            <button key={t.key} className={theme === t.key ? "on" : ""} onClick={() => { setTheme(t.key); setThemeState(t.key); }}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Seg label="화면 테마" value={theme} onChange={(t) => { setTheme(t); setThemeState(t); }} options={THEMES} />
       </section>
 
       <section className="card">
         <h2>즐겨찾기</h2>
-        <div className="btn-row">
-          <button onClick={() => setFolders(true)}>폴더 관리</button>
-        </div>
+        <BtnRow>
+          <Btn onClick={() => setFolders(true)}>폴더 관리</Btn>
+        </BtnRow>
       </section>
       {folders && <FolderScreen onClose={() => setFolders(false)} onOpen={(id) => setFolderId(id)} />}
       {folderGroup && <FoodEditScreen group={folderGroup} onClose={() => setFolderId(null)} />}
@@ -62,10 +56,10 @@ export default function SettingsPage() {
 
       <section className="card form">
         <h2>백업</h2>
-        <div className="btn-row">
-          <button onClick={exportBackup}>백업 파일 저장</button>
-          <button onClick={() => fileRef.current?.click()}>백업 불러오기</button>
-        </div>
+        <BtnRow>
+          <Btn onClick={exportBackup}>백업 파일 저장</Btn>
+          <Btn onClick={() => fileRef.current?.click()}>백업 불러오기</Btn>
+        </BtnRow>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importBackup(f); }} />
       </section>
 
@@ -120,6 +114,11 @@ function GeminiKeyScreen({ onClose }: { onClose: () => void }) {
     <FullScreen title="AI 기능 켜기" onClose={onClose}>
       <div className="form key-screen">
         <section className="key-box">
+          <label>모델
+            <select value={settings.geminiModel} onChange={(e) => setKV("settings", { ...settings, geminiModel: e.target.value })}>
+              {[...new Set([settings.geminiModel, ...MODELS])].map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
           <label>Gemini API 키
             <TextInput type="password" autoComplete="off" value={key} onChange={setKeyInput} placeholder="여기에 붙여넣기" />
           </label>
@@ -144,11 +143,6 @@ function GeminiKeyScreen({ onClose }: { onClose: () => void }) {
         </ol>
         <a className="btn secondary key-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">구글 AI Studio 열기 ↗</a>
 
-        <label>모델
-          <select value={settings.geminiModel} onChange={(e) => setKV("settings", { ...settings, geminiModel: e.target.value })}>
-            {[...new Set([settings.geminiModel, ...MODELS])].map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </label>
       </div>
     </FullScreen>
   );

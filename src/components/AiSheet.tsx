@@ -1,6 +1,6 @@
 // AI에게 묻기 창 (음식 검색·재료로 요리 공통): 질문 입력 → 보내기 → (가운데 로딩) → 결과. 결과 아래 [다시 묻기][기록/추가] 한 줄
 import type { ReactNode } from "react";
-import { Sheet } from "./ui";
+import { Sheet, Btn } from "./ui";
 
 export type AiView = "ask" | "result";
 
@@ -30,8 +30,8 @@ export default function AiSheet({ view, prompt, onPrompt, onSend, onClose, onReA
       footer={
         view === "result" && !waiting ? (
           <div className="ai-actions">
-            <button onClick={onReAsk}>다시 묻기</button>
-            {done && <button className="primary" onClick={onAction}>{actionLabel}</button>}
+            <Btn onClick={onReAsk}>다시 묻기</Btn>
+            {done && <Btn kind="primary" onClick={onAction}>{actionLabel}</Btn>}
           </div>
         ) : undefined
       }
@@ -40,7 +40,7 @@ export default function AiSheet({ view, prompt, onPrompt, onSend, onClose, onReA
         // 보내기는 입력칸 바로 아래 (키보드가 창 아래쪽을 덮어도 키보드 위에 보이게)
         <div className="form ai-ask">
           <textarea rows={3} value={prompt} onChange={(e) => onPrompt(e.target.value)} placeholder="예: 교촌치킨 허니콤보 한 마리" autoFocus />
-          <button className="primary block big" disabled={!prompt.trim()} onClick={onSend}>보내기</button>
+          <Btn kind="primary" className="block big" disabled={!prompt.trim()} onClick={onSend}>보내기</Btn>
         </div>
       ) : waiting ? (
         <div className="ai-wait" role="status">

@@ -1,7 +1,7 @@
 // 공유받은 음식(링크·그룹의 "나도 기록")을 양·날짜·끼니만 확인하고 바로 식단에 기록
 import { useState } from "react";
 import { addDays, formatDate, MEALS, sumNutrients, todayStr, type Meal } from "../db";
-import { DateButton, flash, MealSeg, FullScreen } from "../components/ui";
+import { DateButton, flash, MealSeg, FullScreen, Btn } from "../components/ui";
 import FoodView from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion } from "../portion";
 import type { SharedFood } from "../foodShare";
@@ -44,7 +44,7 @@ export default function ReceiveFood({ food, from, onClose, onSaved }: { food: Sh
     <FullScreen
       title="나도 기록하기"
       onClose={onClose}
-      footer={<button className="primary block big" onClick={save} disabled={busy}>{busy ? "기록하는 중..." : `${dayWord} ${label}으로 기록`}</button>}
+      footer={<Btn kind="primary" className="block big" onClick={save} disabled={busy}>{busy ? "기록하는 중..." : `${dayWord} ${label}으로 기록`}</Btn>}
     >
       <FoodView
         top={

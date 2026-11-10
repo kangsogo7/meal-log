@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, KIND_LABEL, r1, sumNutrients, type FavGroup, type MealSet, type SavedFood } from "../db";
-import { BackIcon, flash, NutrientLine, revealInSheet, Screen, TextInput } from "../components/ui";
+import { flash, NutrientLine, revealInSheet, Screen, TextInput, BackButton, Btn } from "../components/ui";
 import { applyFolderEdits, FolderPicker, NewFolderForm } from "../favorites";
 import { AmountEditor, portionGrams, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
@@ -128,9 +128,9 @@ export function FavoritesTab({ cart, toggle, put }: { cart: CartItem[]; toggle: 
                       <NutrientLine n={portionNutrients(open!.portion)} />
                       <button className="text-btn" onClick={() => setEditFood(s)}>수정</button>
                     </div>
-                    <button className="primary block" onClick={() => add(open!.portion)}>
+                    <Btn kind="primary" className="block" onClick={() => add(open!.portion)}>
                       {inCart ? "이 양으로 변경" : "이 양으로 담기"}
-                    </button>
+                    </Btn>
                   </div>
                 )}
               </li>
@@ -230,7 +230,7 @@ export function FoodEditScreen({ group, onClose }: { group: FavGroup; onClose: (
 
   return (
     <Screen
-      left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
+      left={<BackButton onClick={onClose} />}
       title={<><span>{folderEmoji(group)}</span> {group.name}</>}
       footer={
         <>
@@ -298,7 +298,7 @@ export function SetEditScreen({ sets, onClose }: { sets: MealSet[]; onClose: () 
   };
   return (
     <Screen
-      left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
+      left={<BackButton onClick={onClose} />}
       title="식사 세트"
       footer={<button className="foot-btn" onClick={remove} disabled={!sel.size}>선택 삭제</button>}
     >
@@ -336,7 +336,7 @@ export function FolderScreen({ onClose, onOpen }: { onClose: () => void; onOpen:
 
   return (
     <Screen
-      left={<button className="icon-btn" onClick={mode === "new" ? () => setMode("list") : onClose} aria-label="뒤로"><BackIcon /></button>}
+      left={<BackButton onClick={mode === "new" ? () => setMode("list") : onClose} />}
       title={mode === "new" ? "새 폴더" : "내 폴더"}
       right={mode === "list" && <button className="icon-btn plus" onClick={() => setMode("new")} aria-label="새 폴더">＋</button>}
     >
@@ -430,7 +430,7 @@ function FolderEdit({ groups, favs, onDone }: { groups: FavGroup[]; favs: SavedF
       left={<button className="icon-btn" onClick={onDone} aria-label="닫기">✕</button>}
       title=""
       right={<button className="text-btn" onClick={onDone}>편집 취소</button>}
-      footer={<button className="primary block big" onClick={finish}>편집 완료</button>}
+      footer={<Btn kind="primary" className="block big" onClick={finish}>편집 완료</Btn>}
     >
       <ul className="folder-cards editing" ref={listRef}>
         {rows.map((g) => (

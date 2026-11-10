@@ -6,7 +6,7 @@ import { getKV, setKV } from "../db";
 import { analyzeFoodPhoto, GeminiError, imageToBase64, type PhotoResult } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { NutrientLine, SourceLinks, TextInput } from "../components/ui";
+import { NutrientLine, SourceLinks, TextInput, Btn } from "../components/ui";
 import { AmountEditor, makePortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 
@@ -126,8 +126,8 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
           })}
         </ul>
         <div className="set-actions">
-          <button onClick={() => input.current?.click()}>다른 사진</button>
-          <button className="primary" onClick={save} disabled={!chosen.length}>{chosen.length}개 담기</button>
+          <Btn onClick={() => input.current?.click()}>다른 사진</Btn>
+          <Btn kind="primary" onClick={save} disabled={!chosen.length}>{chosen.length}개 담기</Btn>
         </div>
         {filePicker}
       </div>
@@ -158,9 +158,9 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
       </label>
       <p className="muted small field-hint">가게·메뉴·사이즈·먹은 양을 적을수록 정확해요.</p>
       {job.error && <p className="error">{job.error}</p>}
-      <button className="primary block big" onClick={analyze} disabled={!photo || job.running}>
+      <Btn kind="primary" className="block big" onClick={analyze} disabled={!photo || job.running}>
         {job.running ? "분석하는 중... (다른 앱을 써도 돼요)" : "분석하기"}
-      </button>
+      </Btn>
       {filePicker}
     </div>
   );

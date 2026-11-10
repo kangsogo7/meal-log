@@ -1,7 +1,7 @@
 // 재료 수정 전체 화면 (기록 수정·음식 수정 공통): 이름 · 양 · 영양성분 · 재료 빼기. 완료를 눌러야 반영, ← 는 취소
 import { useState } from "react";
 import { r1, scaleNutrients, type Item, type Nutrients } from "../db";
-import { FullScreen, NumInput, NutrientEditor, TextInput } from "./ui";
+import { FullScreen, NumInput, NutrientEditor, TextInput, Btn } from "./ui";
 
 export default function ItemEditScreen({ item, title = "재료 수정", onDone, onRemove, onClose }: {
   item: Item;
@@ -31,7 +31,7 @@ export default function ItemEditScreen({ item, title = "재료 수정", onDone, 
       footer={
         <>
           {onRemove && <button className="danger-text" onClick={onRemove}>재료 빼기</button>}
-          <button className="primary block big" disabled={!name} onClick={() => onDone({ ...draft, name })}>완료</button>
+          <Btn kind="primary" className="block big" disabled={!name} onClick={() => onDone({ ...draft, name })}>완료</Btn>
         </>
       }
     >

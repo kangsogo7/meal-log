@@ -85,7 +85,7 @@ export function Screen({ title, left, right, footer, children }: { title: ReactN
 /** 내용이 길어 스크롤이 생길 만한 창: 아래 팝업(Sheet) 대신 전체 화면. Sheet와 같은 모양으로 씀 (← 로 닫기) */
 export function FullScreen({ title, onClose, children, footer, action }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; action?: ReactNode; tall?: boolean }) {
   return (
-    <Screen left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>} title={title} right={action} footer={footer}>
+    <Screen left={<BackButton onClick={onClose} />} title={title} right={action} footer={footer}>
       {children}
     </Screen>
   );
@@ -246,6 +246,11 @@ export const EditIcon = () => (
 /** 목록 줄 오른쪽 연필 아이콘 버튼 (체중 기록·영양제 목록 공통) */
 export const EditButton = ({ onClick, label = "수정" }: { onClick: () => void; label?: string }) => (
   <button className="row-edit" onClick={onClick} aria-label={label}><EditIcon /></button>
+);
+
+/** 화면 왼쪽 위 ← 버튼 (모든 화면 공통) */
+export const BackButton = ({ onClick }: { onClick: () => void }) => (
+  <button className="icon-btn" onClick={onClick} aria-label="뒤로"><BackIcon /></button>
 );
 
 export const BackIcon = () => (
@@ -597,15 +602,35 @@ export function SwipeRow({ children, onTap, onDelete }: { children: ReactNode; o
 }
 
 /** 잠깐 보였다 사라지는 안내 (어느 화면에서든 호출) */
-/** 아침·점심·간식·저녁 고르기 (기록·기록 수정·나도 기록하기 공통) */
-export function MealSeg({ value, onChange }: { value: Meal; onChange: (m: Meal) => void }) {
+/** 둘 이상 중 하나 고르기 (회색 바탕 안의 흰 칸). 앱의 모든 선택 칸은 이것 하나 */
+export function Seg<T extends string>({ options, value, onChange, label, className }: {
+  options: { key: T; label: ReactNode }[]; value: T; onChange: (v: T) => void; label?: string; className?: string;
+}) {
   return (
-    <div className="seg meal-seg">
-      {MEALS.map((m) => (
-        <button key={m.key} className={value === m.key ? "on" : ""} onClick={() => onChange(m.key)}><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</button>
+    <div className={`seg ${className ?? ""}`} role="tablist" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.key} role="tab" aria-selected={value === o.key} className={value === o.key ? "on" : ""} onClick={() => onChange(o.key)}>{o.label}</button>
       ))}
     </div>
   );
+}
+
+/** 밑줄 탭 (음식 모음: 즐겨찾기·세트·자주 먹는 것·최근). 앱의 모든 밑줄 탭은 이것 하나 */
+export function Tabs<T extends string>({ options, value, onChange, label }: {
+  options: { key: T; label: ReactNode }[]; value: T; onChange: (v: T) => void; label?: string;
+}) {
+  return (
+    <div className="qa-tabs" role="tablist" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.key} role="tab" aria-selected={value === o.key} className={value === o.key ? "on" : ""} onClick={() => onChange(o.key)}>{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
+/** 아침·점심·간식·저녁 고르기 (나도 기록하기) */
+export function MealSeg({ value, onChange }: { value: Meal; onChange: (m: Meal) => void }) {
+  return <Seg className="meal-seg" label="끼니" value={value} onChange={onChange} options={MEALS.map((m) => ({ key: m.key, label: <><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</> }))} />;
 }
 
 /** 공통 버튼. kind: primary(주 버튼) · secondary(회색) · danger(지우기 등) */
