@@ -6,6 +6,7 @@ import { exportBackup, importBackup } from "../backup";
 import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini } from "../gemini";
 import { useSettings } from "../hooks";
 import { getTheme, setTheme, type Theme } from "../theme";
+import { Btn, BtnRow, FullScreen, TextInput } from "../components/ui";
 
 const THEMES: { key: Theme; label: string }[] = [
   { key: "system", label: "시스템" },
@@ -19,34 +20,10 @@ export default function SettingsPage() {
   const [folders, setFolders] = useState(false);
   const [folderId, setFolderId] = useState<number | null>(null);
   const folderGroup = useLiveQuery(() => (folderId == null ? undefined : db.groups.get(folderId)), [folderId]);
-  const [keyInput, setKeyInput] = useState<string | null>(null);
-  const [status, setStatus] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [theme, setThemeState] = useState<Theme>(getTheme());
 
-  const key = keyInput ?? settings.geminiKey;
-  const cleaned = cleanKey(key);
-  const keyWarning = cleaned && !looksLikeKey(cleaned)
-    ? `키 모양이 이상해요 (${cleaned.length}자). 키는 "AQ." 또는 "AIza"로 시작해요. AI Studio에서 키 전체를 다시 복사해 주세요.`
-    : "";
-
-  const saveKey = async () => {
-    await setKV("settings", { ...settings, geminiKey: cleaned });
-    setKeyInput(null);
-    setStatus("저장했어요.");
-  };
-
-  const test = async () => {
-    setStatus("확인 중...");
-    try {
-      await testGemini({ ...settings, geminiKey: cleaned });
-      await setKV("settings", { ...settings, geminiKey: cleaned });
-      setKeyInput(null);
-      setStatus("✅ 연결됐어요. 저장했어요.");
-    } catch (e) {
-      setStatus(`❌ ${e instanceof GeminiError ? e.message : "연결에 실패했어요."}`);
-    }
-  };
+  const [keyOpen, setKeyOpen] = useState(false);
 
   return (
     <>
@@ -72,24 +49,16 @@ export default function SettingsPage() {
       {folders && <FolderScreen onClose={() => setFolders(false)} onOpen={(id) => setFolderId(id)} />}
       {folderGroup && <FoodEditScreen group={folderGroup} onClose={() => setFolderId(null)} />}
 
-      <section className="card form">
-        <div className="row-between">
-          <h2>Gemini API 키</h2>
-          <a className="small ext-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">키 발급 ↗</a>
-        </div>
-        <input type="password" autoComplete="off" value={key} onChange={(e) => setKeyInput(e.target.value)} placeholder="AQ.으로 시작하는 키" />
-        <div className="btn-row">
-          <button className="primary" onClick={test} disabled={!key.trim()}>연결 확인</button>
-          <button onClick={saveKey}>저장만</button>
-        </div>
-        {keyWarning && <p className="error">{keyWarning}</p>}
-        {status && <p className="small">{status}</p>}
-        <label>모델
-          <select value={settings.geminiModel} onChange={(e) => setKV("settings", { ...settings, geminiModel: e.target.value })}>
-            {[...new Set([settings.geminiModel, ...MODELS])].map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </label>
+      <section className="card">
+        <button className="setting-row" onClick={() => setKeyOpen(true)}>
+          <span className="fr-text">
+            <span className="fr-title">AI 기능 (Gemini API 키)</span>
+            <span className="fr-sub">{settings.geminiKey ? "연결됨 · 사진 기록과 AI 검색을 쓸 수 있어요" : "키를 넣으면 사진으로 기록할 수 있어요"}</span>
+          </span>
+          <span className="fr-chev" aria-hidden>›</span>
+        </button>
       </section>
+      {keyOpen && <GeminiKeyScreen onClose={() => setKeyOpen(false)} />}
 
       <section className="card form">
         <h2>백업</h2>
@@ -115,5 +84,72 @@ export default function SettingsPage() {
         버전 {__APP_VERSION__}
       </p>
     </>
+  );
+}
+
+/** 제미나이 API 키 넣기: 맨 위에 입력칸, 아래에 키 만드는 방법 */
+function GeminiKeyScreen({ onClose }: { onClose: () => void }) {
+  const settings = useSettings();
+  const [keyInput, setKeyInput] = useState<string | null>(null);
+  const [status, setStatus] = useState("");
+  const key = keyInput ?? settings.geminiKey;
+  const cleaned = cleanKey(key);
+  const keyWarning = cleaned && !looksLikeKey(cleaned)
+    ? `키 모양이 이상해요 (${cleaned.length}자). 키는 "AQ." 또는 "AIza"로 시작해요. AI Studio에서 키 전체를 다시 복사해 주세요.`
+    : "";
+
+  const saveKey = async () => {
+    await setKV("settings", { ...settings, geminiKey: cleaned });
+    setKeyInput(null);
+    setStatus("저장했어요.");
+  };
+
+  const test = async () => {
+    setStatus("확인 중...");
+    try {
+      await testGemini({ ...settings, geminiKey: cleaned });
+      await setKV("settings", { ...settings, geminiKey: cleaned });
+      setKeyInput(null);
+      setStatus("✅ 연결됐어요. 저장했어요.");
+    } catch (e) {
+      setStatus(`❌ ${e instanceof GeminiError ? e.message : "연결에 실패했어요."}`);
+    }
+  };
+
+  return (
+    <FullScreen title="AI 기능 켜기" onClose={onClose}>
+      <div className="form key-screen">
+        <section className="key-box">
+          <label>Gemini API 키
+            <TextInput type="password" autoComplete="off" value={key} onChange={setKeyInput} placeholder="여기에 붙여넣기" />
+          </label>
+          {keyWarning && <p className="error">{keyWarning}</p>}
+          <BtnRow>
+            <Btn onClick={saveKey} disabled={!key.trim()}>저장만</Btn>
+            <Btn kind="primary" onClick={test} disabled={!key.trim()}>연결 확인하고 저장</Btn>
+          </BtnRow>
+          {status && <p className="small">{status}</p>}
+        </section>
+
+        <section className="key-box">
+          <b>키를 넣으면</b>
+          <span className="muted small">음식 사진으로 기록 · 메뉴 이름으로 영양정보 찾기 · 주간 평가 한마디를 쓸 수 있어요. 키는 이 폰에만 저장돼요.</span>
+        </section>
+
+        <ol className="key-steps">
+          <li><b>구글 AI Studio 열기</b><span className="muted small">아래 버튼을 눌러 구글 계정으로 로그인해요.</span></li>
+          <li><b>API 키 만들기</b><span className="muted small">AI Studio의 API 키 화면에서 새 키를 만들어요.</span></li>
+          <li><b>키 복사</b><span className="muted small">만든 키 전체를 복사해요. "AQ." 또는 "AIza"로 시작해요.</span></li>
+          <li><b>맨 위 칸에 붙여넣기</b><span className="muted small">붙여넣고 "연결 확인하고 저장"을 눌러요.</span></li>
+        </ol>
+        <a className="btn secondary key-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">구글 AI Studio 열기 ↗</a>
+
+        <label>모델
+          <select value={settings.geminiModel} onChange={(e) => setKV("settings", { ...settings, geminiModel: e.target.value })}>
+            {[...new Set([settings.geminiModel, ...MODELS])].map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </label>
+      </div>
+    </FullScreen>
   );
 }

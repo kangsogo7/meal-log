@@ -1251,3 +1251,13 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .sf-mode { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; border: none; border-radius: 10px; background: none; color: var(--accent); display: grid; place-items: center; }
 .sheet-foot .btn-pair { flex: 1; padding-bottom: 0; }
 .fr-check { flex: none; width: 22px; height: 22px; margin: 11px; accent-color: var(--accent); }
+
+/* 설정 줄 (누르면 다른 화면) */
+.setting-row { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0; border: none; background: none; text-align: left; color: var(--text); }
+/* 제미나이 키 화면 */
+.key-box { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--card); }
+.key-box input { background: var(--inset); border: none; }
+.key-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 8px; }
+.key-steps li { counter-increment: step; position: relative; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px 12px 50px; border-radius: 16px; background: var(--card); }
+.key-steps li::before { content: counter(step); position: absolute; left: 14px; top: 12px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: var(--fs-sub); font-weight: 600; }
+.key-link { display: flex; align-items: center; justify-content: center; text-decoration: none; }
