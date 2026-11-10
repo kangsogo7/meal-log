@@ -30,7 +30,7 @@ export default function AiSheet({ view, prompt, onPrompt, onSend, onClose, onReA
       footer={
         view === "result" && !waiting ? (
           <div className="ai-actions">
-            <Btn onClick={onReAsk}>다시 묻기</Btn>
+            <button onClick={onReAsk}>다시 묻기</button>
             {done && <Btn kind="primary" onClick={onAction}>{actionLabel}</Btn>}
           </div>
         ) : undefined

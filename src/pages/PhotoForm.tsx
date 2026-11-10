@@ -126,7 +126,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
           })}
         </ul>
         <div className="set-actions">
-          <Btn onClick={() => input.current?.click()}>다른 사진</Btn>
+          <button onClick={() => input.current?.click()}>다른 사진</button>
           <Btn kind="primary" onClick={save} disabled={!chosen.length}>{chosen.length}개 담기</Btn>
         </div>
         {filePicker}

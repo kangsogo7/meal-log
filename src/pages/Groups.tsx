@@ -622,9 +622,9 @@ function MemberScreen({ me, gid, group, uid, initialDate, initialTab, onClose }:
         <>
           <section className="member-hero">
             <div className="hero-date">
-              <Btn onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</Btn>
+              <button onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
               <b>{formatDate(date)}</b>
-              <Btn onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</Btn>
+              <button onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</button>
             </div>
             {day && meals.length ? (
               <>

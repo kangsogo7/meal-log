@@ -32,7 +32,7 @@ export default function MovedNotice() {
         </li>
         <li>새 앱의 설정 → 백업 불러오기 (그룹도 다시 들어가요) → Gemini 키 다시 입력</li>
         <li>
-          새 앱에서 그룹이 보이면 <Btn onClick={leave} disabled={busy}>예전 그룹에서 나가기</Btn>
+          새 앱에서 그룹이 보이면 <button onClick={leave} disabled={busy}>예전 그룹에서 나가기</button>
         </li>
         <li>이 예전 앱은 홈 화면에서 지워도 돼요.</li>
       </ol>

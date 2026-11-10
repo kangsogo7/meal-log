@@ -82,6 +82,9 @@ export default function App() {
   useEffect(() => onFood(setFood), []);
   useShareSync();
   return (
+    <>
+    {/* 화면 맨 위 고정 막대 (시계 줄 + 여백). 상세 화면처럼 맨 위에 불투명한 고정 막대가 있어야 아이폰이 흐림을 덧씌우지 않음 */}
+    <div className="top-bar" aria-hidden />
     <div className="app">
       <main className="content">
         {isOldAddress() && <MovedNotice />}
@@ -101,5 +104,6 @@ export default function App() {
         ))}
       </nav>
     </div>
+    </>
   );
 }

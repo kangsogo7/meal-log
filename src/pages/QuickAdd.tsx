@@ -64,7 +64,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
       {src.kind === "sets" ? (
         <>
           {sets.length === 0 && <p className="muted small quick-empty">식단 화면에서 끼니를 눌러 "식사 세트로 저장"하면 생겨요</p>}
-          {sets.length > 0 && <div className="qa-manage"><Btn onClick={() => setManage("sets")}>세트 편집</Btn></div>}
+          {sets.length > 0 && <div className="qa-manage"><button onClick={() => setManage("sets")}>세트 편집</button></div>}
           <FoodList>
             {sets.map((s) => (
               <Card

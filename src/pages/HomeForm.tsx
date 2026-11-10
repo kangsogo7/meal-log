@@ -314,7 +314,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               {sugg.candidates.map((c, j) => (
                 <button key={j} onClick={() => pick(j)}><span>{foodLabel(c)}</span><span className="muted small">식약처 · 100g당 {Math.round(c.per100.kcal)}</span></button>
               ))}
-              <Btn onClick={() => pick(MANUAL)}><span>"{sugg.line.name}" 그대로 추가</span><span className="muted small">값은 나중에</span></Btn>
+              <button onClick={() => pick(MANUAL)}><span>"{sugg.line.name}" 그대로 추가</span><span className="muted small">값은 나중에</span></button>
             </div>
           )}
         </>

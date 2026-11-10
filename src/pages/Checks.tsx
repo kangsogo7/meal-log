@@ -137,7 +137,7 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
           ))}
         </div>
         <BtnRow>
-          <Btn onClick={() => addWater(date, -hyd.cupMl)} disabled={!day.waterMl} aria-label="한 잔 빼기">−</Btn>
+          <button onClick={() => addWater(date, -hyd.cupMl)} disabled={!day.waterMl} aria-label="한 잔 빼기">−</button>
           <button className="water-btn" onClick={() => addWater(date, hyd.cupMl)}>+ {hyd.cupMl}ml</button>
           <button className="water-btn" onClick={() => addWater(date, 500)}>+ 500ml</button>
         </BtnRow>
