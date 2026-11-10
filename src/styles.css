@@ -7,43 +7,50 @@
   --fs-main: 13px;
   --fs-sub: 11px;
   /* 바탕(흰색) 위에 데이터 영역(연회색), 그 안의 칸은 다시 흰색 */
+  /* 색감 B: 흰 바탕 + 연회색초록 카드 + 라임 포인트 + 검정 선택 */
   --bg: #ffffff;
   --surface: #ffffff; /* 창·탭 막대·머리줄 */
-  --card: #f1f8ea; /* 데이터 영역: 아주 연한 연두 */
+  --card: #f3f5ef; /* 데이터 영역 */
   --card-border: transparent;
   --inset: #ffffff;
-  --text: #2c2747;
-  --muted: #6a6585;
-  --border: #dbeccd;
-  --accent: #7cc242; /* 포인트: 연두 (주 버튼·원형 그래프·선택 표시) */
-  --accent-ink: #14260a; /* 연두 위 글자는 진한 초록 (흰 글자는 잘 안 보임) */
-  --accent-soft: #e6f4d8;
-  --btn-ink: #3a6e17; /* 보조 버튼 글자 */
-  --btn-line: #bfe0a3; /* 보조 버튼 테두리 */
-  --point: #4a8a1c; /* 글자 링크 (흰 바탕에서 읽히게 더 진하게) */
+  --text: #1b1f17;
+  --muted: #5f6658;
+  --border: #e2e6dc;
+  --accent: #9ccf3f; /* 포인트: 라임 (원형 그래프·선택 표시) */
+  --accent-ink: #111111;
+  --accent-soft: #eef6e0;
+  --btn-primary: #c4ea7e; /* 주 버튼 바탕 (연한 라임 + 검정 글자) */
+  --sel-bg: #111111; /* 선택된 칸 (검정 바탕 + 흰 글자) */
+  --sel-ink: #ffffff;
+  --btn-ink: #1b1f17; /* 보조 버튼 글자 */
+  --btn-line: #d5dccb; /* 보조 버튼 테두리 */
+  --point: #4f7f17; /* 글자 링크 (흰 바탕에서 읽히게 진한 초록) */
   --over: #d9485f; /* 목표 초과 */
-  /* 영양소별 색 */
+  /* 영양소별 색 (파스텔과 어울리는 주황·하늘·분홍) */
   --carb: #f2a25a;
-  --protein: #6b5bd6;
+  --protein: #5b9bd5;
   --fat: #ea6e8c;
-  --water: #3b7be0;
-  --water-bg: #dde8fb;
-  --water-ink: #1d4690;
-  --track: #e3f0d6;
+  --carb-bg: #fde7d2;
+  --protein-bg: #dbe8f4;
+  --fat-bg: #fbe1e7;
+  --water: #5b9bd5;
+  --water-bg: #dbe8f4;
+  --water-ink: #2a5f93;
+  --track: #e2e8d9;
   /* 평가 색 (좋음·보통·아쉬움) */
-  --good: #7cc242;
+  --good: #9ccf3f;
   --ok: #f2a25a;
   --bad: #ea6e8c;
-  --good-bg: #e6f4d8;
-  --good-ink: #2f5f12;
-  --ok-bg: #fbe9d8;
+  --good-bg: #eef6e0;
+  --good-ink: #3e6612;
+  --ok-bg: #fde7d2;
   --ok-ink: #7a4a17;
   --bad-bg: #fbe1e7;
   --bad-ink: #9c2945;
   --tag-out-bg: transparent;
-  --tag-out-ink: #6a6585;
+  --tag-out-ink: #5f6658;
   --tag-food-bg: transparent;
-  --tag-food-ink: #6a6585;
+  --tag-food-ink: #5f6658;
   color-scheme: light;
 }
 
@@ -62,6 +69,12 @@
     --accent-ink: #0e1a12;
     --accent-soft: #1f3d2b;
     --btn-ink: #86efac;
+    --btn-primary: #4ade80;
+    --sel-bg: #4ade80;
+    --sel-ink: #0e1a12;
+    --carb-bg: #3d321a;
+    --protein-bg: #1c2b40;
+    --fat-bg: #3f1f27;
     --btn-line: #2f5a3f;
     --point: #4ade80;
     --over: #ff8a5c;
@@ -99,6 +112,12 @@
   --accent-ink: #0e1a12;
   --accent-soft: #1f3d2b;
   --btn-ink: #86efac;
+  --btn-primary: #4ade80;
+  --sel-bg: #4ade80;
+  --sel-ink: #0e1a12;
+  --carb-bg: #3d321a;
+  --protein-bg: #1c2b40;
+  --fat-bg: #3f1f27;
   --btn-line: #2f5a3f;
   --point: #4ade80;
   --over: #ff8a5c;
@@ -160,7 +179,7 @@ button {
   min-height: 40px;
 }
 button:disabled { opacity: 0.5; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+button.primary { background: var(--btn-primary); border-color: var(--btn-primary); color: var(--accent-ink); font-weight: 500; }
 button.danger { color: var(--over); }
 button.ghost { border-color: transparent; background: transparent; }
 button.block { width: 100%; margin-top: 4px; }
@@ -276,7 +295,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 
 .seg { display: flex; background: var(--track); border-radius: 12px; padding: 3px; gap: 3px; margin-bottom: 12px; }
 .seg button { flex: 1; border: none; background: transparent; padding: 7px 4px; min-height: 36px; border-radius: 9px; font-size: var(--fs-sub); color: var(--muted); }
-.seg button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+.seg button.on { background: var(--sel-bg); color: var(--sel-ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 
 .form label { display: block; margin-bottom: 12px; font-size: var(--fs-sub); color: var(--muted); }
 .form label > input, .form label > select, .form label > textarea, .form label > .with-unit { margin-top: 4px; color: var(--text); }
@@ -805,9 +824,9 @@ input.missing { border-color: var(--over); }
 .tone-tile { border-radius: 18px; padding: 14px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .tone-tile > span, .tone-tile small { font-size: var(--fs-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tone-tile b { font-size: var(--fs-main); font-variant-numeric: tabular-nums; }
-.tone-tile.carb { background: var(--ok-bg); color: var(--ok-ink); }
-.tone-tile.protein { background: var(--good-bg); color: var(--good-ink); }
-.tone-tile.fat { background: var(--bad-bg); color: var(--bad-ink); }
+.tone-tile.carb { background: var(--carb-bg); color: var(--ok-ink); }
+.tone-tile.protein { background: var(--protein-bg); color: var(--water-ink); }
+.tone-tile.fat { background: var(--fat-bg); color: var(--bad-ink); }
 .chart-head h2 { margin: 0; }
 .chart-head { margin-bottom: 8px; }
 .workout-list .wo-icon { width: 38px; height: 38px; border-radius: 12px; background: var(--good-bg); color: var(--good-ink); display: grid; place-items: center; font-size: var(--fs-sub); font-weight: 600; flex: none; }
@@ -1217,7 +1236,7 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 /* 공통 버튼 (Btn) · 한 줄에 같은 폭으로 (BtnRow) */
 .btn { min-height: 48px; padding: 0 14px; border: none; border-radius: 14px; font-size: var(--fs-main); font-weight: 500; white-space: nowrap; }
 .btn.secondary { background: var(--surface); border: 1px solid var(--btn-line); color: var(--btn-ink); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.primary { background: var(--btn-primary); color: var(--accent-ink); }
 .btn.danger { background: var(--bad-bg); color: var(--bad-ink); }
 .btn-pair { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; padding-bottom: 8px; }
 
@@ -1299,7 +1318,7 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .ing-many-box .ing-add { margin-top: 0; }
 /* 반원 그래프 입체감: 빈 칸은 살짝 들어간 느낌, 칸 이름(탄·단·지)은 칸 가운데 */
 .sr-track { stroke: var(--track); }
-.card .sr-track { stroke: color-mix(in srgb, var(--accent) 26%, var(--surface)); }
+.card .sr-track { stroke: var(--track); }
 .sr-tag { font-size: 11px; font-weight: 700; fill: var(--muted); }
 .sr-tag.on { fill: #ffffff; }
 .sr-tag.carb:not(.on) { fill: var(--carb); }
