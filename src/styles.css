@@ -368,7 +368,7 @@ label.inline input { width: 110px; margin: 0; }
 .star { border: none; background: none; font-size: 1.3rem; color: var(--text); padding: 4px 6px; min-height: 0; }
 .meal-actions { display: flex; align-items: center; gap: 6px; }
 .grade { border: none; background: var(--inset); font-size: 1.3rem; padding: 2px 8px; min-height: 34px; border-radius: 999px; }
-.eval { background: var(--inset); border-radius: 12px; padding: 8px 12px; margin-top: 10px; }
+.eval { margin-top: 12px; }
 .eval p { margin: 0 0 4px; }
 .eval ul { list-style: none; padding: 0; margin: 0; }
 .eval li { padding: 2px 0; }
@@ -1197,3 +1197,13 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 /* 화면 맨 위 시스템 영역(시계·배터리 줄): 스크롤한 내용이 그 밑으로 비쳐 흐려 보이지 않게 바탕색으로 가림 */
 .app::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-top); background: var(--bg); z-index: 15; pointer-events: none; }
 .card .ring-track { stroke: var(--inset); }
+
+/* 끼니 평가: 탄수화물·단백질·지방·나트륨 4칸 한 줄 */
+.eval-cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.eval-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px; background: var(--card); text-align: center; min-width: 0; }
+.eval-cell b { font-size: var(--fs-main); font-weight: 500; white-space: nowrap; }
+.eval-word { align-self: stretch; margin-top: 2px; padding: 2px 0; border-radius: 999px; font-size: var(--fs-sub); }
+.eval-word.good { background: var(--good-bg); color: var(--good-ink); }
+.eval-word.ok { background: var(--ok-bg); color: var(--ok-ink); }
+.eval-word.bad { background: var(--bad-bg); color: var(--bad-ink); }
+.eval-word.none { background: var(--inset); color: var(--muted); }

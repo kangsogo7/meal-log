@@ -154,61 +154,73 @@ export const GRADE_EMOJI: Record<Grade, string> = { bad: "😡", ok: "😀", goo
 /** 평가 글자 (색과 함께 표시: --good / --ok / --bad) */
 export const GRADE_LABEL: Record<Grade, string> = { good: "좋음", ok: "보통", bad: "아쉬움" };
 
-// 목표별로 끼니 칼로리가 끼니 몫의 몇 배면 좋은지/괜찮은지
-const KCAL_RANGE: Record<Goal, { good: [number, number]; ok: [number, number] }> = {
-  cut: { good: [0.6, 1.05], ok: [0.4, 1.25] },
-  maintain: { good: [0.75, 1.15], ok: [0.5, 1.35] },
-  leanbulk: { good: [0.85, 1.2], ok: [0.6, 1.4] },
-  bulk: { good: [0.9, 1.3], ok: [0.65, 1.5] },
+// 목표별로 끼니 탄수화물이 끼니 몫의 몇 배면 좋은지/괜찮은지 (감량일수록 위쪽을 좁게)
+const CARB_RANGE: Record<Goal, { good: [number, number]; ok: [number, number] }> = {
+  cut: { good: [0.6, 1.1], ok: [0.4, 1.35] },
+  maintain: { good: [0.75, 1.2], ok: [0.5, 1.45] },
+  leanbulk: { good: [0.85, 1.25], ok: [0.6, 1.5] },
+  bulk: { good: [0.9, 1.35], ok: [0.65, 1.6] },
 };
+
+/** 평가 칸 하나: 탄수화물·단백질·지방·나트륨 */
+export interface EvalCell {
+  key: "carb" | "protein" | "fat" | "sodium";
+  label: string;
+  /** "70g", "459mg" */
+  value: string;
+  /** 끼니 몫(나트륨은 끼니 상한) 대비 */
+  pct: number;
+  /** null = 점수에 안 넣음 (간식의 단백질) */
+  grade: Grade | null;
+  word: string;
+}
 
 export interface MealEvaluation {
   grade: Grade;
-  reasons: { grade: Grade; text: string }[];
+  cells: EvalCell[];
 }
 
 /**
  * 끼니 하나를 목표의 끼니 몫과 비교해서 평가.
- * 칼로리·단백질은 2배 비중, 지방·나트륨은 1배. 점수 비율 80% 이상 ☺️, 50% 이상 😀, 그 아래 😡
+ * 탄수화물·단백질은 2배 비중, 지방·나트륨은 1배. 점수 비율 80% 이상 좋음, 50% 이상 보통, 그 아래 아쉬움
  */
 export function evaluateMeal(meal: Meal, total: Nutrients, target: Nutrients, goal: Goal): MealEvaluation {
   const share = MEAL_SHARE[meal];
-  const reasons: MealEvaluation["reasons"] = [];
+  const cells: EvalCell[] = [];
   let score = 0;
   let max = 0;
-  const add = (grade: Grade, weight: number, text: string) => {
-    score += (grade === "good" ? 2 : grade === "ok" ? 1 : 0) * weight;
-    max += 2 * weight;
-    reasons.push({ grade, text });
+  const add = (cell: EvalCell, weight: number) => {
+    if (cell.grade) {
+      score += (cell.grade === "good" ? 2 : cell.grade === "ok" ? 1 : 0) * weight;
+      max += 2 * weight;
+    }
+    cells.push(cell);
   };
-  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const g = (v: number) => `${Math.round(v)}g`;
 
-  // 칼로리
-  const kr = total.kcal / (target.kcal * share);
-  const range = KCAL_RANGE[goal];
-  const kGrade: Grade = kr >= range.good[0] && kr <= range.good[1] ? "good" : kr >= range.ok[0] && kr <= range.ok[1] ? "ok" : "bad";
-  add(kGrade, 2, `칼로리 ${Math.round(total.kcal)}kcal · 끼니 몫의 ${pct(kr)}${kGrade === "good" ? " (적당)" : kr > 1 ? " (많음)" : " (적음)"}`);
+  // 탄수화물
+  const cr = target.carb > 0 ? total.carb / (target.carb * share) : 1;
+  const range = CARB_RANGE[goal];
+  const cGrade: Grade = cr >= range.good[0] && cr <= range.good[1] ? "good" : cr >= range.ok[0] && cr <= range.ok[1] ? "ok" : "bad";
+  add({ key: "carb", label: "탄수화물", value: g(total.carb), pct: cr, grade: cGrade, word: cGrade === "good" ? "적당" : cr > 1 ? "많음" : "적음" }, 2);
 
   // 단백질 (간식은 채점하지 않음)
-  if (meal !== "snack") {
-    const pr = total.protein / (target.protein * share);
-    const pGrade: Grade = pr >= 0.8 ? "good" : pr >= 0.5 ? "ok" : "bad";
-    add(pGrade, 2, `단백질 ${Math.round(total.protein)}g · 끼니 몫의 ${pct(pr)}${pGrade === "good" ? " (충분)" : " (부족)"}`);
-  }
+  const pr = target.protein > 0 ? total.protein / (target.protein * share) : 1;
+  const pGrade: Grade | null = meal === "snack" ? null : pr >= 0.8 ? "good" : pr >= 0.5 ? "ok" : "bad";
+  add({ key: "protein", label: "단백질", value: g(total.protein), pct: pr, grade: pGrade, word: pGrade === null ? "참고" : pGrade === "good" ? "충분" : "부족" }, 2);
 
   // 지방
-  const fr = total.fat / (target.fat * share);
+  const fr = target.fat > 0 ? total.fat / (target.fat * share) : 1;
   const fGrade: Grade = fr <= 1.3 ? "good" : fr <= 1.8 ? "ok" : "bad";
-  add(fGrade, 1, `지방 ${Math.round(total.fat)}g · 끼니 몫의 ${pct(fr)}${fGrade === "good" ? "" : " (많음)"}`);
+  add({ key: "fat", label: "지방", value: g(total.fat), pct: fr, grade: fGrade, word: fGrade === "good" ? "적당" : "많음" }, 1);
 
   // 나트륨
-  const limit = (target.sodium ?? SODIUM_LIMIT) * share;
-  const sr = (total.sodium ?? 0) / limit;
+  const sr = (total.sodium ?? 0) / ((target.sodium ?? SODIUM_LIMIT) * share);
   const sGrade: Grade = sr <= 1.2 ? "good" : sr <= 1.8 ? "ok" : "bad";
-  add(sGrade, 1, `나트륨 ${Math.round(total.sodium ?? 0)}mg · 끼니 상한의 ${pct(sr)}${sGrade === "good" ? "" : " (많음)"}`);
+  add({ key: "sodium", label: "나트륨", value: `${Math.round(total.sodium ?? 0).toLocaleString()}mg`, pct: sr, grade: sGrade, word: sGrade === "good" ? "적당" : "많음" }, 1);
 
   const ratio = score / max;
-  return { grade: ratio >= 0.8 ? "good" : ratio >= 0.5 ? "ok" : "bad", reasons };
+  return { grade: ratio >= 0.8 ? "good" : ratio >= 0.5 ? "ok" : "bad", cells };
 }
 
 export interface TargetResult {

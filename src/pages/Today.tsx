@@ -190,9 +190,16 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
             {ev && (
               <div className="eval">
                 <p className="small muted"><span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span> {GOALS[profile!.goal].label} · 하루 목표의 {Math.round(MEAL_SHARE[meal.key] * 100)}% 기준</p>
-                <ul className="small">
-                  {ev.reasons.map((r) => <li key={r.text}><i className={`grade-dot ${r.grade}`} aria-hidden /> {r.text}</li>)}
-                </ul>
+                <div className="eval-cells">
+                  {ev.cells.map((c) => (
+                    <div key={c.key} className="eval-cell">
+                      <span className="muted small">{c.label}</span>
+                      <b>{c.value}</b>
+                      <span className="muted small">{Math.round(c.pct * 100)}%</span>
+                      <span className={`eval-word ${c.grade ?? "none"}`}>{c.word}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {list.length ? (
