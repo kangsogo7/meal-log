@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { Btn, BtnRow, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput } from "../components/ui";
+import { Btn, BtnRow, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
 import { SplitRing } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
@@ -82,6 +82,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const [date, setDate] = useState(restore?.date ?? todayStr());
   const [adding, setAdding] = useState<Meal | null>(restore?.meal ?? null);
   const [editing, setEditing] = useState<Entry | null>(null);
+  // 오늘 / 주간 보기
+  const [view, setView] = useState<"today" | "week">("today");
   const [saveSet, setSaveSet] = useState<{ label: string; list: Entry[] } | null>(null);
   // 끼니 타일을 누르면 그 끼니 기록을 시트로
   const [openMeal, setOpenMeal] = useState<Meal | null>(null);
@@ -95,6 +97,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   useEffect(() => {
     if (!openAdd) return;
     setDate(todayStr());
+    setView("today");
     setAdding(openAdd.meal);
   }, [openAdd?.n]);
   // 지난 날은 그때 목표로 평가
@@ -117,6 +120,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   return (
     <>
       <DateNav date={date} onChange={setDate} />
+      <Seg className="today-view" label="보기" value={view} onChange={setView} options={[{ key: "today", label: "오늘" }, { key: "week", label: "주간" }]} />
+      {view === "today" && <>
       <div className="cheat-row">
         {cheat ? (
           <>
@@ -207,6 +212,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
           );
         })}
       </div>
+      </>}
 
       <CheckTiles tiles={false} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
 
@@ -266,8 +272,12 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
         );
       })()}
 
-      <WeeklyCard date={date} onSelect={setDate} />
-      <CheckWeekCard date={date} />
+      {view === "week" && (
+        <>
+          <WeeklyCard date={date} onSelect={(d) => { setDate(d); setView("today"); }} />
+          <CheckWeekCard date={date} />
+        </>
+      )}
 
       {adding && <AddSheet date={date} meal={adding} restore={restore?.meal === adding ? restore : null} onClose={() => { setAdding(null); setRestore(null); }} />}
       {saveSet && <SaveSetSheet mealLabel={saveSet.label} list={saveSet.list} onClose={() => setSaveSet(null)} />}
