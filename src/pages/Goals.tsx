@@ -7,7 +7,7 @@ import { getCheatDays } from "../cheat";
 import { getProfileHistory, lastGoalChange, saveProfile } from "../profileHistory";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { GeminiError, imageToBase64, readInBody } from "../gemini";
-import { DateButton, Dialog, flash, NumInput, FullScreen } from "../components/ui";
+import { DateButton, Dialog, EditButton, flash, NumInput, FullScreen } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
 export default function Goals() {
@@ -113,7 +113,7 @@ export default function Goals() {
               {[...records].reverse().map((r) => (
                 <li key={r.id}>
                   <span>{r.date} · {r.weight}kg{r.bodyFat ? ` · ${r.bodyFat}%` : ""}{r.muscle ? ` · 근육 ${r.muscle}kg` : ""}</span>
-                  <button className="row-edit" onClick={() => setBodyForm(r)}>수정</button>
+                  <EditButton onClick={() => setBodyForm(r)} />
                 </li>
               ))}
             </ul>

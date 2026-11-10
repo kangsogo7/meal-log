@@ -239,6 +239,15 @@ export function DateButton({ value, max, onChange, className, children }: { valu
   );
 }
 
+export const EditIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 20h4L19 9l-4-4L4 16v4Z" /><path d="M13.5 6.5l4 4" /></svg>
+);
+
+/** 목록 줄 오른쪽 연필 아이콘 버튼 (체중 기록·영양제 목록 공통) */
+export const EditButton = ({ onClick, label = "수정" }: { onClick: () => void; label?: string }) => (
+  <button className="row-edit" onClick={onClick} aria-label={label}><EditIcon /></button>
+);
+
 export const BackIcon = () => (
   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M20 12H5M11 6l-6 6 6 6" />
@@ -478,7 +487,6 @@ export function Stepper({ value, onChange }: { value: number; onChange: (k: numb
       <button onClick={() => onChange(down)} disabled={value <= 0.5} aria-label="0.5배 줄이기">−</button>
       {/* 배수 직접 입력 (소수점 첫째 자리까지) */}
       <label className="stepper-value">
-        ×
         <NumInput
           value={Math.round(value * 10) / 10}
           onChange={(v) => v != null && v > 0 && onChange(v)}

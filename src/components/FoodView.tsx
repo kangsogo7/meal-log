@@ -3,7 +3,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import type { Nutrients } from "../db";
 import { AmountEditor, type Portion } from "../portion";
-import { NutrientGrid, PartsList } from "./ui";
+import { EditIcon, NutrientGrid, PartsList } from "./ui";
 
 export default function FoodView({ top, n, portion, onPortion, parts, actions, children }: {
   /** 맨 위 (이름 입력·끼니 고르기 등) */
@@ -30,9 +30,6 @@ export default function FoodView({ top, n, portion, onPortion, parts, actions, c
   );
 }
 
-const EditIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 20h4L19 9l-4-4L4 16v4Z" /><path d="M13.5 6.5l4 4" /></svg>
-);
 const ShareIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 15V3" /><path d="M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
 );

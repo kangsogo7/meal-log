@@ -9,7 +9,7 @@ import {
 } from "../checks";
 import { askNotifyPermission, canNotify } from "../notify";
 import { useLatestBody } from "../hooks";
-import { BackIcon, flash, NumInput, Screen, Sheet, FullScreen } from "../components/ui";
+import { BackIcon, EditButton, flash, NumInput, Screen, Sheet, FullScreen } from "../components/ui";
 
 const CheckIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -212,7 +212,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
             {sortSupps(supps).map((s) => (
               <li key={s.id}>
                 <span><b>{s.name}</b><br /><span className="muted small">{suppLabel(s)} · {s.count}정</span></span>
-                <button className="row-edit" onClick={() => setForm(s)}>수정</button>
+                <EditButton onClick={() => setForm(s)} />
               </li>
             ))}
           </ul>
