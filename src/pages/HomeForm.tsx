@@ -1,4 +1,4 @@
-// 재료로 요리: 재료를 하나씩 검색해 추가(또는 여러 줄 한 번에) → 줄마다 g, 누르면 어떤 값으로 계산할지 고르기
+// 재료로 요리: 재료를 하나씩 검색해 추가(또는 입력칸 여러 개에 적어 한 번에) → 줄마다 g, 누르면 어떤 값으로 계산할지 고르기
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { db, scaleNutrients, sourceLabel, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
@@ -6,7 +6,7 @@ import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
 import { askFood, GeminiError, resolveIngredients, type MenuEstimate, type WebSource } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
-import { DataNote, flash, NumInput, revealInSheet, FullScreen, SourceLinks, NutrientEditor } from "../components/ui";
+import { Btn, BtnRow, DataNote, flash, NumInput, revealInSheet, FullScreen, SourceLinks, NutrientEditor } from "../components/ui";
 import AiSheet, { type AiView } from "../components/AiSheet";
 import FoodDetail from "../components/FoodDetail";
 import { makePortion, portionGrams, portionNutrients, type Portion } from "../portion";
@@ -102,13 +102,22 @@ function makeRow(line: ParsedLine, candidates: Food[], prev: Prev[], choice?: nu
   return choose(base, auto);
 }
 
+const MANY_EXAMPLES = ["예: 현미밥 200g", "예: 계란 2개", "예: 올리브유 1큰술"];
+
 export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (d: Draft) => void; actionLabel?: string }) {
   const settings = useSettings();
   const [dish, setDish] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [add, setAdd] = useState("");
   const [sugg, setSugg] = useState<{ line: ParsedLine; candidates: Food[]; prev: Prev[] } | null>(null);
-  const [many, setMany] = useState<string | null>(null);
+  /** 여러 재료 한 번에: 입력칸마다 재료 하나 (마지막 칸에 쓰면 칸이 하나 더 생김) */
+  const [many, setMany] = useState<string[] | null>(null);
+  const setManyAt = (i: number, v: string) =>
+    setMany((m) => {
+      if (!m) return m;
+      const next = m.map((x, j) => (j === i ? v : x));
+      return i === next.length - 1 && v.trim() ? [...next, ""] : next;
+    });
   const [open, setOpen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -193,7 +202,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
 
   /** 여러 줄 한 번에: 줄마다 자동으로 고르고, AI 키가 있으면 AI로 한 번 더 맞춰 봄 */
   const addMany = async () => {
-    const lines = parseLines(many ?? "");
+    const lines = parseLines((many ?? []).filter((x) => x.trim()).join("\n"));
     if (!lines.length) return;
     setBusy(true);
     setError("");
@@ -313,15 +322,25 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               <button onClick={() => pick(MANUAL)}><span>"{sugg.line.name}" 그대로 추가</span><span className="muted small">값은 나중에</span></button>
             </div>
           )}
-          <button className="link small ing-many" onClick={() => setMany("")}>여러 재료를 한 번에 적기</button>
+          <button className="link small ing-many" onClick={() => setMany(["", "", ""])}>여러 재료를 한 번에 검색</button>
         </>
       ) : (
         <div className="ing-many-box">
-          <textarea rows={5} value={many} onChange={(e) => setMany(e.target.value)} placeholder={"현미밥 200g\n계란 2개\n올리브유 1큰술"} autoFocus />
-          <div className="btn-row">
-            <button onClick={() => setMany(null)}>취소</button>
-            <button className="primary" onClick={addMany} disabled={!many.trim() || busy}>{busy ? "찾는 중..." : "추가"}</button>
-          </div>
+          {many.map((v, i) => (
+            <input
+              key={i}
+              value={v}
+              onChange={(e) => setManyAt(i, e.target.value)}
+              placeholder={MANY_EXAMPLES[i] ?? "재료"}
+              enterKeyHint="next"
+              aria-label={`재료 ${i + 1}`}
+              autoFocus={i === 0}
+            />
+          ))}
+          <BtnRow>
+            <Btn onClick={() => setMany(null)}>취소</Btn>
+            <Btn kind="primary" onClick={addMany} disabled={!many.some((x) => x.trim()) || busy}>{busy ? "찾는 중..." : "한 번에 검색"}</Btn>
+          </BtnRow>
         </div>
       )}
       {error && <p className="error">{error}</p>}

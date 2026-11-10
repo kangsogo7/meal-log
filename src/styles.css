@@ -1032,7 +1032,7 @@ input.missing { border-color: var(--over); }
 .ing-sugg button > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ing-sugg button > span:last-child { flex: none; }
 .ing-many { align-self: flex-start; color: var(--muted); }
-.ing-many-box .btn-row { justify-content: flex-end; }
+.ing-many-box { display: flex; flex-direction: column; gap: 8px; }
 .ing-foot { display: flex; align-items: center; gap: 12px; width: 100%; }
 #add-foot { flex: 1; min-width: 0; display: flex; }
 .screen-foot:has(> #add-foot:empty) { display: none; }
