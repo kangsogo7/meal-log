@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { db, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
-import { BackIcon, itemParts, MealSeg, Screen, SrcTag } from "../components/ui";
+import { BackIcon, itemParts, MealTitle, Screen, SrcTag } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
 import FoodView, { FoodActions } from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
@@ -43,7 +43,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
   return (
     <Screen
       left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
-      title="기록 수정"
+      title={<MealTitle meal={e.meal} suffix=" 기록 수정" onChange={(meal) => setE({ ...e, meal })} />}
       right={<FavStar getDraft={() => entryDraft(current)} />}
       footer={
         <>
@@ -57,7 +57,6 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
           <>
             <input className="entry-title" value={e.title} onChange={(ev) => setE({ ...e, title: ev.target.value })} aria-label="이름" />
             {e.place && <span className="muted small entry-place">{e.place}</span>}
-            <MealSeg value={e.meal} onChange={(meal) => setE({ ...e, meal })} />
           </>
         }
         n={total}

@@ -1,5 +1,5 @@
 // 사진으로: 음식 사진(추정) 또는 영양성분표 사진(그대로 읽기) → 음식별로 양을 고쳐서 담기
-// 분석은 뒤에서 돌아서 다른 앱을 써도 되고, 결과는 저장돼서 창을 다시 열어도 남아 있음
+// 분석은 뒤에서 돌아서 다른 앱을 써도 되고(앱이 다시 시작돼도 결과가 남음), 이 화면을 나가면 결과는 지움
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getKV, setKV } from "../db";
@@ -13,6 +13,8 @@ import type { Draft } from "./AddSheet";
 const KEY = "photoAi";
 interface Saved { at: number; preview: string; result: PhotoResult }
 interface Row { on: boolean; name: string; portion: Portion }
+/** 사진 화면이 열려 있는지. 나간 뒤에 끝난 분석 결과는 버림 */
+let open = false;
 
 export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => void }) {
   const settings = useSettings();
@@ -22,6 +24,15 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
   const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
   const [memo, setMemo] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+
+  // 화면을 나가면 지난 사진 결과는 지움 (다시 열면 새로 시작)
+  useEffect(() => {
+    open = true;
+    return () => {
+      open = false;
+      setKV(KEY, null);
+    };
+  }, []);
 
   // 새 결과가 오면 음식별 줄을 만듦 (모두 담기로 선택)
   useEffect(() => {
@@ -43,6 +54,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
       async () => {
         const [image, small] = await Promise.all([imageToBase64(file, 1280), imageToBase64(file, 320)]);
         const result = await analyzeFoodPhoto(settings, image, note);
+        if (!open) return;
         await setKV(KEY, { at: Date.now(), preview: `data:${small.mimeType};base64,${small.data}`, result } satisfies Saved);
       },
       { done: "사진 분석이 끝났어요", fail: (e) => (e instanceof GeminiError ? e.message : "사진을 분석하지 못했어요.") },

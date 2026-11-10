@@ -25,7 +25,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
   const groups = useLiveQuery(() => db.groups.orderBy("order").toArray(), [], []);
   const saved = useLiveQuery(() => db.saved.toArray(), [], []);
   const sets = useLiveQuery(() => db.sets.orderBy("updatedAt").reverse().toArray(), [], []);
-  const [src, setSrc] = useState<Source>({ kind: "often" });
+  const [src, setSrc] = useState<Source>({ kind: "fav" });
   const [amountOf, setAmountOf] = useState<{ food: SavedFood; portion: Portion } | null>(null);
   const [manage, setManage] = useState<"" | "sets">("");
   const [editFood, setEditFood] = useState<SavedFood | null>(null);
@@ -42,9 +42,9 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
           ? saved.filter((s) => s.groupId != null && (src.folder == null || s.groupId === src.folder)).sort(byUse)
           : [];
   const tabs: { label: string; on: boolean; go: Source }[] = [
-    { label: "자주 먹는 것", on: src.kind === "often", go: { kind: "often" } },
     { label: "즐겨찾기", on: src.kind === "fav", go: { kind: "fav" } },
     { label: "세트", on: src.kind === "sets", go: { kind: "sets" } },
+    { label: "자주 먹는 것", on: src.kind === "often", go: { kind: "often" } },
     { label: "최근", on: src.kind === "recent", go: { kind: "recent" } },
   ];
 

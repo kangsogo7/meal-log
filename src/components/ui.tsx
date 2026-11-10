@@ -561,6 +561,31 @@ export function MealSeg({ value, onChange }: { value: Meal; onChange: (m: Meal) 
   );
 }
 
+/** 화면 제목 자리의 끼니 (☀️ 아침 기록 ▾). 누르면 끼니를 바꿀 수 있음 (식단 기록·기록 수정 공통) */
+export function MealTitle({ meal, suffix = "", onChange }: { meal: Meal; suffix?: string; onChange: (m: Meal) => void }) {
+  const [open, setOpen] = useState(false);
+  const m = MEALS.find((x) => x.key === meal)!;
+  return (
+    <>
+      <button className="meal-title" onClick={() => setOpen(true)} aria-label={`${m.label}${suffix}, 끼니 바꾸기`}>
+        <span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}{suffix}
+        <Chevron dir="down" />
+      </button>
+      {open && (
+        <Sheet title="끼니 바꾸기" onClose={() => setOpen(false)}>
+          <div className="meal-pick">
+            {MEALS.map((x) => (
+              <button key={x.key} className={x.key === meal ? "on" : ""} onClick={() => { onChange(x.key); setOpen(false); }}>
+                <span className="meal-ic" aria-hidden>{x.icon}</span>{x.label}
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
+    </>
+  );
+}
+
 /** 잠깐 뜨는 알림. action을 주면 오른쪽에 버튼 (예: 되돌리기) */
 export function flash(message: string, ms = 1500, action?: { label: string; run: () => void }) {
   document.querySelectorAll(".toast.flash").forEach((el) => el.remove());
