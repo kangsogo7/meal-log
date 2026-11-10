@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { baseServing, db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
-import { BackIcon, Dialog, flash, MealTitle, Screen } from "../components/ui";
+import { BackIcon, Dialog, flash, FoodList, FoodRow, MealTitle, Screen } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
 import ManualForm from "./ManualForm";
@@ -123,16 +123,16 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
                 </button>
               </div>
               {logged.length > 0 && (
-                <div className="logged">
-                  <div className="logged-head muted small"><span>오늘 {mealLabel}</span><span>{logged.length}개 · {loggedKcal.toLocaleString()}kcal</span></div>
+                <FoodList head={<><span>오늘 {mealLabel}</span><span>{logged.length}개 · {loggedKcal.toLocaleString()}kcal</span></>}>
                   {logged.map((e) => (
-                    <div key={e.id} className="logged-row">
-                      <span className="logged-title">{e.title}</span>
-                      <span className="muted">{Math.round(e.total.kcal).toLocaleString()} kcal</span>
-                      <button className="del-btn" aria-label={`${e.title} 빼기`} onClick={() => setConfirmDel(e)}>✕</button>
-                    </div>
+                    <FoodRow
+                      key={e.id}
+                      title={e.title}
+                      kcal={e.total.kcal}
+                      trailing={<button className="del-btn" aria-label={`${e.title} 빼기`} onClick={() => setConfirmDel(e)}>✕</button>}
+                    />
                   ))}
-                </div>
+                </FoodList>
               )}
               <QuickAdd onRecord={record} recordLabel={recordLabel} />
             </>

@@ -1223,3 +1223,19 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .btn.primary { background: var(--accent); color: var(--accent-ink); }
 .btn.danger { background: var(--bad-bg); color: var(--bad-ink); }
 .btn-pair { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; padding-bottom: 8px; }
+
+/* 음식 목록 공통 (FoodList · FoodRow): 회색 판 하나에 구분선 */
+.food-list { background: var(--card); border-radius: 16px; padding: 0 4px 0 14px; margin: 8px 0; }
+.fl-head { display: flex; justify-content: space-between; padding: 10px 10px 2px 0; color: var(--muted); font-size: var(--fs-sub); }
+.food-row { display: flex; align-items: center; gap: 4px; min-height: 60px; border-bottom: 1px solid var(--border); }
+.food-row:last-child { border-bottom: none; }
+.food-row.selected .fr-title { color: var(--accent); }
+.fr-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px 10px 10px 0; border: none; border-radius: 0; background: none; color: var(--text); text-align: left; font-size: var(--fs-main); }
+.fr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fr-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.fr-sub { color: var(--muted); font-size: var(--fs-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-kcal { flex: none; white-space: nowrap; font-weight: 500; font-variant-numeric: tabular-nums; }
+.fr-kcal .muted { font-size: var(--fs-sub); font-weight: 400; }
+.fr-chev { flex: none; color: var(--muted); }
+.food-row .del-btn { color: var(--muted); }
+.screen-page .food-list { border: none; }

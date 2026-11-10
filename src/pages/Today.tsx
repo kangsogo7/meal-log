@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { DateNav, ExtrasList, NutrientGrid, NutrientLine, FullScreen } from "../components/ui";
+import { DateNav, ExtrasList, FoodList, FoodRow, macroLine, NutrientGrid, FullScreen } from "../components/ui";
 import { Ring } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
@@ -203,20 +203,19 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
               </div>
             )}
             {list.length ? (
-              <ul className="entries">
+              <FoodList>
                 {list.map((e) => (
-                  <li key={e.id} onClick={() => setEditing(e)} className="entry-row">
-                    <div>
-                      <div className="entry-title">
-                        <span className={`tag ${e.kind}`}>{KIND_LABEL[e.kind]}</span>
-                        {e.place ? `${e.place} · ` : ""}{e.title}
-                      </div>
-                      <NutrientLine n={e.total} />
-                    </div>
-                    <FavStar getDraft={() => entryDraft(e)} />
-                  </li>
+                  <FoodRow
+                    key={e.id}
+                    title={e.title}
+                    place={e.place}
+                    sub={`${KIND_LABEL[e.kind]} · ${macroLine(e.total)}`}
+                    kcal={e.total.kcal}
+                    onClick={() => setEditing(e)}
+                    trailing={<FavStar getDraft={() => entryDraft(e)} />}
+                  />
                 ))}
-              </ul>
+              </FoodList>
             ) : (
               <p className="muted small">기록이 없어요</p>
             )}

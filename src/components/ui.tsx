@@ -357,6 +357,48 @@ export function NutrientGrid({ n }: { n: Nutrients }) {
   );
 }
 
+/** 탄·단·지 한 줄 ("탄 12 · 단 30 · 지 5g") */
+export const macroLine = (n: Nutrients) => `탄 ${Math.round(n.carb)} · 단 ${Math.round(n.protein)} · 지 ${Math.round(n.fat)}g`;
+
+/**
+ * 음식 한 줄 (앱 전체 음식 목록 공통): 이름 / 아래 작은 글씨 / 오른쪽 kcal / 맨 오른쪽 버튼(별·✕ 등).
+ * FoodList 안에 넣으면 회색 판 하나에 구분선으로 이어짐
+ */
+export function FoodRow({ title, place, tag, sub, kcal, onClick, selected, trailing, chevron }: {
+  title: ReactNode; place?: string; tag?: string;
+  /** 없으면 아무것도 안 보임 */
+  sub?: ReactNode; kcal?: number; onClick?: () => void; selected?: boolean;
+  /** 오른쪽 끝 버튼 (즐겨찾기 별, 빼기 ✕) */
+  trailing?: ReactNode;
+  /** 누르면 다른 화면으로 가는 줄 (›) */
+  chevron?: boolean;
+}) {
+  const body = (
+    <>
+      <span className="fr-text">
+        <span className="fr-title">{place && <span className="muted">{place} </span>}{title}{tag && <SrcTag label={tag} />}</span>
+        {sub && <span className="fr-sub">{sub}</span>}
+      </span>
+      {kcal != null && <span className="fr-kcal">{Math.round(kcal).toLocaleString()}<span className="muted"> kcal</span></span>}
+      {chevron && <span className="fr-chev" aria-hidden>›</span>}
+    </>
+  );
+  return (
+    <div className={`food-row ${selected ? "selected" : ""}`}>
+      {onClick ? <button className="fr-main" onClick={onClick}>{body}</button> : <div className="fr-main">{body}</div>}
+      {trailing}
+    </div>
+  );
+}
+
+/** FoodRow 묶음 (회색 판) */
+export const FoodList = ({ children, head }: { children: ReactNode; head?: ReactNode }) => (
+  <div className="food-list">
+    {head && <div className="fl-head">{head}</div>}
+    {children}
+  </div>
+);
+
 /** 구성 음식·식재료 카드 목록 (세트 상세, 기록 수정, 즐겨찾기 수정 공통). 아래 막대 = 전체 칼로리 중 그 음식 몫 */
 export function PartsList({ label, parts, onPick }: {
   /** 없으면 "재료 N개" 줄을 숨김 */
@@ -367,24 +409,20 @@ export function PartsList({ label, parts, onPick }: {
   return (
     <>
       {label && <p className="muted small set-parts-head">{label} {parts.length}개</p>}
-      <ul className="set-parts">
+      <FoodList>
         {parts.map((p, i) => (
-          <li key={i} className={onPick ? "pick" : undefined} onClick={onPick && (() => onPick(i))}>
-            <div className="sp-main">
-              <span className="sp-name">
-                {p.place && <span className="muted">{p.place} </span>}
-                <b>{p.name}</b>
-                {p.tag && <SrcTag label={p.tag} />}
-              </span>
-              <span className="muted small">
-                {[p.amount, `탄 ${Math.round(p.n.carb)} · 단 ${Math.round(p.n.protein)} · 지 ${Math.round(p.n.fat)}g`].filter(Boolean).join(" · ")}
-              </span>
-            </div>
-            <b className="sp-kcal">{Math.round(p.n.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
-            {onPick && <span className="sp-chev" aria-hidden>›</span>}
-          </li>
+          <FoodRow
+            key={i}
+            title={p.name}
+            place={p.place}
+            tag={p.tag}
+            sub={[p.amount, macroLine(p.n)].filter(Boolean).join(" · ")}
+            kcal={p.n.kcal}
+            onClick={onPick && (() => onPick(i))}
+            chevron={!!onPick}
+          />
         ))}
-      </ul>
+      </FoodList>
     </>
   );
 }

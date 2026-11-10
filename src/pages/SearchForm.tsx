@@ -6,7 +6,7 @@ import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBran
 import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, NutrientLine, SrcTag, TextInput } from "../components/ui";
+import { DataNote, FoodList, FoodRow, macroLine, TextInput } from "../components/ui";
 import FoodDetail from "../components/FoodDetail";
 import { makePortion, storedPortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
@@ -235,6 +235,7 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
               </span>
             </button>
           )}
+          <FoodList>
           {savedHits.map((h) => (
             <ResultButton key={h.id} tag="내 기록" label={h.label} n={portionNutrients(h.portion)} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
           ))}
@@ -250,6 +251,7 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
               fav={() => toDraft(foodChoice(f, i))}
             />
           ))}
+          </FoodList>
           {!busy && results.length === 0 && savedHits.length === 0 && !aiChoice && <p className="muted small">검색 결과가 없어요</p>}
           {(results.length > 0 || savedHits.length > 0 || aiChoice) && <DataNote />}
         </div>
@@ -303,14 +305,14 @@ function ResultButton({ label, tag, n, note, suffix, selected, onClick, fav }: {
   label: string; tag?: string; n: Nutrients; note?: string; suffix?: string; selected: boolean; onClick: () => void; fav?: () => FavDraft | null;
 }) {
   return (
-    <div className="result-row">
-      <button className={`result ${selected ? "selected" : ""}`} onClick={onClick}>
-        <div>{label}{tag && <SrcTag label={tag} />}</div>
-        <NutrientLine n={n} />
-        {suffix && <span className="muted small"> ({suffix})</span>}
-        {note && <div className="muted small">{note}</div>}
-      </button>
-      {fav && <FavStar getDraft={fav} className="result-star" />}
-    </div>
+    <FoodRow
+      title={label}
+      tag={tag}
+      sub={[suffix, macroLine(n), note].filter(Boolean).join(" · ")}
+      kcal={n.kcal}
+      selected={selected}
+      onClick={onClick}
+      trailing={fav && <FavStar getDraft={fav} />}
+    />
   );
 }
