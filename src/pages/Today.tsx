@@ -195,7 +195,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
                     <div key={c.key} className="eval-cell">
                       <span className="muted small">{c.label}</span>
                       <b>{c.value}</b>
-                      <span className="muted small">{Math.round(c.pct * 100)}%</span>
+                      <span className="muted small">하루 {Math.round(c.dayPct * 100)}%</span>
                       <span className={`eval-word ${c.grade ?? "none"}`}>{c.word}</span>
                     </div>
                   ))}

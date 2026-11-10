@@ -17,7 +17,7 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
   // 여기서 날짜를 고르면 그날 기록을 보도록 화면 맨 위로
   const onSelect = (d: string) => {
     select(d);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.querySelector(".app")?.scrollTo({ top: 0, behavior: "smooth" });
   };
   const [start, setStart] = useState(() => weekStartOf(date));
   // 위에서 날짜를 바꾸면 그 날짜가 있는 주로
