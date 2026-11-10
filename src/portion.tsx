@@ -26,6 +26,8 @@ export function parseAmount(text?: string): { baseCount: number; unit: string } 
 
 export const portionGrams = (p: Portion) => (p.baseGrams ? r1(p.baseGrams * p.k) : null);
 export const portionNutrients = (p: Portion) => scaleNutrients(p.base, p.k);
+/** 지금 양을 글자로 ("150g", "2개", "1.5인분") */
+export const portionText = (p: Portion) => (p.baseGrams ? `${portionGrams(p)}g` : `${r1((p.baseCount ?? 1) * p.k)}${p.unit ?? "인분"}`);
 
 /** 영양성분을 직접 고친 경우: 지금 배수 기준으로 ×1 값을 다시 잡아서 이후 양 조절에도 반영 */
 export const withNutrients = (p: Portion, n: Nutrients): Portion => ({ ...p, base: p.k ? scaleNutrients(n, 1 / p.k) : n });

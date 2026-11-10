@@ -2,9 +2,9 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, r1, savedKey, sumNutrients, ZERO, type Item, type MealSet, type Nutrients, type SavedFood } from "../db";
-import { BackIcon, flash, itemParts, NumInput, NutrientEditor, NutrientLine, PartsList, Screen, FullScreen, TextInput } from "../components/ui";
+import { BackIcon, Btn, flash, FoodList, FoodRow, itemParts, macroLine, NumInput, NutrientEditor, NutrientLine, PartsList, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
-import { AmountEditor, portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
+import { AmountEditor, portionItems, portionNutrients, portionText, storedPortion, type Portion } from "../portion";
 
 // ---------------------------------------------------------------------------
 // 음식 수정 화면 (자주 먹는 것·기록 수정 공통): 이름·상호·1회 제공량·영양성분, 재료가 여럿이면 재료 목록
@@ -119,6 +119,7 @@ export function SetComposeScreen({ set, onClose }: { set: MealSet; onClose: () =
   const [name, setName] = useState(set.name);
   const [rows, setRows] = useState(() => set.entries.map((e, i) => ({ id: i, e, portion: entryPortion(e) })));
   const [picking, setPicking] = useState(false);
+  const [amountOf, setAmountOf] = useState<number | null>(null);
   const nextId = useRef(set.entries.length);
   const total = sumNutrients(rows.map((r) => portionNutrients(r.portion)));
   const valid = !!name.trim() && rows.length > 0;
@@ -142,76 +143,99 @@ export function SetComposeScreen({ set, onClose }: { set: MealSet; onClose: () =
   const add = (s: SavedFood) => {
     const e: SetEntry = { kind: s.kind, title: s.title, place: s.place, items: s.items };
     setRows((p) => [...p, { id: nextId.current++, e, portion: entryPortion(e) }]);
-    flash(`${s.title} 추가했어요`);
   };
   const setPortion = (id: number, portion: Portion) => setRows((p) => p.map((x) => (x.id === id ? { ...x, portion } : x)));
+
+  const editing = rows.find((r) => r.id === amountOf);
 
   return (
     <Screen
       left={<button className="icon-btn" onClick={onClose} aria-label="뒤로"><BackIcon /></button>}
       title="세트 수정"
-      footer={<button className="primary block big" onClick={save} disabled={!valid}>저장</button>}
+      footer={<Btn kind="primary" className="foot-full" onClick={save} disabled={!valid}>저장</Btn>}
     >
       <div className="form">
-        <label>세트 이름
-          <TextInput value={name} onChange={setName} />
-        </label>
+        <TextInput value={name} onChange={setName} aria-label="세트 이름" placeholder="세트 이름" />
+        <div className="row-between muted small"><span>음식 {rows.length}개</span><span>합계 {Math.round(total.kcal).toLocaleString()}kcal</span></div>
       </div>
-      <div className="list-head">
-        <span className="muted">음식 {rows.length}개 · {Math.round(total.kcal)}kcal</span>
-        <button className="text-btn" onClick={() => setPicking(true)}>＋ 음식 추가</button>
-      </div>
-      {rows.length === 0 ? (
-        <p className="muted small empty">음식을 추가해 주세요</p>
-      ) : (
-        <ul className="food-cards">
-          {rows.map((r) => (
-            <li key={r.id} className="food-card stack">
-              <div className="fc-row">
-                <div className="fc-main">
-                  <div className="fc-name">{r.e.title}</div>
-                  <div className="fc-sub">
-                    <span className="fc-serving muted">{r.e.place}</span>
-                    <span className="muted fc-kcal">{Math.round(portionNutrients(r.portion).kcal)}kcal</span>
-                  </div>
-                </div>
-                <button className="del-dot" onClick={() => setRows((p) => p.filter((x) => x.id !== r.id))} aria-label={`${r.e.title} 빼기`}>✕</button>
-              </div>
-              <div className="fc-amount">
-                <AmountEditor portion={r.portion} onChange={(p) => setPortion(r.id, p)} />
-              </div>
-            </li>
-          ))}
-        </ul>
+      <FoodList>
+        {rows.map((r) => (
+          <FoodRow
+            key={r.id}
+            title={r.e.title}
+            place={r.e.place}
+            sub={portionText(r.portion)}
+            kcal={portionNutrients(r.portion).kcal}
+            onClick={() => setAmountOf(r.id)}
+            trailing={<button className="del-btn" onClick={() => setRows((p) => p.filter((x) => x.id !== r.id))} aria-label={`${r.e.title} 빼기`}>✕</button>}
+          />
+        ))}
+        <button className="fl-add" onClick={() => setPicking(true)}>+ 음식 추가</button>
+      </FoodList>
+      <p className="muted small">음식을 누르면 양을 바꿀 수 있어요.</p>
+      {editing && (
+        <Sheet title={editing.e.title} onClose={() => setAmountOf(null)} footer={<Btn kind="primary" className="foot-full" onClick={() => setAmountOf(null)}>완료</Btn>}>
+          <AmountEditor portion={editing.portion} onChange={(p) => setPortion(editing.id, p)} />
+          <p className="muted small">{Math.round(portionNutrients(editing.portion).kcal)}kcal · {macroLine(portionNutrients(editing.portion))}</p>
+        </Sheet>
       )}
-      {picking && <SavedFoodPicker onPick={add} onClose={() => setPicking(false)} />}
+      {picking && <SavedFoodPicker onPick={(list) => { list.forEach(add); setPicking(false); }} onClose={() => setPicking(false)} />}
     </Screen>
   );
 }
 
-/** 세트에 넣을 음식 고르기: 즐겨찾기(★)가 먼저, 그다음 최근 기록한 음식 */
-function SavedFoodPicker({ onPick, onClose }: { onPick: (s: SavedFood) => void; onClose: () => void }) {
+type PickTab = "fav" | "often" | "recent";
+/** 세트에 넣을 음식 고르기: 탭(즐겨찾기·자주 먹는 것·최근) + 검색, 여러 개 체크해서 한 번에 */
+function SavedFoodPicker({ onPick, onClose }: { onPick: (list: SavedFood[]) => void; onClose: () => void }) {
   const all = useLiveQuery(() => db.saved.toArray(), [], []);
   const [q, setQ] = useState("");
+  const [tab, setTab] = useState<PickTab>("fav");
+  const [sel, setSel] = useState<string[]>([]);
   const query = q.trim().toLowerCase();
-  const list = all
-    .filter((s) => !query || `${s.place ?? ""} ${s.title}`.toLowerCase().includes(query))
-    .sort((a, b) => Number(b.groupId != null) - Number(a.groupId != null) || b.uses - a.uses || b.updatedAt - a.updatedAt);
+  const byTab =
+    query ? [...all].sort((a, b) => b.uses - a.uses || b.updatedAt - a.updatedAt)
+    : tab === "fav" ? all.filter((s) => s.groupId != null).sort((a, b) => b.uses - a.uses)
+    : tab === "often" ? all.filter((s) => s.uses > 0).sort((a, b) => b.uses - a.uses).slice(0, 30)
+    : [...all].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 30);
+  const list = byTab.filter((s) => !query || `${s.place ?? ""} ${s.title}`.toLowerCase().includes(query));
+  const toggle = (key: string) => setSel((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
+  const tabs: [PickTab, string][] = [["fav", "즐겨찾기"], ["often", "자주 먹는 것"], ["recent", "최근"]];
   return (
-    <FullScreen title="음식 추가" onClose={onClose} tall>
-      <TextInput className="search-input" value={q} onChange={setQ} placeholder="즐겨찾기·최근 음식 검색" />
-      <ul className="mini-list">
+    <FullScreen
+      title="음식 추가"
+      onClose={onClose}
+      footer={<Btn kind="primary" className="foot-full" disabled={!sel.length} onClick={() => onPick(sel.map((k) => all.find((s) => s.key === k)!).filter(Boolean))}>{sel.length ? `${sel.length}개 넣기` : "음식을 골라 주세요"}</Btn>}
+    >
+      <TextInput className="search-input" value={q} onChange={setQ} placeholder="음식 검색" />
+      {!query && (
+        <div className="qa-tabs" role="tablist" aria-label="음식 모음">
+          {tabs.map(([k, label]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{label}</button>)}
+        </div>
+      )}
+      <FoodList>
         {list.map((s) => (
-          <li key={s.key} className="pick-row" onClick={() => onPick(s)}>
-            <span>{s.groupId != null && "★ "}{s.place && <b>{s.place} </b>}{s.title}</span>
-            <span className="muted">{Math.round(s.total.kcal)}kcal ＋</span>
-          </li>
+          <FoodRow
+            key={s.key}
+            title={s.title}
+            place={s.place}
+            sub={servingText(s)}
+            kcal={s.total.kcal}
+            selected={sel.includes(s.key)}
+            onClick={() => toggle(s.key)}
+            trailing={<input type="checkbox" className="fr-check" checked={sel.includes(s.key)} onChange={() => toggle(s.key)} aria-label={`${s.title} 고르기`} />}
+          />
         ))}
-      </ul>
+      </FoodList>
       {list.length === 0 && <p className="muted small">음식이 없어요</p>}
     </FullScreen>
   );
 }
+
+/** 저장한 음식의 양 ("150g", "1개") */
+const servingText = (s: SavedFood) => {
+  const g = s.items.every((i) => i.grams) ? Math.round(s.items.reduce((t, i) => t + (i.grams ?? 0), 0)) : 0;
+  return g ? `${g}g` : s.items.length === 1 ? s.items[0].amountText || "" : `재료 ${s.items.length}개`;
+};
 
 // ---------------------------------------------------------------------------
 // 재료 편집: 이름 · 양(g을 바꾸면 영양성분도 같은 비율로) · 영양성분 · 빼기 · 추가

@@ -1292,3 +1292,6 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .step-bar.water span.on { background: var(--water); }
 .step-bar.supp span.on { background: var(--accent); }
 .step-bar span.extra { background: var(--water-ink); }
+.fl-add { width: 100%; min-height: 52px; padding: 0; border: none; border-radius: 0; background: none; color: var(--accent); text-align: left; font-weight: 500; }
+.btn.foot-full { flex: 1; min-height: 52px; }
+.fr-plus { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; border: none; border-radius: 50%; background: none; color: var(--accent); font-size: 1.3rem; font-weight: 500; }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, folderEmoji, sumNutrients, type MealSet, type SavedFood } from "../db";
-import { flash, FullScreen, itemParts } from "../components/ui";
+import { flash, FoodList, FoodRow, FullScreen, itemParts } from "../components/ui";
 import FoodView, { FoodActions } from "../components/FoodView";
 import { portionItems, portionNutrients, storedPortion, type Portion } from "../portion";
 import { shareFood, type SharedFood } from "../foodShare";
@@ -69,7 +69,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
         <>
           {sets.length === 0 && <p className="muted small quick-empty">식단 화면에서 끼니를 눌러 "식사 세트로 저장"하면 생겨요</p>}
           {sets.length > 0 && <div className="qa-manage"><button onClick={() => setManage("sets")}>세트 편집</button></div>}
-          <div className="qa-grid">
+          <FoodList>
             {sets.map((s) => (
               <Card
                 key={s.id}
@@ -80,7 +80,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
                 onQuick={() => onRecord(s.entries, s.name)}
               />
             ))}
-          </div>
+          </FoodList>
         </>
       ) : (
         <>
@@ -89,7 +89,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
               {src.kind === "fav" ? "검색 결과나 기록 옆의 ☆를 누르면 여기에 모여요" : "아직 기록한 음식이 없어요"}
             </p>
           )}
-          <div className="qa-grid">
+          <FoodList>
             {foods.map((s) => {
               const portion = storedPortion(s);
               const { amount } = servingLine(s);
@@ -104,7 +104,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
                 />
               );
             })}
-          </div>
+          </FoodList>
         </>
       )}
 
@@ -166,16 +166,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
   );
 }
 
-/** 카드: 누르면 양 정하기, 모서리 +는 바로 기록 */
+/** 음식 한 줄: 누르면 양 정하기, 오른쪽 +는 바로 기록 (공통 FoodRow) */
 function Card({ title, sub, kcal, onOpen, onQuick }: { title: string; sub: string; kcal: number; onOpen: () => void; onQuick: () => void }) {
-  return (
-    <div className="qa-card">
-      <button className="qa-open" onClick={onOpen}>
-        <span className="qa-title">{title}</span>
-        <span className="muted small"><b className="qa-kcal">{kcal.toLocaleString()}</b> kcal</span>
-        {sub && <span className="muted small qa-sub">{sub}</span>}
-      </button>
-      <button className="qa-add" onClick={onQuick} aria-label={`${title} 바로 기록`}>+</button>
-    </div>
-  );
+  return <FoodRow title={title} sub={sub} kcal={kcal} onClick={onOpen} trailing={<button className="fr-plus" onClick={onQuick} aria-label={`${title} 바로 기록`}>+</button>} />;
 }
