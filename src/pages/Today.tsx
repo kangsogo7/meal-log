@@ -3,13 +3,13 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
 import { Btn, BtnRow, DateNav, ExtrasList, flash, FoodList, FoodRow, macroLine, NutrientGrid, FullScreen, Sheet, TextInput } from "../components/ui";
-import { Ring } from "../components/charts";
+import { SplitRing } from "../components/charts";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
-import { CheckTiles, CheckWeekCard, WaterRow } from "./Checks";
+import { CheckSteps, CheckTiles, CheckWeekCard } from "./Checks";
 import { cheatInWeek, setCheat, useCheatDays } from "../cheat";
 
 /** 끼니의 기록들을 식사 세트로 저장 (즐겨찾기 탭에서 한 번에 기록) */
@@ -102,18 +102,6 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
   const entries = useLiveQuery(() => db.entries.where("date").equals(date).sortBy("createdAt"), [date], []);
   const total = sumNutrients(entries.map((e) => e.total));
   const remain = target ? target.kcal - total.kcal : 0;
-  const macro = (key: "carb" | "protein" | "fat", label: string) => {
-    const t = target?.[key] ?? 0;
-    return (
-      <div className={`macro-row ${key}`}>
-        <div className="row-between">
-          <span className="macro-name"><i aria-hidden />{label}</span>
-          <b>{Math.round(total[key])}{t ? <span className="muted">/{Math.round(t)}g</span> : "g"}</b>
-        </div>
-        <div className="progress"><div className={t && total[key] > t * 1.05 ? "over" : ""} style={{ width: `${t ? Math.min(100, (total[key] / t) * 100) : 0}%` }} /></div>
-      </div>
-    );
-  };
   const meal = openMeal ? MEALS.find((m) => m.key === openMeal)! : null;
 
   return (
@@ -131,47 +119,55 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
       </div>
 
       <section className="card today-summary">
-        <div className="ring-col">
-          {/* 먹은 칼로리 (그래프와 같은 색, 넘으면 넘은 색) */}
-          {target && (
-            <span className={`ring-eaten ${total.kcal > target.kcal ? "over" : ""}`}>
-              <b>{Math.round(total.kcal).toLocaleString()}</b>
-            </span>
-          )}
-        <Ring value={total.kcal} max={target?.kcal ?? 0} label={`칼로리 ${Math.round(total.kcal)} / ${target?.kcal ?? "-"}kcal`}>
-          {target ? (
-            <>
-              <b className="ring-num">{Math.abs(Math.round(remain)).toLocaleString()}</b>
-              <span className="muted small">{remain >= 0 ? "kcal 남음" : "kcal 초과"}</span>
-              <span className="ring-goal">목표 {target.kcal.toLocaleString()}</span>
-            </>
-          ) : (
-            <>
-              <b className="ring-num">{Math.round(total.kcal).toLocaleString()}</b>
-              <span className="muted small">kcal</span>
-            </>
-          )}
-        </Ring>
+        <div className="ts-top">
+          <span className="ts-label">칼로리</span>
+          <span className="ts-label right">영양성분</span>
+          <SplitRing
+            kcal={{ value: total.kcal, max: target?.kcal ?? 0 }}
+            macros={[
+              { key: "carb", value: total.carb, max: target?.carb ?? 0 },
+              { key: "protein", value: total.protein, max: target?.protein ?? 0 },
+              { key: "fat", value: total.fat, max: target?.fat ?? 0 },
+            ]}
+          >
+            {target ? (
+              <>
+                <b className="ring-num">{Math.abs(Math.round(remain)).toLocaleString()}</b>
+                <span className="muted small">{remain >= 0 ? "kcal 남음" : "kcal 초과"}</span>
+                <span className="muted small">{Math.round(total.kcal).toLocaleString()} / {target.kcal.toLocaleString()}</span>
+              </>
+            ) : (
+              <>
+                <b className="ring-num">{Math.round(total.kcal).toLocaleString()}</b>
+                <span className="muted small">kcal</span>
+              </>
+            )}
+          </SplitRing>
         </div>
-        <div className="macro-list">
-          {macro("carb", "탄수화물")}
-          {macro("protein", "단백질")}
-          {macro("fat", "지방")}
-          <WaterRow date={date} />
-          <div className="row-between sodium-line muted small">
-            <span>나트륨</span>
-            <span className={(total.sodium ?? 0) > (target?.sodium ?? SODIUM_LIMIT) ? "over-text" : ""}>
-              {Math.round(total.sodium ?? 0).toLocaleString()} / {(target?.sodium ?? SODIUM_LIMIT).toLocaleString()}mg
-            </span>
+        <hr className="ts-line" />
+        <div className="ts-cells">
+          {([["carb", "탄수화물"], ["protein", "단백질"], ["fat", "지방"]] as const).map(([k, label]) => (
+            <div key={k} className={`ts-cell ${k}`}>
+              <span className="muted small"><i aria-hidden />{label}</span>
+              <b className={target && total[k] > target[k] * 1.05 ? "over-text" : ""}>{Math.round(total[k])}g</b>
+              <span className="muted small">{target ? `/ ${Math.round(target[k])}g` : ""}</span>
+            </div>
+          ))}
+          <div className="ts-cell sodium">
+            <span className="muted small"><i aria-hidden />나트륨</span>
+            <b className={(total.sodium ?? 0) > (target?.sodium ?? SODIUM_LIMIT) ? "over-text" : ""}>{Math.round(total.sodium ?? 0).toLocaleString()}mg</b>
+            <span className="muted small">/ {(target?.sodium ?? SODIUM_LIMIT).toLocaleString()}mg</span>
           </div>
-          {EXTRAS.some(({ key }) => total[key] != null) && (
-            <details className="day-extras">
-              <summary className="muted small">세부 영양</summary>
-              <ExtrasList n={total} always />
-            </details>
-          )}
-          {!target && <button className="link small" onClick={onGoToGoals}>목표 설정하기 →</button>}
         </div>
+        {EXTRAS.some(({ key }) => total[key] != null) && (
+          <details className="day-extras">
+            <summary className="muted small">세부 영양</summary>
+            <ExtrasList n={total} always />
+          </details>
+        )}
+        <hr className="ts-line" />
+        <CheckSteps date={date} onOpen={() => setChecksOpen(true)} />
+        {!target && <button className="link small" onClick={onGoToGoals}>목표 설정하기 →</button>}
       </section>
 
       <div className="meal-tiles">
@@ -202,7 +198,7 @@ export default function Today({ onGoToGoals, openChecks = 0 }: { onGoToGoals: ()
         })}
       </div>
 
-      <CheckTiles date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
+      <CheckTiles tiles={false} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
 
       {meal && (() => {
         const list = entries.filter((e) => e.meal === meal.key);

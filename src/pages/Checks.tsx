@@ -9,6 +9,7 @@ import {
 } from "../checks";
 import { askNotifyPermission, canNotify } from "../notify";
 import { useLatestBody } from "../hooks";
+import { StepBar } from "../components/charts";
 import { BackIcon, EditButton, flash, NumInput, Screen, Sheet, FullScreen, TextInput } from "../components/ui";
 
 const CheckIcon = () => (
@@ -33,8 +34,32 @@ export function WaterRow({ date }: { date: string }) {
   );
 }
 
+/** 홈 요약 카드 맨 아래: 물·영양제를 체크한 만큼 칸 색칠 (누르면 체크 창) */
+export function CheckSteps({ date, onOpen }: { date: string; onOpen: () => void }) {
+  const hyd = useHydration();
+  const supps = useSupplements();
+  const day = useDayCheck(date);
+  const cups = Math.max(1, Math.ceil(hyd.goalMl / hyd.cupMl));
+  const filled = Math.floor(day.waterMl / hyd.cupMl);
+  const taken = supps.filter((s) => day.supps[s.id]).length;
+  return (
+    <button className="check-steps" onClick={onOpen}>
+      <span className="cs-row">
+        <span className="cs-label">물</span>
+        <StepBar done={filled} total={cups} kind="water" />
+        <span className="cs-count">{filled}/{cups}잔</span>
+      </span>
+      <span className="cs-row">
+        <span className="cs-label">영양제</span>
+        {supps.length ? <StepBar done={taken} total={supps.length} kind="supp" /> : <span className="muted small cs-empty">등록한 영양제 없음</span>}
+        <span className="cs-count">{supps.length ? `${taken}/${supps.length}개` : ""}</span>
+      </span>
+    </button>
+  );
+}
+
 /** 끼니 칸 아래 타일 2개: 물(한 잔 더하기), 영양제(누르면 체크 창) */
-export function CheckTiles({ date, open, onOpen, onClose }: { date: string; open: boolean; onOpen: () => void; onClose: () => void }) {
+export function CheckTiles({ date, open, onOpen, onClose, tiles = true }: { date: string; open: boolean; onOpen: () => void; onClose: () => void; /** false: 타일은 숨기고 체크 창만 (홈은 요약 카드에서 보여 줌) */ tiles?: boolean }) {
   const hyd = useHydration();
   const supps = useSupplements();
   const day = useDayCheck(date);
@@ -46,7 +71,7 @@ export function CheckTiles({ date, open, onOpen, onClose }: { date: string; open
 
   return (
     <>
-      <div className="check-tiles">
+      {tiles && <div className="check-tiles">
         <div className="check-tile water">
           <button className="check-tile-head" onClick={onOpen}>
             <span><span className="meal-ic" aria-hidden>💧</span>물</span>
@@ -80,7 +105,7 @@ export function CheckTiles({ date, open, onOpen, onClose }: { date: string; open
             <span className="muted small supp-left">먹는 영양제를 등록해 보세요</span>
           )}
         </button>
-      </div>
+      </div>}
       {open && <CheckSheet date={date} onClose={onClose} onManage={() => { onClose(); setManaging(true); }} />}
       {managing && <ManageScreen onClose={() => setManaging(false)} />}
     </>

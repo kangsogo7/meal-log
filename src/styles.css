@@ -1261,3 +1261,34 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .key-steps li { counter-increment: step; position: relative; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px 12px 50px; border-radius: 16px; background: var(--card); }
 .key-steps li::before { content: counter(step); position: absolute; left: 14px; top: 12px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: var(--fs-sub); font-weight: 600; }
 .key-link { display: flex; align-items: center; justify-content: center; text-decoration: none; }
+
+/* 홈 요약 카드: 반으로 나눈 원형 그래프 / 영양성분 4칸 / 물·영양제 칸 */
+.today-summary { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+.ts-top { position: relative; display: flex; justify-content: center; padding-top: 18px; }
+.ts-label { position: absolute; top: 0; left: 0; color: var(--muted); font-size: var(--fs-sub); }
+.ts-label.right { left: auto; right: 0; }
+.split-ring { position: relative; flex: none; }
+.split-ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.4; }
+.seg-bar.carb { stroke: var(--carb); }
+.seg-bar.protein { stroke: var(--protein); }
+.seg-bar.fat { stroke: var(--fat); }
+.seg-bar.over { stroke: var(--over); }
+.ts-line { margin: 0; border: none; border-top: 1px solid var(--border); }
+.ts-cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.ts-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ts-cell i { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%; vertical-align: middle; }
+.ts-cell.carb i { background: var(--carb); }
+.ts-cell.protein i { background: var(--protein); }
+.ts-cell.fat i { background: var(--fat); }
+.ts-cell.sodium i { background: var(--muted); }
+.ts-cell b { font-weight: 600; white-space: nowrap; }
+.check-steps { display: flex; flex-direction: column; gap: 10px; width: 100%; min-height: 44px; padding: 2px 0; border: none; background: none; color: var(--text); text-align: left; }
+.cs-row { display: flex; align-items: center; gap: 10px; }
+.cs-label { flex: none; width: 40px; color: var(--muted); font-size: var(--fs-sub); }
+.cs-row .step-bar, .cs-empty { flex: 1; }
+.cs-count { flex: none; min-width: 40px; text-align: right; font-size: var(--fs-sub); color: var(--muted); }
+.step-bar { display: grid; gap: 3px; }
+.step-bar span { height: 14px; border-radius: 3px; background: var(--inset); }
+.step-bar.water span.on { background: var(--water); }
+.step-bar.supp span.on { background: var(--accent); }
+.step-bar span.extra { background: var(--water-ink); }
