@@ -1351,5 +1351,8 @@ input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), se
 .check-steps .cs-row { min-height: 44px; }
 .cs-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; border: none; background: none; color: var(--text); text-align: left; }
 .cs-open .step-bar, .cs-open .cs-empty { flex: 1; }
-.cs-add { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; border: none; border-radius: 12px; background: var(--btn-primary); color: var(--accent-ink); font-size: 1.2rem; font-weight: 600; }
+/* 물 ＋: 물 색, 작게 (누르는 범위는 44px 유지) */
+.cs-add { flex: none; position: relative; width: 44px; height: 44px; min-height: 44px; padding: 0; border: none; background: none; color: #fff; font-size: var(--fs-main); font-weight: 700; display: grid; place-items: center; }
+.cs-add::before { content: ""; position: absolute; width: 28px; height: 28px; border-radius: 50%; background: var(--water); z-index: -1; }
+.cs-add { isolation: isolate; }
 .cs-add-space { flex: none; width: 44px; }
