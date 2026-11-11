@@ -1295,7 +1295,7 @@ button.date-label { width: 100%; padding: 0; border: none; background: none; col
 .ts-cell.fat i { background: var(--fat); }
 .ts-cell.sodium i { background: var(--muted); }
 .ts-cell b { font-weight: 600; white-space: nowrap; }
-.check-steps { display: flex; flex-direction: column; gap: 10px; width: 100%; min-height: 44px; padding: 2px 0; border: none; background: none; color: var(--text); text-align: left; }
+.check-steps { display: flex; flex-direction: column; gap: 4px; width: 100%; min-height: 44px; padding: 2px 0; border: none; background: none; color: var(--text); text-align: left; }
 .cs-row { display: flex; align-items: center; gap: 10px; }
 .cs-label { flex: none; width: 40px; color: var(--muted); font-size: var(--fs-sub); }
 .cs-row .step-bar, .cs-empty { flex: 1; }
@@ -1347,3 +1347,9 @@ input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), se
 
 /* 화면 맨 위 고정 막대: 시계 줄 높이 + 12px, 불투명 */
 .top-bar { position: fixed; top: 0; left: 0; right: 0; height: calc(var(--safe-top) + 12px); background: var(--bg); z-index: 15; }
+/* 홈 물·영양제 줄: 줄을 누르면 체크 창, 물 옆 ＋는 바로 한 잔 */
+.check-steps .cs-row { min-height: 44px; }
+.cs-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; border: none; background: none; color: var(--text); text-align: left; }
+.cs-open .step-bar, .cs-open .cs-empty { flex: 1; }
+.cs-add { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; border: none; border-radius: 12px; background: var(--btn-primary); color: var(--accent-ink); font-size: 1.2rem; font-weight: 600; }
+.cs-add-space { flex: none; width: 44px; }

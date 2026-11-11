@@ -34,7 +34,7 @@ export function WaterRow({ date }: { date: string }) {
   );
 }
 
-/** 홈 요약 카드 맨 아래: 물·영양제를 체크한 만큼 칸 색칠 (누르면 체크 창) */
+/** 홈 요약 카드 맨 아래: 물·영양제를 체크한 만큼 칸 색칠 (줄을 누르면 체크 창, 물 옆 ＋는 바로 한 잔) */
 export function CheckSteps({ date, onOpen }: { date: string; onOpen: () => void }) {
   const hyd = useHydration();
   const supps = useSupplements();
@@ -43,18 +43,24 @@ export function CheckSteps({ date, onOpen }: { date: string; onOpen: () => void 
   const filled = Math.floor(day.waterMl / hyd.cupMl);
   const taken = supps.filter((s) => day.supps[s.id]).length;
   return (
-    <button className="check-steps" onClick={onOpen}>
-      <span className="cs-row">
-        <span className="cs-label">물</span>
-        <StepBar done={filled} total={cups} kind="water" />
-        <span className="cs-count">{filled}/{cups}잔</span>
-      </span>
-      <span className="cs-row">
-        <span className="cs-label">영양제</span>
-        {supps.length ? <StepBar done={taken} total={supps.length} kind="supp" /> : <span className="muted small cs-empty">등록한 영양제 없음</span>}
-        <span className="cs-count">{supps.length ? `${taken}/${supps.length}개` : ""}</span>
-      </span>
-    </button>
+    <div className="check-steps">
+      <div className="cs-row">
+        <button className="cs-open" onClick={onOpen}>
+          <span className="cs-label">물</span>
+          <StepBar done={filled} total={cups} kind="water" />
+          <span className="cs-count">{filled}/{cups}잔</span>
+        </button>
+        <button className="cs-add" onClick={() => addWater(date, hyd.cupMl)} aria-label="물 한 잔 추가">＋</button>
+      </div>
+      <div className="cs-row">
+        <button className="cs-open" onClick={onOpen}>
+          <span className="cs-label">영양제</span>
+          {supps.length ? <StepBar done={taken} total={supps.length} kind="supp" /> : <span className="muted small cs-empty">등록한 영양제 없음</span>}
+          <span className="cs-count">{supps.length ? `${taken}/${supps.length}개` : ""}</span>
+        </button>
+        <span className="cs-add-space" aria-hidden />
+      </div>
+    </div>
   );
 }
 
