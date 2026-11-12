@@ -214,7 +214,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
       </div>
       </>}
 
-      <CheckTiles tiles={false} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
+      <CheckTiles tiles={view === "today"} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
 
       {meal && (() => {
         const list = entries.filter((e) => e.meal === meal.key);

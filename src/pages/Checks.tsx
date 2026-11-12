@@ -34,7 +34,7 @@ export function WaterRow({ date }: { date: string }) {
   );
 }
 
-/** 홈 요약 카드 맨 아래: 물·영양제를 체크한 만큼 칸 색칠 (줄을 누르면 체크 창, 물 옆 ＋는 바로 한 잔) */
+/** 홈 요약 카드 맨 아래: 물·영양제를 체크한 만큼 칸 색칠 (줄을 누르면 체크 창) */
 export function CheckSteps({ date, onOpen }: { date: string; onOpen: () => void }) {
   const hyd = useHydration();
   const supps = useSupplements();
@@ -50,7 +50,6 @@ export function CheckSteps({ date, onOpen }: { date: string; onOpen: () => void 
           <StepBar done={filled} total={cups} kind="water" />
           <span className="cs-count">{filled}/{cups}잔</span>
         </button>
-        <button className="cs-add" onClick={() => addWater(date, hyd.cupMl)} aria-label="물 한 잔 추가">＋</button>
       </div>
       <div className="cs-row">
         <button className="cs-open" onClick={onOpen}>
@@ -58,14 +57,13 @@ export function CheckSteps({ date, onOpen }: { date: string; onOpen: () => void 
           {supps.length ? <StepBar done={taken} total={supps.length} kind="supp" /> : <span className="muted small cs-empty">등록한 영양제 없음</span>}
           <span className="cs-count">{supps.length ? `${taken}/${supps.length}개` : ""}</span>
         </button>
-        <span className="cs-add-space" aria-hidden />
       </div>
     </div>
   );
 }
 
 /** 끼니 칸 아래 타일 2개: 물(한 잔 더하기), 영양제(누르면 체크 창) */
-export function CheckTiles({ date, open, onOpen, onClose, tiles = true }: { date: string; open: boolean; onOpen: () => void; onClose: () => void; /** false: 타일은 숨기고 체크 창만 (홈은 요약 카드에서 보여 줌) */ tiles?: boolean }) {
+export function CheckTiles({ date, open, onOpen, onClose, tiles = true }: { date: string; open: boolean; onOpen: () => void; onClose: () => void; /** false: 타일은 숨기고 체크 창만 (주간 보기) */ tiles?: boolean }) {
   const hyd = useHydration();
   const supps = useSupplements();
   const day = useDayCheck(date);
