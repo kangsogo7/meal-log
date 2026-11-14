@@ -46,6 +46,10 @@ jobs:
       - name: 서명 + TestFlight 업로드
         if: env.ASC_KEY_ID != ''
         run: |
+          # 붙여넣을 때 섞인 줄바꿈·공백 제거
+          ASC_KEY_ID=$(printf '%s' "$ASC_KEY_ID" | tr -d ' \r\n\t')
+          ASC_ISSUER_ID=$(printf '%s' "$ASC_ISSUER_ID" | tr -d ' \r\n\t')
+          APPLE_TEAM_ID=$(printf '%s' "$APPLE_TEAM_ID" | tr -d ' \r\n\t')
           mkdir -p "$RUNNER_TEMP/keys"
           KEY="$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
           # 붙여넣을 때 줄바꿈·머리글이 깨져도 되도록 본문만 뽑아 PEM 형식으로 다시 만듦
