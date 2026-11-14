@@ -2,7 +2,8 @@
 // 나머지 기록(체중·인바디·활동 등)은 지금처럼 폰에만 있음.
 // 이 파일은 그룹 탭을 열거나 그룹에 들어가 있을 때만 불러옴 (Firebase 코드가 커서 앱 첫 로딩에 넣지 않음)
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
+import { Capacitor } from "@capacitor/core";
+import { getAuth, indexedDBLocalPersistence, initializeAuth, onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
 import {
   addDoc, arrayRemove, arrayUnion, collection, deleteDoc, deleteField, doc, getDoc, getDocs, getFirestore, onSnapshot,
   orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, type Unsubscribe,
@@ -24,7 +25,8 @@ const app = initializeApp({
   messagingSenderId: "749252526635",
   appId: "1:749252526635:web:aa821dc0c90802b6e2606e",
 });
-const auth = getAuth(app);
+// 아이폰 앱(WKWebView)에서는 getAuth가 로그인 상태를 영영 알려 주지 않아 그룹 탭이 멈춤 → 앱에서는 IndexedDB 저장만 쓰도록 직접 초기화
+const auth = Capacitor.isNativePlatform() ? initializeAuth(app, { persistence: indexedDBLocalPersistence }) : getAuth(app);
 const fs = getFirestore(app);
 
 /** 공유하는 기간: 최근 14일, 이번 주와 지난주 */
