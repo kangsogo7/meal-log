@@ -1,10 +1,13 @@
 name: iOS app
 
-# 지금은 서명 없이 빌드만 확인 (Mac 없이 GitHub의 macOS에서 빌드).
-# Apple 개발자 계정(유료)을 만들면 여기에 서명·TestFlight 업로드 단계를 추가:
-#   1) Apple Developer에서 App ID io.github.kangsogo7.meallog 등록 + HealthKit 켜기
-#   2) 배포 인증서(.p12)와 프로비저닝 프로필, App Store Connect API 키를 저장소 Secrets에 저장
-#   3) 아래 xcodebuild를 서명된 archive → exportArchive → TestFlight 업로드로 교체
+# GitHub의 macOS에서 빌드 (Mac 없이).
+# 저장소 Secrets에 App Store Connect API 키가 있으면: 서명 → TestFlight 업로드.
+# 없으면: 서명 없이 빌드만 확인.
+#   ASC_KEY_ID      API 키 ID (App Store Connect → 사용자 및 액세스 → 통합 → App Store Connect API, 권한 '관리')
+#   ASC_ISSUER_ID   같은 화면 위쪽의 Issuer ID
+#   ASC_KEY_P8      내려받은 AuthKey_XXXX.p8 파일 내용 전체
+#   APPLE_TEAM_ID   developer.apple.com → Membership의 Team ID (10자리)
+# 인증서·프로비저닝 프로필은 Xcode가 API 키로 자동 생성(클라우드 서명), HealthKit도 entitlements 보고 자동으로 켬.
 on:
   push:
     branches: [main]
@@ -18,6 +21,11 @@ concurrency:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -29,7 +37,38 @@ jobs:
       - run: npx cap sync ios
 
       - name: 빌드 확인 (서명 없음)
+        if: env.ASC_KEY_ID == ''
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -sdk iphoneos -destination "generic/platform=iOS" \
             -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+
+      - name: 서명 + TestFlight 업로드
+        if: env.ASC_KEY_ID != ''
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          KEY="$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" -archivePath build/App.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            "${AUTH[@]}" archive
+
+          cat > build/export.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+
+          xcodebuild -exportArchive -archivePath build/App.xcarchive \
+            -exportOptionsPlist build/export.plist -exportPath build/export "${AUTH[@]}"
+          rm -f "$KEY"
