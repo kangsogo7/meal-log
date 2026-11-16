@@ -12,6 +12,8 @@ export const canNotify = () => Capacitor.isNativePlatform();
 /** 이 앱이 쓰는 알림 번호 (날짜·종류로 정해져 있어서 다시 예약할 때 같은 번호를 지움) */
 const BASE = 100000;
 const DAYS = 7;
+/** 아이폰이 들고 있는 예약 알림 한도(64)보다 조금 적게 */
+const IOS_MAX = 60;
 const isOurs = (id: number) => id >= BASE && id < BASE + DAYS * 100;
 
 /** 알림 권한 요청. 허용되면 true */
@@ -95,7 +97,11 @@ async function schedule() {
       }
     }
   }
-  if (list.length) await LocalNotifications.schedule({ notifications: list });
+  // 아이폰은 예약 알림을 64개까지만 들고 있고, 넘치면 먼저 넣은 것(= 오늘 것)부터 버려서 알림이 하나도 안 옴
+  // → 가까운 것부터 60개만 예약 (앱을 열 때마다 다시 예약하므로 뒤쪽 날짜는 그때 채워짐)
+  list.sort((a, b) => +a.schedule.at - +b.schedule.at);
+  const send = Capacitor.getPlatform() === "ios" ? list.slice(0, IOS_MAX) : list;
+  if (send.length) await LocalNotifications.schedule({ notifications: send });
 }
 
 let checksRequested = false;
