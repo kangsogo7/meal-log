@@ -132,20 +132,20 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
   const apiKey = cleanKey(settings.geminiKey);
   if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
   // 생각 토큰도 출력 값으로 돈이 나가서 모든 요청의 "생각하기"를 low로 (모델이 거절하면 빼고 다시 보내고, 거절 이유는 사용 기록에 남김)
-  // 키 이름은 snake_case로, thinking_level은 generation_config 바로 안에 (thinking_config 없이) 보냄 (2026-11-16 사용자 요청)
-  const thinkingLevel = "low";
-  const thinking = { thinking_level: thinkingLevel };
+  // generationConfig.thinkingConfig.thinkingLevel = "LOW" (대문자) 형식으로 보냄 (2026-11-16 사용자가 제미나이에게 받은 형식)
+  const thinkingLevel = "LOW";
+  const thinking = { thinkingConfig: { thinkingLevel } };
   const makeBody = (fastThinking: boolean) =>
     JSON.stringify(
       opts.search
         ? {
             contents: [{ role: "user", parts: [...parts, { text: `\n답은 다른 말 없이 아래 JSON 스키마에 맞는 JSON 하나만 출력해.\n${JSON.stringify(schema)}` }] }],
             tools: [{ google_search: {} }],
-            ...(fastThinking ? { generation_config: thinking } : {}),
+            ...(fastThinking ? { generationConfig: thinking } : {}),
           }
         : {
             contents: [{ role: "user", parts }],
-            generation_config: {
+            generationConfig: {
               responseMimeType: "application/json",
               responseSchema: toGeminiSchema(schema),
               temperature: 0.2,
