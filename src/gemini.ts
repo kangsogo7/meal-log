@@ -1,5 +1,5 @@
 // Google Gemini API (REST generateContent) 호출
-import type { Nutrients, Settings } from "./db";
+import { getKV, setKV, type Nutrients, type Settings } from "./db";
 
 export class GeminiError extends Error {}
 
@@ -14,6 +14,56 @@ function toGeminiSchema(s: unknown): unknown {
     );
   }
   return s;
+}
+
+// ---------- AI 사용 기록 (기능별 실제 1회 비용을 재기 위해) ----------
+export type AiKind = "menu" | "ingredients" | "photo" | "inbody" | "weekly";
+export const AI_KIND_LABEL: Record<AiKind, string> = {
+  menu: "음식명 AI 검색",
+  ingredients: "집밥 재료 계산",
+  photo: "사진 분석",
+  inbody: "인바디 읽기",
+  weekly: "주간 한마디",
+};
+/** 성공한 호출 1번: 입력·출력(생각 포함) 토큰, 구글 검색 횟수 */
+export interface AiUsage { at: number; kind: AiKind; model: string; inTok: number; outTok: number; searches: number }
+const USAGE_KEY = "aiUsage";
+const USAGE_MAX = 500;
+
+/** 100만 토큰당 달러 (입력, 출력). 2026-11 공식 가격표·발표 기준, 3.8 Flash는 2027년 가격. 모르는 모델은 비용 계산에서 뺌 */
+const PRICE: Record<string, [number, number]> = {
+  "gemini-3.8-flash": [1.5, 7.5],
+  "gemini-4-hydrogen": [1.5, 7.5],
+  "gemini-3.5-flash-lite": [0.3, 2.5],
+  "gemini-3.1-flash-lite": [0.25, 1.5],
+};
+/** 구글 검색 1번 (무료분 넘은 뒤) */
+const SEARCH_USD = 0.014;
+export const KRW_PER_USD = 1400;
+
+/** 유료 키였다면 이 호출에 든 돈 (원). 가격을 모르는 모델이면 검색비만 */
+export function usageCostKrw(u: AiUsage): { krw: number; known: boolean } {
+  const p = PRICE[u.model];
+  const tok = p ? (u.inTok * p[0] + u.outTok * p[1]) / 1e6 : 0;
+  return { krw: (tok + u.searches * SEARCH_USD) * KRW_PER_USD, known: !!p };
+}
+
+export const getUsage = () => getKV<AiUsage[]>(USAGE_KEY, []);
+export const clearUsage = () => setKV(USAGE_KEY, []);
+
+function recordUsage(kind: AiKind, model: string, data: { usageMetadata?: Record<string, number>; candidates?: { groundingMetadata?: { webSearchQueries?: string[] } }[] }) {
+  const m = data?.usageMetadata ?? {};
+  const u: AiUsage = {
+    at: Date.now(),
+    kind,
+    model,
+    inTok: m.promptTokenCount ?? 0,
+    outTok: (m.candidatesTokenCount ?? 0) + (m.thoughtsTokenCount ?? 0),
+    searches: data?.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length ?? 0,
+  };
+  getUsage()
+    .then((list) => setKV(USAGE_KEY, [...list, u].slice(-USAGE_MAX)))
+    .catch(() => {});
 }
 
 /** 마지막 요청이 어느 모델에 몇 번, 얼마나 걸렸는지 (느릴 때 원인 확인용) */
@@ -35,7 +85,8 @@ const noFastThinking = new Set<string>();
 /** 없어진 모델 → 넘어간 모델 */
 const RENAMED: Record<string, string> = { "gemini-3.7-flash": "gemini-3.8-flash", "gemini-3.5-flash": "gemini-3.6-flash" };
 
-export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+// 4-hydrogen: 2026-11 출시, 정확도 비교용 (목록 맨 뒤라 다른 모델이 막혔을 때만 대신 쓰임)
+export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-hydrogen"];
 
 const LITE_MODELS = GEMINI_MODELS.filter((m) => m.endsWith("-lite"));
 
@@ -71,11 +122,11 @@ function extractJson(text: string): string {
 /** 구글 검색에서 실제로 참고한 웹페이지 (모델이 쓴 말이 아니라 응답의 검색 근거 정보) */
 export interface WebSource { title: string; uri: string }
 
-async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[] } = {}): Promise<T> {
+async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind } = {}): Promise<T> {
   return (await generateMeta<T>(settings, parts, schema, opts)).value;
 }
 
-async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[] } = {}): Promise<{ value: T; sources: WebSource[] }> {
+async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind } = {}): Promise<{ value: T; sources: WebSource[] }> {
   const apiKey = cleanKey(settings.geminiKey);
   if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
   // 검색 없는 요청은 "생각하기"를 최소로 해서 빨리 답하게 (모델이 이 설정을 모르면 빼고 다시 보냄)
@@ -160,6 +211,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
     throw new GeminiError(`Gemini 오류 (${r.status})${detail ? `: ${detail}` : ""}`);
   }
   const data = JSON.parse(r.text);
+  if (opts.kind) recordUsage(opts.kind, trace[trace.length - 1]?.model ?? first, data);
   const text: string | undefined = data?.candidates?.[0]?.content?.parts
     ?.filter((p: { thought?: boolean }) => !p.thought)
     .map((p: { text?: string }) => p.text ?? "")
@@ -179,13 +231,13 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
 }
 
 /** 구글 검색으로 최신 공식 정보를 찾아서 답하게. 검색을 못 쓰거나 형식이 깨지면 검색 없이 */
-async function searchJson<T>(settings: Settings, parts: Part[], schema: object, ok: (r: T) => boolean): Promise<{ value: T; sources: WebSource[] }> {
+async function searchJson<T>(settings: Settings, parts: Part[], schema: object, ok: (r: T) => boolean, kind: AiKind): Promise<{ value: T; sources: WebSource[] }> {
   try {
-    const res = await generateMeta<T>(settings, parts, schema, { search: true });
+    const res = await generateMeta<T>(settings, parts, schema, { search: true, kind });
     if (!res.value || !ok(res.value)) throw new GeminiError("형식 오류");
     return res;
   } catch {
-    return generateMeta<T>(settings, parts, schema);
+    return generateMeta<T>(settings, parts, schema, { kind });
   }
 }
 
@@ -265,7 +317,7 @@ ${queries.map((q, i) => `[${i}] ${q.text}\n후보: ${q.candidates.map((c, j) => 
     required: ["items"],
   };
   const { value: res, sources } = await searchJson<{ items: { index: number; grams: number; match: number; nutrients: Nutrients }[] }>(
-    settings, [{ text: prompt }], schema, (r) => Array.isArray(r.items),
+    settings, [{ text: prompt }], schema, (r) => Array.isArray(r.items), "ingredients",
   );
   const answers = queries.map((q, i) => {
     const a = res.items.find((x) => x.index === i);
@@ -304,7 +356,7 @@ export async function askFood(settings: Settings, question: string): Promise<Men
   const parts = [{ text: `${question}
 
 ${LATEST}` }];
-  const { value: res, sources } = await searchJson<MenuEstimate>(settings, parts, schema, (r) => !!r.nutrients);
+  const { value: res, sources } = await searchJson<MenuEstimate>(settings, parts, schema, (r) => !!r.nutrients, "menu");
   return { ...res, grams: Math.max(0, Number(res.grams) || 0), nutrients: toNutrients(res.nutrients), sources };
 }
 
@@ -357,7 +409,7 @@ export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: st
     required: ["type", "items", "note", "place"],
   };
   const parts = [{ inlineData: image }, { text: prompt }];
-  const { value: res, sources } = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length);
+  const { value: res, sources } = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length, "photo");
   if (!res?.items?.length) throw new GeminiError("사진에서 음식이나 영양성분표를 찾지 못했어요. 다시 찍어 주세요.");
   return {
     type: res.type === "label" ? "label" : "food",
@@ -391,7 +443,7 @@ export async function readInBody(settings: Settings, image: { mimeType: string; 
     required: ["date", "weight", "bodyFat", "muscle", "bmr"],
   };
   // 결과지 숫자 읽기는 간단한 작업이라 Lite 모델로 (빠르고 한도도 넉넉함)
-  return generateJson<InBodyResult>(settings, [{ inlineData: image }, { text: prompt }], schema, { prefer: LITE_MODELS });
+  return generateJson<InBodyResult>(settings, [{ inlineData: image }, { text: prompt }], schema, { prefer: LITE_MODELS, kind: "inbody" });
 }
 
 /** API 키 확인용 */
@@ -430,6 +482,7 @@ ${report}
     settings,
     [{ text: prompt }],
     { type: "object", properties: { comment: { type: "string" } }, required: ["comment"] },
+    { kind: "weekly" },
   );
   return (res.comment ?? "").trim();
 }

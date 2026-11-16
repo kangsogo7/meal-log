@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, setKV } from "../db";
 import { FolderScreen, FoodEditScreen } from "./FavoritesTab";
 import { exportBackup, importBackup } from "../backup";
-import { cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini } from "../gemini";
+import { AI_KIND_LABEL, clearUsage, cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini, usageCostKrw, type AiKind, type AiUsage } from "../gemini";
 import { useSettings } from "../hooks";
 import { getTheme, setTheme, type Theme } from "../theme";
 import { Btn, BtnRow, FullScreen, Seg, TextInput } from "../components/ui";
@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [theme, setThemeState] = useState<Theme>(getTheme());
 
   const [keyOpen, setKeyOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
 
   return (
     <>
@@ -54,6 +55,17 @@ export default function SettingsPage() {
       </section>
       {keyOpen && <GeminiKeyScreen onClose={() => setKeyOpen(false)} />}
 
+      <section className="card">
+        <button className="setting-row" onClick={() => setUsageOpen(true)}>
+          <span className="fr-text">
+            <span className="fr-title">AI 사용 기록</span>
+            <span className="fr-sub">기능별 토큰·검색 횟수와 유료였다면 든 돈</span>
+          </span>
+          <span className="fr-chev" aria-hidden>›</span>
+        </button>
+      </section>
+      {usageOpen && <UsageScreen onClose={() => setUsageOpen(false)} />}
+
       <section className="card form">
         <h2>백업</h2>
         <BtnRow>
@@ -78,6 +90,61 @@ export default function SettingsPage() {
         버전 {__APP_VERSION__}
       </p>
     </>
+  );
+}
+
+/** AI 사용 기록: 기능별 평균 토큰·검색 횟수와, 유료 키였다면 1회에 든 돈 (구독 가격을 정하기 위한 실측) */
+function UsageScreen({ onClose }: { onClose: () => void }) {
+  const list = useLiveQuery(async () => ((await db.kv.get("aiUsage"))?.value as AiUsage[] | undefined) ?? [], []) ?? [];
+  const [confirm, setConfirm] = useState(false);
+  const kinds = Object.keys(AI_KIND_LABEL) as AiKind[];
+  const rows = kinds
+    .map((k) => {
+      const xs = list.filter((u) => u.kind === k);
+      if (!xs.length) return null;
+      const avg = (f: (u: AiUsage) => number) => xs.reduce((a, u) => a + f(u), 0) / xs.length;
+      const costs = xs.map(usageCostKrw);
+      const known = costs.filter((c) => c.known);
+      return {
+        k,
+        n: xs.length,
+        inTok: Math.round(avg((u) => u.inTok)),
+        outTok: Math.round(avg((u) => u.outTok)),
+        searches: avg((u) => u.searches),
+        krw: known.length ? known.reduce((a, c) => a + c.krw, 0) / known.length : null,
+      };
+    })
+    .filter((r) => r !== null);
+  const models = [...new Set(list.map((u) => u.model))];
+  const since = list.length ? new Date(list[0].at) : null;
+
+  return (
+    <FullScreen title="AI 사용 기록" onClose={onClose}>
+      <div className="form key-screen">
+        {!rows.length ? (
+          <section className="key-box"><span className="muted small">아직 기록이 없어요. AI 검색이나 사진 분석을 쓰면 여기에 쌓여요.</span></section>
+        ) : (
+          rows.map((r) => (
+            <section key={r.k} className="key-box">
+              <span className="row-between"><b>{AI_KIND_LABEL[r.k]}</b><span className="muted small">{r.n}회</span></span>
+              <span className="small">1회 평균 입력 {r.inTok.toLocaleString()} · 출력 {r.outTok.toLocaleString()} 토큰 · 구글 검색 {r.searches.toFixed(1)}번</span>
+              <span className="small">유료였다면 1회 약 <b>{r.krw == null ? "–" : `${Math.round(r.krw).toLocaleString()}원`}</b></span>
+            </section>
+          ))
+        )}
+        <p className="muted small">
+          {since && `${since.getMonth() + 1}월 ${since.getDate()}일부터 최근 ${list.length}회. `}
+          쓴 모델: {models.join(", ") || "–"}. 금액은 1달러 1,400원, 구글 검색 1번 약 20원, 3.8 Flash는 2027년 가격으로 계산했어요. 가격을 모르는 모델(3.6 Flash)은 "–"로 보여요.
+        </p>
+        {list.length > 0 && <Btn onClick={() => setConfirm(true)}>기록 지우기</Btn>}
+        {confirm && (
+          <BtnRow>
+            <Btn onClick={() => setConfirm(false)}>취소</Btn>
+            <Btn kind="danger" onClick={async () => { await clearUsage(); setConfirm(false); }}>지우기</Btn>
+          </BtnRow>
+        )}
+      </div>
+    </FullScreen>
   );
 }
 
