@@ -178,7 +178,8 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       const fast = !noFastThinking.has(`${model}|${thinkingLevel}`);
       sentThink = fast ? thinkingLevel : "none";
       const res = await post(makeBody(fast));
-      if (fast && res.status === 400 && /thinking/i.test(res.text)) {
+      // 생각 설정을 붙인 요청이 400이면 (오류 문구에 thinking이 없어도) 설정을 빼고 한 번 더
+      if (fast && res.status === 400 && !/API key|API_KEY/i.test(res.text)) {
         noFastThinking.add(`${model}|${thinkingLevel}`);
         sentThink = "none";
         return await post(makeBody(false));
