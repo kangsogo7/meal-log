@@ -13,6 +13,7 @@ import { evaluateDay, evaluateWeek, weekDays, weekStartOf } from "./weekly";
 import { getCheatDays } from "./cheat";
 import { getProfileHistory, profileOn } from "./profileHistory";
 import { slimFood, type SharedFood } from "./foodShare";
+import { getDayCheck, getHydration } from "./checks";
 import { app, auth } from "./firebaseApp";
 
 const fs = getFirestore(app);
@@ -90,6 +91,60 @@ export interface Group {
   goals: Record<string, string>;
   /** 멤버 프로필 사진 (작은 JPEG data URL) */
   photos: Record<string, string>;
+  /** 그룹 챌린지 (한 번에 하나. 끝나도 새로 만들 때까지 결과로 남음) */
+  challenge: Challenge | null;
+}
+
+// ---------- 챌린지 ----------
+export type ChallengeKind = "log" | "protein" | "kcal" | "water";
+export interface Challenge { name: string; kind: ChallengeKind; start: string; days: number; by: string }
+export const CHALLENGE_KINDS: { key: ChallengeKind; label: string; rule: string }[] = [
+  { key: "log", label: "매일 기록하기", rule: "그날 한 끼 이상 기록하면 달성" },
+  { key: "protein", label: "단백질 채우기", rule: "하루 단백질이 자기 목표 이상이면 달성" },
+  { key: "kcal", label: "칼로리 지키기", rule: "하루 칼로리가 자기 목표의 ±10% 안이면 달성" },
+  { key: "water", label: "물 마시기", rule: "하루 물이 자기 목표 이상이면 달성" },
+];
+export const challengeRule = (k: ChallengeKind) => CHALLENGE_KINDS.find((x) => x.key === k)?.rule ?? "";
+export const challengeEnd = (c: Challenge) => addDays(c.start, c.days - 1);
+/** 오늘이 챌린지 기간 안인지 */
+export const challengeActive = (c: Challenge | null, today = todayStr()): c is Challenge => !!c && today <= challengeEnd(c);
+
+/** 그날 달성했는지 (올라온 기록이 없으면 못 채운 것) */
+export function challengeDone(kind: ChallengeKind, d: SharedDay | undefined): boolean {
+  if (!d) return false;
+  if (kind === "log") return d.meals.length > 0;
+  if (kind === "water") return !!d.water && d.water.goal > 0 && d.water.ml >= d.water.goal;
+  if (!d.target || !d.meals.length) return false;
+  if (kind === "protein") return d.total.protein >= d.target.protein;
+  return Math.abs(d.total.kcal - d.target.kcal) <= d.target.kcal * 0.1;
+}
+
+/** 오늘 얼마나 남았는지 한 줄 (달성했으면 빈 글) */
+export function challengeLeft(kind: ChallengeKind, d: SharedDay | undefined): string {
+  if (challengeDone(kind, d)) return "";
+  if (kind === "log") return "아직 기록 없음";
+  if (kind === "water") return d?.water ? `물 ${Math.max(0, d.water.goal - d.water.ml).toLocaleString()}ml 남음` : "아직 기록 없음";
+  if (!d?.target) return "아직 기록 없음";
+  if (kind === "protein") return `단백질 ${Math.max(0, Math.round(d.target.protein - d.total.protein))}g 남음`;
+  const diff = Math.round(d.total.kcal - d.target.kcal);
+  return diff > 0 ? `${diff.toLocaleString()}kcal 넘음` : `${(-diff).toLocaleString()}kcal 남음`;
+}
+
+export async function startChallenge(me: Me, g: Group, c: Omit<Challenge, "by">) {
+  await updateDoc(doc(fs, "groups", g.id), { challenge: { ...c, by: me.uid } });
+  // 물 챌린지는 물 기록도 올려야 해서 바로 다시 올림
+  await syncShares().catch(() => {});
+}
+
+export async function stopChallenge(g: Group) {
+  await updateDoc(doc(fs, "groups", g.id), { challenge: deleteField() });
+}
+
+/** 챌린지 기간의 멤버 기록 전부 */
+export function watchChallengeDays(gid: string, c: Challenge, cb: (list: SharedDay[]) => void): Unsubscribe {
+  return onSnapshot(query(collection(fs, "groups", gid, "days"), where("date", ">=", c.start), where("date", "<=", challengeEnd(c))), (snap) =>
+    cb(snap.docs.map((d) => ({ ...(d.data() as Omit<SharedDay, "id">), id: d.id }))),
+  );
 }
 
 const toGroup = (id: string, d: Record<string, unknown>): Group => ({
@@ -101,6 +156,7 @@ const toGroup = (id: string, d: Record<string, unknown>): Group => ({
   names: (d.names as Record<string, string>) ?? {},
   goals: (d.goals as Record<string, string>) ?? {},
   photos: (d.photos as Record<string, string>) ?? {},
+  challenge: (d.challenge as Challenge | undefined) ?? null,
 });
 
 const myGoalLabel = async () => GOALS[(await getKV("profile", DEFAULT_PROFILE)).goal]?.label ?? "";
@@ -206,6 +262,8 @@ export interface SharedDay {
   meals: { meal: string; label: string; items: SharedItem[]; kcal: number; grade: string | null }[];
   total: Nutrients;
   target: Nutrients | null;
+  /** 그날 마신 물 (물 챌린지 중인 그룹에만 올림) */
+  water?: { ml: number; goal: number };
 }
 export interface SharedWeek {
   id: string;
@@ -300,6 +358,16 @@ async function doSync() {
     });
   }
 
+  // 물 챌린지 중인 그룹에는 그 기간의 물 기록도 같이 올림
+  const hydGoal = (await getHydration()).goalMl;
+  const waterOn: Record<string, { ml: number; goal: number }> = {};
+  if (groups.docs.some((g) => (g.data().challenge as Challenge | undefined)?.kind === "water")) {
+    for (let i = 0; i < SHARE_DAYS; i++) {
+      const d = addDays(from, i);
+      waterOn[d] = { ml: (await getDayCheck(d)).waterMl, goal: hydGoal };
+    }
+  }
+
   const sigs = await getKV<Record<string, string>>("shareSigs", {});
   const goal = await myGoalLabel();
   const batch = writeBatch(fs);
@@ -309,13 +377,16 @@ async function doSync() {
       batch.update(g.ref, { [`goals.${u.uid}`]: goal });
       writes++;
     }
-    for (const { kind, key, data } of docs) {
+    const ch = g.data().challenge as Challenge | undefined;
+    for (const { kind, key, data: base } of docs) {
+      const water = kind === "days" && ch?.kind === "water" && key >= ch.start && key <= challengeEnd(ch) ? waterOn[key] : undefined;
+      const data = water ? { ...base, water } : base;
       const sig = JSON.stringify(data);
       // 계정(uid)까지 넣어서, 계정이 바뀌면 다시 올림
       const k = `${u.uid}/${g.id}/${kind}/${key}`;
       if (sigs[k] === sig) continue;
       // 기록이 한 번도 없던 날은 올리지 않음
-      if (kind === "days" && !(data as { meals: unknown[] }).meals.length && !sigs[k]) continue;
+      if (kind === "days" && !(data as { meals: unknown[] }).meals.length && !water?.ml && !sigs[k]) continue;
       sigs[k] = sig;
       batch.set(doc(fs, "groups", g.id, kind, `${u.uid}_${key}`), { ...data, updatedAt: serverTimestamp() });
       writes++;

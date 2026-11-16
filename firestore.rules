@@ -27,10 +27,10 @@ service cloud.firestore {
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.members == [request.auth.uid];
       allow update: if signedIn() && (
-        // 멤버가 그룹 이름·멤버 이름·목표·프로필 사진 수정
+        // 멤버가 그룹 이름·멤버 이름·목표·프로필 사진·챌린지 수정
         (request.auth.uid in resource.data.members
           && request.resource.data.members == resource.data.members
-          && changed().hasOnly(['name', 'names', 'goals', 'photos']))
+          && changed().hasOnly(['name', 'names', 'goals', 'photos', 'challenge']))
         // 초대 코드로 참여: 자기 자신만 추가
         || (!(request.auth.uid in resource.data.members)
           && request.resource.data.members.toSet() == resource.data.members.toSet().union([request.auth.uid].toSet())

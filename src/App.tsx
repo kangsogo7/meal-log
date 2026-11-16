@@ -52,7 +52,8 @@ function useShareSync() {
   const sig = useLiveQuery(async () => {
     if (!(await getKV("shareOn", false))) return "";
     const entries = await db.entries.where("date").aboveOrEqual(from).toArray();
-    const notes = await db.kv.where("key").startsWithAnyOf(["weekAi:", "weekMemo:"]).toArray();
+    // check: = 그날 물·영양제 (물 챌린지 중인 그룹에 물 기록을 올림)
+    const notes = await db.kv.where("key").startsWithAnyOf(["weekAi:", "weekMemo:", "check:"]).toArray();
     return JSON.stringify([entries.map((e) => [e.id, e.date, e.meal, e.title, e.place, e.total.kcal, e.total.protein]), notes]);
   }, [from], "");
   useEffect(() => {

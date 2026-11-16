@@ -9,7 +9,8 @@ import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isN
 import {
   addComment, afterMembershipChange, createGroup, createMe, deleteComment, joinGroup, leaveGroup, loadMe, renameGroup, renameMe,
   getMyPhoto, makePhoto, setMyPhoto, watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchMemberDay, watchMemberWeek, watchTodayCount,
-  type Comment, type Group, type Me, type SharedDay, type SharedItem, type SharedWeek,
+  CHALLENGE_KINDS, challengeActive, challengeDone, challengeEnd, challengeLeft, challengeRule, startChallenge, stopChallenge, watchChallengeDays,
+  type Challenge, type ChallengeKind, type Comment, type Group, type Me, type SharedDay, type SharedItem, type SharedWeek,
 } from "../share";
 
 const errText = (e: unknown) => {
@@ -411,6 +412,8 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
       title={<>{group.name} <span className="title-count">{group.members.length}명</span></>}
       right={<button className="text-btn" onClick={() => setMembers(true)}>멤버</button>}
     >
+      <ChallengeCard me={me} group={group} order={order} />
+
       <div className="group-date">
         <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
         <b>{formatDate(date)}</b>
@@ -791,5 +794,213 @@ function Comments({ me, gid, kind, id, owner, meal, list, placeholder = "댓글 
       )}
       {error && <p className="error small">{error}</p>}
     </div>
+  );
+}
+
+// ---------- 챌린지 ----------
+
+type Cell = "done" | "miss" | "today" | "future";
+
+/** 멤버 한 명의 챌린지 진행: 하루 한 칸, 지난 날 수(오늘 포함), 달성한 날 수, 지금까지 연속 */
+function challengeStats(c: Challenge, days: SharedDay[], uid: string) {
+  const today = todayStr();
+  const dates = Array.from({ length: c.days }, (_, i) => addDays(c.start, i));
+  const cells: Cell[] = dates.map((d) => {
+    if (d > today) return "future";
+    if (challengeDone(c.kind, days.find((x) => x.uid === uid && x.date === d))) return "done";
+    return d === today ? "today" : "miss";
+  });
+  const past = cells.filter((x) => x !== "future");
+  // 오늘은 아직 진행 중이라 못 채웠어도 연속이 끊긴 걸로 보지 않음
+  const closed = past[past.length - 1] === "today" ? past.slice(0, -1) : past;
+  let streak = 0;
+  for (let i = closed.length - 1; i >= 0 && closed[i] === "done"; i--) streak++;
+  return {
+    cells,
+    passed: past.length,
+    done: cells.filter((x) => x === "done").length,
+    streak,
+    todayDoc: days.find((x) => x.uid === uid && x.date === today),
+    todayIn: dates.includes(today),
+  };
+}
+
+/** "6일째 / 14일" · "내일 시작" · "끝남" */
+function challengePhase(c: Challenge) {
+  const today = todayStr();
+  if (today < c.start) return "내일 시작";
+  if (today > challengeEnd(c)) return "끝남";
+  const nth = Array.from({ length: c.days }, (_, i) => addDays(c.start, i)).indexOf(today) + 1;
+  return `${nth}일째 / ${c.days}일`;
+}
+
+const md = (d: string) => `${Number(d.slice(5, 7))}.${Number(d.slice(8, 10))}`;
+
+/** 그룹 화면 맨 위 챌린지 카드 */
+function ChallengeCard({ me, group, order }: { me: Me; group: Group; order: string[] }) {
+  const c = group.challenge;
+  const [days, setDays] = useState<SharedDay[]>([]);
+  const [detail, setDetail] = useState(false);
+  const [create, setCreate] = useState(false);
+  useEffect(() => (c ? watchChallengeDays(group.id, c, setDays) : setDays([])), [group.id, c?.start, c?.days, c?.kind]);
+
+  if (!c) {
+    return (
+      <section className="card challenge">
+        <Btn onClick={() => setCreate(true)}>챌린지 만들기</Btn>
+        {create && <ChallengeNew me={me} group={group} onClose={() => setCreate(false)} />}
+      </section>
+    );
+  }
+  const ended = !challengeActive(c);
+  return (
+    <section className="card challenge">
+      <div className="row-between"><h2>챌린지</h2><span className="muted small">{challengePhase(c)}</span></div>
+      <div className="ch-title">
+        <b>{c.name}</b>
+        <span className="muted small">{challengeRule(c.kind)}</span>
+      </div>
+      {order.map((uid) => {
+        const s = challengeStats(c, days, uid);
+        const left = challengeLeft(c.kind, s.todayDoc);
+        return (
+          <div key={uid} className="ch-row">
+            <div className="row-between">
+              <span>{group.names[uid] ?? "멤버"}{uid === me.uid && <span className="muted small"> 나</span>}</span>
+              <span className="muted small">{s.done} / {s.passed}일{s.todayIn && (left ? " · 오늘 아직" : " · 오늘 달성")}</span>
+            </div>
+            <div className="progress"><div style={{ width: `${s.passed ? (s.done / s.passed) * 100 : 0}%` }} /></div>
+          </div>
+        );
+      })}
+      <BtnRow>
+        <Btn onClick={() => setDetail(true)}>자세히 보기</Btn>
+        {ended && <Btn onClick={() => setCreate(true)}>새 챌린지</Btn>}
+      </BtnRow>
+      {detail && <ChallengeDetail me={me} group={group} c={c} days={days} order={order} onClose={() => setDetail(false)} />}
+      {create && <ChallengeNew me={me} group={group} onClose={() => setCreate(false)} />}
+    </section>
+  );
+}
+
+type ChDays = "7" | "14" | "28";
+const CH_DAYS: { key: ChDays; label: string }[] = [{ key: "7", label: "1주" }, { key: "14", label: "2주" }, { key: "28", label: "4주" }];
+
+/** 챌린지 만들기: 이름·기간·시작·목표 하나 */
+function ChallengeNew({ me, group, onClose }: { me: Me; group: Group; onClose: () => void }) {
+  const [days, setDays] = useState<ChDays>("14");
+  const [from, setFrom] = useState<"today" | "tomorrow">("today");
+  const [kind, setKind] = useState<ChallengeKind>("protein");
+  // 이름을 직접 고치기 전에는 기간·목표에 맞춰 자동으로
+  const [typed, setTyped] = useState<string | null>(null);
+  const auto = `${CH_DAYS.find((x) => x.key === days)!.label} ${CHALLENGE_KINDS.find((x) => x.key === kind)!.label}`;
+  const name = typed ?? auto;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const start = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await startChallenge(me, group, { name: name.trim().slice(0, 30) || auto, kind, start: from === "today" ? todayStr() : addDays(todayStr(), 1), days: Number(days) });
+      onClose();
+    } catch (e) {
+      setError(errText(e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <FullScreen title="챌린지 만들기" onClose={onClose} footer={<Btn kind="primary" onClick={start} disabled={busy}>{busy ? "만드는 중..." : "챌린지 시작"}</Btn>}>
+      <div className="form ch-form">
+        <label>이름
+          <TextInput value={name} onChange={setTyped} maxLength={30} />
+        </label>
+        <div>
+          <p className="label">기간</p>
+          <Seg label="기간" value={days} onChange={setDays} options={CH_DAYS} />
+        </div>
+        <div>
+          <p className="label">시작</p>
+          <Seg label="시작" value={from} onChange={setFrom} options={[{ key: "today", label: "오늘부터" }, { key: "tomorrow", label: "내일부터" }]} />
+        </div>
+        <div>
+          <p className="label">목표 (하나 고르기)</p>
+          <div className="ch-kinds" role="radiogroup" aria-label="목표">
+            {CHALLENGE_KINDS.map((k) => (
+              <button key={k.key} role="radio" aria-checked={kind === k.key} className={kind === k.key ? "on" : ""} onClick={() => setKind(k.key)}>
+                <span className="ch-radio" aria-hidden />
+                <span className="fr-text"><b>{k.label}</b><span className="muted small">{k.rule}</span></span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="muted small">목표 수치는 각자 설정한 자기 목표를 써요.{kind === "water" && " 물 챌린지를 하는 동안 그날 마신 물의 양이 이 그룹에 공유돼요."}</p>
+        {error && <p className="error small">{error}</p>}
+      </div>
+    </FullScreen>
+  );
+}
+
+const CELL_LABEL: Record<Cell, string> = { done: "달성", miss: "못 채움", today: "오늘 (진행 중)", future: "남은 날" };
+
+/** 챌린지 현황: 멤버마다 하루 한 칸 */
+function ChallengeDetail({ me, group, c, days, order, onClose }: { me: Me; group: Group; c: Challenge; days: SharedDay[]; order: string[]; onClose: () => void }) {
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState("");
+  const stop = async () => {
+    try {
+      await stopChallenge(group);
+      onClose();
+    } catch (e) {
+      setError(errText(e));
+    }
+  };
+  return (
+    <FullScreen title="챌린지" onClose={onClose}>
+      <section className="card challenge">
+        <div className="ch-title">
+          <b>{c.name}</b>
+          <span className="muted small">{md(c.start)} ~ {md(challengeEnd(c))} · {challengePhase(c)} · {group.names[c.by] ?? "멤버"}가 만듦</span>
+          <span className="muted small">{challengeRule(c.kind)}</span>
+        </div>
+      </section>
+
+      {order.map((uid) => {
+        const s = challengeStats(c, days, uid);
+        const left = challengeLeft(c.kind, s.todayDoc);
+        const name = group.names[uid] ?? "멤버";
+        return (
+          <section key={uid} className="card challenge">
+            <div className="ch-member">
+              <Avatar uid={uid} name={name} size={34} />
+              <span className="fr-text">
+                <b>{name}{uid === me.uid && <span className="muted small"> 나</span>}</b>
+                <span className="muted small">{s.done} / {s.passed}일 달성{s.streak >= 2 && ` · ${s.streak}일 연속`}</span>
+              </span>
+              {s.todayIn && (left ? <span className="muted small">{left}</span> : <span className="ch-chip">오늘 달성</span>)}
+            </div>
+            <div className="ch-grid">
+              {s.cells.map((x, i) => <span key={i} className={`ch-cell ${x}`} role="img" aria-label={`${md(addDays(c.start, i))} ${CELL_LABEL[x]}`} />)}
+            </div>
+          </section>
+        );
+      })}
+
+      <div className="ch-legend muted small">
+        {(Object.keys(CELL_LABEL) as Cell[]).map((x) => <span key={x}><span className={`ch-cell ${x}`} aria-hidden />{CELL_LABEL[x]}</span>)}
+      </div>
+      <p className="muted small">한 칸이 하루예요. 한 줄이 일주일이에요.</p>
+
+      {c.by === me.uid && (confirm ? (
+        <BtnRow>
+          <Btn onClick={() => setConfirm(false)}>취소</Btn>
+          <Btn kind="danger" onClick={stop}>그만두기</Btn>
+        </BtnRow>
+      ) : (
+        <Btn onClick={() => setConfirm(true)}>챌린지 그만두기</Btn>
+      ))}
+      {error && <p className="error small">{error}</p>}
+    </FullScreen>
   );
 }
