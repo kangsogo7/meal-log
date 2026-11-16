@@ -36,7 +36,10 @@ export const gemini = onCall(
     secrets: [GEMINI_API_KEY],
     timeoutSeconds: 120,
     memory: "256MiB",
-    maxInstances: 5,
+    // 하는 일이 구글 답을 기다리는 것뿐이라 CPU를 가장 작게 (기다리는 시간에도 요금이 나가서). 이 설정에서는 인스턴스 하나가 요청 하나만 받음
+    cpu: "gcf_gen1",
+    concurrency: 1,
+    maxInstances: 20,
   },
   async (req) => {
     if (!req.auth) throw new HttpsError("unauthenticated", "로그인이 필요해요.");
