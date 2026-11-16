@@ -26,7 +26,7 @@ export const AI_KIND_LABEL: Record<AiKind, string> = {
   weekly: "주간 한마디",
 };
 /** 성공한 호출 1번: 입력·출력(생각 포함) 토큰, 구글 검색 횟수 */
-export interface AiUsage { at: number; kind: AiKind; model: string; inTok: number; outTok: number; thinkTok?: number; searches: number }
+export interface AiUsage { at: number; kind: AiKind; model: string; inTok: number; outTok: number; thinkTok?: number; searches: number; /** 실제로 붙여 보낸 생각 수준 ("none" = 모델이 거절해서 빼고 보냄) */ think?: string }
 const USAGE_KEY = "aiUsage";
 const USAGE_MAX = 500;
 
@@ -51,7 +51,7 @@ export function usageCostKrw(u: AiUsage): { krw: number; known: boolean } {
 export const getUsage = () => getKV<AiUsage[]>(USAGE_KEY, []);
 export const clearUsage = () => setKV(USAGE_KEY, []);
 
-function recordUsage(kind: AiKind, model: string, data: { usageMetadata?: Record<string, number>; candidates?: { groundingMetadata?: { webSearchQueries?: string[] } }[] }) {
+function recordUsage(kind: AiKind, model: string, think: string, data: { usageMetadata?: Record<string, number>; candidates?: { groundingMetadata?: { webSearchQueries?: string[] } }[] }) {
   const m = data?.usageMetadata ?? {};
   const u: AiUsage = {
     at: Date.now(),
@@ -60,6 +60,7 @@ function recordUsage(kind: AiKind, model: string, data: { usageMetadata?: Record
     inTok: m.promptTokenCount ?? 0,
     outTok: (m.candidatesTokenCount ?? 0) + (m.thoughtsTokenCount ?? 0),
     thinkTok: m.thoughtsTokenCount ?? 0,
+    think,
     searches: data?.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length ?? 0,
   };
   getUsage()
@@ -159,6 +160,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
   // prefer: 간단한 작업은 설정한 모델 대신 가벼운 모델부터 (그 모델이 안 되면 나머지 모델로)
   const order = [...(opts.prefer ?? []), first, ...GEMINI_MODELS];
   const models = order.filter((m, i) => order.indexOf(m) === i);
+  let sentThink = thinkingLevel;
   const call = async (model: string) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const post = async (body: string) => {
@@ -174,9 +176,11 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
     };
     try {
       const fast = !noFastThinking.has(`${model}|${thinkingLevel}`);
+      sentThink = fast ? thinkingLevel : "none";
       const res = await post(makeBody(fast));
       if (fast && res.status === 400 && /thinking/i.test(res.text)) {
         noFastThinking.add(`${model}|${thinkingLevel}`);
+        sentThink = "none";
         return await post(makeBody(false));
       }
       return res;
@@ -211,7 +215,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
     throw new GeminiError(`Gemini 오류 (${r.status})${detail ? `: ${detail}` : ""}`);
   }
   const data = JSON.parse(r.text);
-  if (opts.kind) recordUsage(opts.kind, trace[trace.length - 1]?.model ?? first, data);
+  if (opts.kind) recordUsage(opts.kind, trace[trace.length - 1]?.model ?? first, sentThink, data);
   const text: string | undefined = data?.candidates?.[0]?.content?.parts
     ?.filter((p: { thought?: boolean }) => !p.thought)
     .map((p: { text?: string }) => p.text ?? "")
