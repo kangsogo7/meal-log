@@ -130,16 +130,15 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
 async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind } = {}): Promise<{ value: T; sources: WebSource[] }> {
   const apiKey = cleanKey(settings.geminiKey);
   if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
-  // 생각 토큰도 출력 값으로 돈이 나가서 "생각하기"를 줄임: 검색 없는 요청은 최소, 검색 요청은 적게
-  // (모델이 이 설정을 모르면 빼고 다시 보냄)
-  const thinkingLevel = opts.search ? "low" : "minimal";
+  // 생각 토큰도 출력 값으로 돈이 나가서 검색 없는 요청은 "생각하기"를 최소로 (모델이 이 설정을 모르면 빼고 다시 보냄)
+  // 검색 요청은 붙이지 않음: 하이드로젠이 검색과 thinkingLevel을 같이 받지 않아 400 → 다시 보내느라 더 느려짐 (2026-11-16 확인)
+  const thinkingLevel = "minimal";
   const makeBody = (fastThinking: boolean) =>
     JSON.stringify(
       opts.search
         ? {
             contents: [{ role: "user", parts: [...parts, { text: `\n답은 다른 말 없이 아래 JSON 스키마에 맞는 JSON 하나만 출력해.\n${JSON.stringify(schema)}` }] }],
             tools: [{ google_search: {} }],
-            ...(fastThinking ? { generationConfig: { thinkingConfig: { thinkingLevel } } } : {}),
           }
         : {
             contents: [{ role: "user", parts }],
@@ -160,7 +159,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
   // prefer: 간단한 작업은 설정한 모델 대신 가벼운 모델부터 (그 모델이 안 되면 나머지 모델로)
   const order = [...(opts.prefer ?? []), first, ...GEMINI_MODELS];
   const models = order.filter((m, i) => order.indexOf(m) === i);
-  let sentThink = thinkingLevel;
+  let sentThink = opts.search ? "기본" : thinkingLevel;
   const call = async (model: string) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const post = async (body: string) => {
@@ -175,8 +174,8 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       return out;
     };
     try {
-      const fast = !noFastThinking.has(`${model}|${thinkingLevel}`);
-      sentThink = fast ? thinkingLevel : "none";
+      const fast = !opts.search && !noFastThinking.has(`${model}|${thinkingLevel}`);
+      if (!opts.search) sentThink = fast ? thinkingLevel : "none";
       const res = await post(makeBody(fast));
       // 생각 설정을 붙인 요청이 400이면 (오류 문구에 thinking이 없어도) 설정을 빼고 한 번 더
       if (fast && res.status === 400 && !/API key|API_KEY/i.test(res.text)) {
