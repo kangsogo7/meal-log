@@ -52,7 +52,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
     runInBackground(
       KEY,
       async () => {
-        const [image, small] = await Promise.all([imageToBase64(file, 1280), imageToBase64(file, 320)]);
+        const [image, small] = await Promise.all([imageToBase64(file, 1024), imageToBase64(file, 320)]);
         const result = await analyzeFoodPhoto(settings, image, note);
         if (!open) return;
         await setKV(KEY, { at: Date.now(), preview: `data:${small.mimeType};base64,${small.data}`, result } satisfies Saved);

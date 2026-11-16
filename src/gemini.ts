@@ -26,7 +26,7 @@ export const AI_KIND_LABEL: Record<AiKind, string> = {
   weekly: "주간 한마디",
 };
 /** 성공한 호출 1번: 입력·출력(생각 포함) 토큰, 구글 검색 횟수 */
-export interface AiUsage { at: number; kind: AiKind; model: string; inTok: number; outTok: number; searches: number }
+export interface AiUsage { at: number; kind: AiKind; model: string; inTok: number; outTok: number; thinkTok?: number; searches: number }
 const USAGE_KEY = "aiUsage";
 const USAGE_MAX = 500;
 
@@ -59,6 +59,7 @@ function recordUsage(kind: AiKind, model: string, data: { usageMetadata?: Record
     model,
     inTok: m.promptTokenCount ?? 0,
     outTok: (m.candidatesTokenCount ?? 0) + (m.thoughtsTokenCount ?? 0),
+    thinkTok: m.thoughtsTokenCount ?? 0,
     searches: data?.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length ?? 0,
   };
   getUsage()
@@ -128,13 +129,16 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
 async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind } = {}): Promise<{ value: T; sources: WebSource[] }> {
   const apiKey = cleanKey(settings.geminiKey);
   if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
-  // 검색 없는 요청은 "생각하기"를 최소로 해서 빨리 답하게 (모델이 이 설정을 모르면 빼고 다시 보냄)
+  // 생각 토큰도 출력 값으로 돈이 나가서 "생각하기"를 줄임: 검색 없는 요청은 최소, 검색 요청은 적게
+  // (모델이 이 설정을 모르면 빼고 다시 보냄)
+  const thinkingLevel = opts.search ? "low" : "minimal";
   const makeBody = (fastThinking: boolean) =>
     JSON.stringify(
       opts.search
         ? {
             contents: [{ role: "user", parts: [...parts, { text: `\n답은 다른 말 없이 아래 JSON 스키마에 맞는 JSON 하나만 출력해.\n${JSON.stringify(schema)}` }] }],
             tools: [{ google_search: {} }],
+            ...(fastThinking ? { generationConfig: { thinkingConfig: { thinkingLevel } } } : {}),
           }
         : {
             contents: [{ role: "user", parts }],
@@ -142,7 +146,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
               responseMimeType: "application/json",
               responseSchema: toGeminiSchema(schema),
               temperature: 0.2,
-              ...(fastThinking ? { thinkingConfig: { thinkingLevel: "minimal" } } : {}),
+              ...(fastThinking ? { thinkingConfig: { thinkingLevel } } : {}),
             },
           },
     );
@@ -169,10 +173,10 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       return out;
     };
     try {
-      const fast = !opts.search && !noFastThinking.has(model);
+      const fast = !noFastThinking.has(`${model}|${thinkingLevel}`);
       const res = await post(makeBody(fast));
       if (fast && res.status === 400 && /thinking/i.test(res.text)) {
-        noFastThinking.add(model);
+        noFastThinking.add(`${model}|${thinkingLevel}`);
         return await post(makeBody(false));
       }
       return res;

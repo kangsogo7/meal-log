@@ -110,6 +110,7 @@ function UsageScreen({ onClose }: { onClose: () => void }) {
         n: xs.length,
         inTok: Math.round(avg((u) => u.inTok)),
         outTok: Math.round(avg((u) => u.outTok)),
+        thinkTok: Math.round(avg((u) => u.thinkTok ?? 0)),
         searches: avg((u) => u.searches),
         krw: known.length ? known.reduce((a, c) => a + c.krw, 0) / known.length : null,
       };
@@ -127,7 +128,7 @@ function UsageScreen({ onClose }: { onClose: () => void }) {
           rows.map((r) => (
             <section key={r.k} className="key-box">
               <span className="row-between"><b>{AI_KIND_LABEL[r.k]}</b><span className="muted small">{r.n}회</span></span>
-              <span className="small">1회 평균 입력 {r.inTok.toLocaleString()} · 출력 {r.outTok.toLocaleString()} 토큰 · 구글 검색 {r.searches.toFixed(1)}번</span>
+              <span className="small">1회 평균 입력 {r.inTok.toLocaleString()} · 출력 {r.outTok.toLocaleString()}(생각 {r.thinkTok.toLocaleString()}) 토큰 · 구글 검색 {r.searches.toFixed(1)}번</span>
               <span className="small">유료였다면 1회 약 <b>{r.krw == null ? "–" : `${Math.round(r.krw).toLocaleString()}원`}</b></span>
             </section>
           ))
