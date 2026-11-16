@@ -88,7 +88,6 @@ const RENAMED: Record<string, string> = { "gemini-3.7-flash": "gemini-3.8-flash"
 // 4-hydrogen: 2026-11 출시, 정확도 비교용 (목록 맨 뒤라 다른 모델이 막혔을 때만 대신 쓰임)
 export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-hydrogen"];
 
-const LITE_MODELS = GEMINI_MODELS.filter((m) => m.endsWith("-lite"));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -443,7 +442,7 @@ export async function readInBody(settings: Settings, image: { mimeType: string; 
     required: ["date", "weight", "bodyFat", "muscle", "bmr"],
   };
   // 결과지 숫자 읽기는 간단한 작업이라 Lite 모델로 (빠르고 한도도 넉넉함)
-  return generateJson<InBodyResult>(settings, [{ inlineData: image }, { text: prompt }], schema, { prefer: LITE_MODELS, kind: "inbody" });
+  return generateJson<InBodyResult>(settings, [{ inlineData: image }, { text: prompt }], schema, { prefer: ["gemini-3.1-flash-lite"], kind: "inbody" });
 }
 
 /** API 키 확인용 */
