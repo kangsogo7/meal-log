@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, getKV, setKV, scaleNutrients, sourceLabel, type Item, type ItemSource, type Nutrients } from "../db";
 import { foodLabel, listGrams, loadFoodDb, loadProductDb, searchFoods, splitBrand, type Food } from "../foodDb";
-import { askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
+import { aiReady, askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
 import { DataNote, FoodList, FoodRow, TextInput, Btn } from "../components/ui";
@@ -232,7 +232,7 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
 
       {q && (
         <div className="results">
-          {settings.geminiKey && (
+          {aiReady(settings) && (
             <button className="result ai-row" onClick={openAi}>
               <div><b>AI에게 묻기</b></div>
               <span className="muted small">

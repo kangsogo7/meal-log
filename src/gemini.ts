@@ -70,7 +70,7 @@ function recordUsage(kind: AiKind, model: string, think: string, data: { usageMe
 }
 
 /** 마지막 요청이 어느 모델에 몇 번, 얼마나 걸렸는지 (느릴 때 원인 확인용) */
-export interface TraceStep { model: string; status: number; ms: number; search: boolean }
+export interface TraceStep { model: string; status: number; ms: number; search: boolean; server?: boolean }
 let lastTrace: TraceStep[] = [];
 export const getLastTrace = () => lastTrace;
 /** "4.2초 · gemini-3.8-flash" / 재시도가 있었으면 단계별로 */
@@ -89,6 +89,14 @@ const noFastThinking = new Set<string>();
 const RENAMED: Record<string, string> = { "gemini-3.7-flash": "gemini-3.8-flash", "gemini-3.5-flash": "gemini-3.6-flash" };
 
 // 4-hydrogen: 2026-11 출시, 정확도 비교용 (목록 맨 뒤라 다른 모델이 막혔을 때만 대신 쓰임)
+/**
+ * AI 호출 서버(functions/src/index.ts)를 쓸지. 서버를 배포하고 유료 키를 넣은 뒤 true로.
+ * true면 키를 넣지 않은 사람은 서버로, 키를 넣은 사람은 지금처럼 폰에서 바로 불러요.
+ */
+export const AI_SERVER = false;
+/** AI 기능을 쓸 수 있는지 (내 키가 있거나 서버가 켜져 있으면) */
+export const aiReady = (s: Settings) => !!s.geminiKey || AI_SERVER;
+
 export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-hydrogen"];
 
 
@@ -130,7 +138,9 @@ async function generateJson<T>(settings: Settings, parts: Part[], schema: object
 
 async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind } = {}): Promise<{ value: T; sources: WebSource[] }> {
   const apiKey = cleanKey(settings.geminiKey);
-  if (!apiKey) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
+  // 내 키가 있으면 지금처럼 폰에서 바로, 없으면 AI 호출 서버로 (서버가 켜져 있을 때만)
+  const viaServer = !apiKey && AI_SERVER;
+  if (!apiKey && !viaServer) throw new GeminiError("설정에서 Gemini API 키를 먼저 입력해 주세요.");
   // 생각 토큰도 출력 값으로 돈이 나가서 모든 요청의 "생각하기"를 low로 (모델이 거절하면 빼고 다시 보내고, 거절 이유는 사용 기록에 남김)
   // generationConfig.thinkingConfig.thinkingLevel = "LOW" (대문자) 형식으로 보냄 (2026-11-16 사용자가 제미나이에게 받은 형식)
   const thinkingLevel = "LOW";
@@ -168,13 +178,18 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const post = async (body: string) => {
       const t0 = performance.now();
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body,
-      });
-      const out = { status: res.status, text: await res.text() };
-      trace.push({ model, status: res.status, ms: Math.round(performance.now() - t0), search: !!opts.search });
+      let out: { status: number; text: string };
+      if (viaServer) {
+        out = await (await import("./aiServer")).callGeminiServer(model, body);
+      } else {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body,
+        });
+        out = { status: res.status, text: await res.text() };
+      }
+      trace.push({ model, status: out.status, ms: Math.round(performance.now() - t0), search: !!opts.search, server: viaServer });
       return out;
     };
     try {
@@ -190,6 +205,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       }
       return res;
     } catch (e) {
+      if (e instanceof Error && e.name === "ServerError") throw new GeminiError(e.message);
       const reason = e instanceof Error ? e.message : String(e);
       throw new GeminiError(`구글 서버에 연결하지 못했어요. 와이파이/데이터를 바꿔 보거나, 광고 차단 앱이 있다면 꺼 보세요. (${reason})`);
     }

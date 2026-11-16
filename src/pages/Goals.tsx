@@ -6,7 +6,7 @@ import { targetsFor } from "../share";
 import { getCheatDays } from "../cheat";
 import { getProfileHistory, lastGoalChange, saveProfile } from "../profileHistory";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
-import { GeminiError, imageToBase64, readInBody } from "../gemini";
+import { aiReady, GeminiError, imageToBase64, readInBody } from "../gemini";
 import { DateButton, Dialog, EditButton, flash, NumInput, FullScreen, Seg, Btn, BtnRow } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
@@ -290,7 +290,7 @@ function InBodyButton({ onRead }: { onRead: (r: BodyRecord) => void }) {
     <>
       <button
         disabled={busy}
-        onClick={() => (settings.geminiKey ? input.current?.click() : alert("인바디 사진을 읽으려면 설정에서 Gemini API 키를 입력해 주세요."))}
+        onClick={() => (aiReady(settings) ? input.current?.click() : alert("인바디 사진을 읽으려면 설정에서 Gemini API 키를 입력해 주세요."))}
       >
         {busy ? "읽는 중..." : "인바디 사진"}
       </button>

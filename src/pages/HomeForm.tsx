@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { db, scaleNutrients, sourceLabel, sumNutrients, ZERO, type Item, type Nutrients } from "../db";
 import { foodLabel, loadFoodDb, searchFoods, type Food } from "../foodDb";
-import { askFood, GeminiError, resolveIngredients, type MenuEstimate, type WebSource } from "../gemini";
+import { aiReady, askFood, GeminiError, resolveIngredients, type MenuEstimate, type WebSource } from "../gemini";
 import { useSettings } from "../hooks";
 import { parseLines, type ParsedLine } from "../parse";
 import { Btn, BtnRow, DataNote, flash, NumInput, revealInSheet, FullScreen, SourceLinks, NutrientEditor, TextInput } from "../components/ui";
@@ -204,7 +204,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
     try {
       const [list, prevs] = await Promise.all([loadFoodDb(), findPrev(lines.map((l) => l.name))]);
       let next = lines.map((line, i) => makeRow(line, searchFoods(list, line.name, { prefer: "ingredient", limit: 8 }), prevs[i]));
-      if (settings.geminiKey) {
+      if (aiReady(settings)) {
         try {
           next = await askAi(next);
         } catch (e) {
@@ -305,7 +305,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
           </div>
           {sugg && (
             <div className="ing-sugg">
-              {settings.geminiKey && (
+              {aiReady(settings) && (
                 <button className="ing-ai" onClick={() => setAi({ ...sugg, view: "ask", prompt: sugg.line.text, busy: false })}><b>AI에게 묻기</b><span className="muted small">검색해서 찾아 줘요</span></button>
               )}
               {sugg.prev.slice(0, 5).map((p, j) => (
@@ -410,7 +410,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
               ))}
               {openRow.ai ? (
                 <Opt on={openRow.choice === AI} label="AI 값" sub={sourceLabel({ source: "ai", via: aiSources?.length ? "web" : "guess" })} kcal={rowNutrients(choose(openRow, AI)).kcal} onClick={() => update(openRow.id, (x) => choose(x, AI))} />
-              ) : settings.geminiKey ? (
+              ) : aiReady(settings) ? (
                 <Opt on={false} label={busy ? "AI가 찾는 중..." : "AI에게 묻기"} sub="검색해서 찾아 줘요" onClick={() => !busy && askOne(openRow)} />
               ) : null}
               <Opt on={openRow.choice === MANUAL} label="숫자 직접 입력" onClick={() => update(openRow.id, (x) => choose(x, MANUAL))} />

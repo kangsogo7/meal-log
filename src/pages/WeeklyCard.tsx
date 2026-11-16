@@ -5,7 +5,7 @@ import { addDays, db, getKV, MEALS, setKV } from "../db";
 import { useProfile, useSettings, useTargetsFor } from "../hooks";
 import { GOALS, GRADE_LABEL } from "../nutrition";
 import { WeekChart } from "../components/charts";
-import { GeminiError, weeklyComment } from "../gemini";
+import { aiReady, GeminiError, weeklyComment } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { CRITERIA, CRITERIA_ORDER, evaluateDay, evaluateWeek, weekDays, weekLabel, weekStartOf, type WeekResult } from "../weekly";
 import { useCheatDays } from "../cheat";
@@ -112,7 +112,7 @@ function AiComment({ start, week, goalLabel, entries }: { start: string; week: W
   const { running: busy, error } = useJob(key);
   const fresh = saved && saved.sig === report ? saved.text : null;
 
-  if (!settings.geminiKey) return null;
+  if (!aiReady(settings)) return null;
   const run = () =>
     runInBackground(
       key,

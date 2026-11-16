@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getKV, setKV } from "../db";
-import { analyzeFoodPhoto, GeminiError, imageToBase64, type PhotoResult } from "../gemini";
+import { aiReady, analyzeFoodPhoto, GeminiError, imageToBase64, type PhotoResult } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
 import { NutrientLine, SourceLinks, TextInput, Btn } from "../components/ui";
@@ -87,7 +87,7 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
     await reset();
   };
 
-  if (!settings.geminiKey) return <p className="muted small">사진으로 분석하려면 설정에서 Gemini API 키를 먼저 입력해 주세요.</p>;
+  if (!aiReady(settings)) return <p className="muted small">사진으로 분석하려면 설정에서 Gemini API 키를 먼저 입력해 주세요.</p>;
 
   const filePicker = (
     <input ref={input} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) pick(f); }} />
