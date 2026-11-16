@@ -147,12 +147,12 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
           },
     );
 
-  // 무료 한도는 모델마다 따로라서, 한도 초과(429)면 바로 다음 모델로.
-  // 서버가 붐비면(5xx) 처음 모델은 한 번 더 기다렸다가, 그래도 안 되면 다음 모델로.
+  // 유료 키 기준: 요청이 몰리거나(429) 서버가 붐비면(5xx) 처음 모델로 잠깐 기다렸다 다시 묻고,
+  // 그래도 안 되면 다음 모델로.
   const trace: TraceStep[] = [];
   lastTrace = trace;
   const first = RENAMED[settings.geminiModel] ?? settings.geminiModel;
-  // prefer: 간단한 작업은 설정한 모델 대신 가벼운 모델부터 (한도가 차면 나머지 모델로)
+  // prefer: 간단한 작업은 설정한 모델 대신 가벼운 모델부터 (그 모델이 안 되면 나머지 모델로)
   const order = [...(opts.prefer ?? []), first, ...GEMINI_MODELS];
   const models = order.filter((m, i) => order.indexOf(m) === i);
   const call = async (model: string) => {
@@ -183,26 +183,23 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
   };
 
   let r = { status: 0, text: "" };
-  let quotaHit = false;
+  let busy = false;
   outer: for (const [i, model] of models.entries()) {
     const tries = i === 0 ? 2 : 1;
     for (let attempt = 0; attempt < tries; attempt++) {
       r = await call(model);
       if (r.status === 200) break outer;
-      if (r.status === 429) {
-        quotaHit = true;
-        continue outer;
-      }
       if (i > 0 && r.status === 404) continue outer; // 대신 쓰려던 모델이 없음
-      if (r.status < 500) break outer; // 키 오류 등은 다른 모델로 바꿔도 같음
-      await sleep(1500 * (attempt + 1));
+      if (r.status !== 429 && r.status < 500) break outer; // 키 오류 등은 다른 모델로 바꿔도 같음
+      busy = true;
+      if (attempt + 1 < tries) await sleep(1500 * (attempt + 1));
     }
   }
 
   if (r.status !== 200) {
     const detail = googleMessage(r.text);
-    if (quotaHit && (r.status === 429 || r.status >= 500 || r.status === 404))
-      throw new GeminiError("오늘 Gemini 무료 사용 한도를 모든 모델에서 다 썼어요. 직접 입력하거나 내일 다시 시도해 주세요.");
+    if (busy && (r.status === 429 || r.status >= 500 || r.status === 404))
+      throw new GeminiError("지금 AI 요청이 몰려 있어요. 잠시 후 다시 시도해 주세요.");
     if (r.status === 401 || (r.status === 400 && /API key|API_KEY/i.test(r.text))) throw new GeminiError("Gemini API 키가 올바르지 않아요. 설정에서 확인해 주세요.");
     if (r.status === 403) throw new GeminiError("Gemini API 키 권한이 없어요. 설정에서 확인해 주세요.");
     if (r.status === 404) throw new GeminiError(`모델(${settings.geminiModel})을 찾을 수 없어요. 설정에서 모델을 바꿔 주세요.`);
@@ -441,7 +438,7 @@ export async function readInBody(settings: Settings, image: { mimeType: string; 
     properties: { date: { type: "string", nullable: true }, weight: num, bodyFat: num, muscle: num, bmr: num },
     required: ["date", "weight", "bodyFat", "muscle", "bmr"],
   };
-  // 결과지 숫자 읽기는 간단한 작업이라 Lite 모델로 (빠르고 한도도 넉넉함)
+  // 결과지 숫자 읽기는 간단한 작업이라 항상 3.1 Flash-Lite로 (빠르고 가장 쌈)
   return generateJson<InBodyResult>(settings, [{ inlineData: image }, { text: prompt }], schema, { prefer: ["gemini-3.1-flash-lite"], kind: "inbody" });
 }
 
