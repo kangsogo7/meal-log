@@ -111,6 +111,7 @@ function UsageScreen({ onClose }: { onClose: () => void }) {
         inTok: Math.round(avg((u) => u.inTok)),
         outTok: Math.round(avg((u) => u.outTok)),
         thinkTok: Math.round(avg((u) => u.thinkTok ?? 0)),
+        thinkErr: [...xs].reverse().find((u) => u.thinkErr)?.thinkErr,
         think: Object.entries(xs.reduce<Record<string, number>>((a, u) => ({ ...a, [u.think ?? "기록 없음"]: (a[u.think ?? "기록 없음"] ?? 0) + 1 }), {})).map(([t, c]) => `${t === "none" ? "적용 안 됨" : t} ${c}회`).join(" · "),
         searches: avg((u) => u.searches),
         krw: known.length ? known.reduce((a, c) => a + c.krw, 0) / known.length : null,
@@ -131,6 +132,7 @@ function UsageScreen({ onClose }: { onClose: () => void }) {
               <span className="row-between"><b>{AI_KIND_LABEL[r.k]}</b><span className="muted small">{r.n}회</span></span>
               <span className="small">1회 평균 입력 {r.inTok.toLocaleString()} · 출력 {r.outTok.toLocaleString()}(생각 {r.thinkTok.toLocaleString()}) 토큰 · 구글 검색 {r.searches.toFixed(1)}번</span>
               <span className="small muted">생각 수준: {r.think}</span>
+              {r.thinkErr && <span className="small muted">거절 이유: {r.thinkErr}</span>}
               <span className="small">유료였다면 1회 약 <b>{r.krw == null ? "–" : `${Math.round(r.krw).toLocaleString()}원`}</b></span>
             </section>
           ))
