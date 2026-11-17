@@ -240,6 +240,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
     if (busy && (r.status === 429 || r.status >= 500 || r.status === 404))
       throw new GeminiError("지금 AI 요청이 몰려 있어요. 잠시 후 다시 시도해 주세요.");
     if (r.status === 401 || (r.status === 400 && /API key|API_KEY/i.test(r.text))) throw new GeminiError("Gemini API 키가 올바르지 않아요. 설정에서 확인해 주세요.");
+    if (r.status === 402) throw new GeminiError("AI 결제 잔액이 없어요. AI Studio에서 크레딧을 충전해 주세요.");
     if (r.status === 403) throw new GeminiError("Gemini API 키 권한이 없어요. 설정에서 확인해 주세요.");
     if (r.status === 404) throw new GeminiError(`모델(${settings.geminiModel})을 찾을 수 없어요. 설정에서 모델을 바꿔 주세요.`);
     if (r.status >= 500) throw new GeminiError("구글 Gemini 서버가 지금 붐벼요. 잠시 후 다시 시도해 주세요.");
