@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WidgetKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -40,5 +41,62 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                                           sessionRole: connectingSceneSession.role)
         config.delegateClass = SceneDelegate.self
         return config
+    }
+}
+
+// ---------- 홈 화면 위젯 연결 ----------
+// 앱(웹 코드) ↔ 위젯: 같은 App Group 저장소에 오늘 상태(state)와 위젯에서 누른 것(pending)을 둠
+
+let widgetAppGroup = "group.com.kangsogo7.mealmanager"
+
+/** 웹 코드의 registerPlugin("WidgetBridge")와 연결 (안드로이드와 같은 이름·함수) */
+@objc(WidgetBridgePlugin)
+public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "WidgetBridgePlugin"
+    public let jsName = "WidgetBridge"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "update", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "takePending", returnType: CAPPluginReturnPromise),
+    ]
+    private var store: UserDefaults? { UserDefaults(suiteName: widgetAppGroup) }
+
+    /** 오늘 상태 저장 후 위젯 다시 그리기. 위젯에서 눌렀는데 앱이 아직 못 가져간 물은 더해서 저장 */
+    @objc func update(_ call: CAPPluginCall) {
+        var state = call.getString("state") ?? ""
+        if let data = state.data(using: .utf8),
+           var obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           var water = obj["water"] as? [String: Any],
+           let date = obj["date"] as? String {
+            let extra = pendingList()
+                .filter { ($0["type"] as? String) == "water" && ($0["date"] as? String) == date }
+                .reduce(0.0) { $0 + (($1["ml"] as? NSNumber)?.doubleValue ?? 0) }
+            if extra > 0 {
+                water["ml"] = ((water["ml"] as? NSNumber)?.doubleValue ?? 0) + extra
+                obj["water"] = water
+                if let out = try? JSONSerialization.data(withJSONObject: obj), let s = String(data: out, encoding: .utf8) { state = s }
+            }
+        }
+        store?.set(state, forKey: "state")
+        WidgetCenter.shared.reloadAllTimelines()
+        call.resolve()
+    }
+
+    /** 위젯에서 누른 것들을 넘기고 비움 */
+    @objc func takePending(_ call: CAPPluginCall) {
+        let raw = store?.string(forKey: "pending") ?? "[]"
+        store?.set("[]", forKey: "pending")
+        call.resolve(["actions": raw])
+    }
+
+    private func pendingList() -> [[String: Any]] {
+        guard let data = (store?.string(forKey: "pending") ?? "[]").data(using: .utf8) else { return [] }
+        return (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
+    }
+}
+
+/** 앱 화면: Capacitor 기본 화면에 위젯 연결 플러그인을 붙임 */
+class MainViewController: CAPBridgeViewController {
+    override open func capacitorDidLoad() {
+        bridge?.registerPluginInstance(WidgetBridgePlugin())
     }
 }

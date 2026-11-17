@@ -9,7 +9,7 @@ import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isN
 import {
   addComment, afterMembershipChange, createGroup, createMe, deleteComment, joinGroup, leaveGroup, loadMe, renameGroup, renameMe,
   getMyPhoto, makePhoto, setMyPhoto, watchComments, watchGroup, watchGroupDay, watchGroups, watchGroupWeek, watchMemberDay, watchMemberWeek, watchTodayCount,
-  CHALLENGE_KINDS, challengeActive, challengeDone, challengeEnd, challengeLeft, challengeRule, startChallenge, stopChallenge, watchChallengeDays,
+  CHALLENGE_KINDS, challengeActive, challengeEnd, challengePhase, challengeStats, type Cell, challengeLeft, challengeRule, startChallenge, stopChallenge, watchChallengeDays,
   type Challenge, type ChallengeKind, type Comment, type Group, type Me, type SharedDay, type SharedItem, type SharedWeek,
 } from "../share";
 
@@ -798,41 +798,6 @@ function Comments({ me, gid, kind, id, owner, meal, list, placeholder = "댓글 
 }
 
 // ---------- 챌린지 ----------
-
-type Cell = "done" | "miss" | "today" | "future";
-
-/** 멤버 한 명의 챌린지 진행: 하루 한 칸, 지난 날 수(오늘 포함), 달성한 날 수, 지금까지 연속 */
-function challengeStats(c: Challenge, days: SharedDay[], uid: string) {
-  const today = todayStr();
-  const dates = Array.from({ length: c.days }, (_, i) => addDays(c.start, i));
-  const cells: Cell[] = dates.map((d) => {
-    if (d > today) return "future";
-    if (challengeDone(c.kind, days.find((x) => x.uid === uid && x.date === d))) return "done";
-    return d === today ? "today" : "miss";
-  });
-  const past = cells.filter((x) => x !== "future");
-  // 오늘은 아직 진행 중이라 못 채웠어도 연속이 끊긴 걸로 보지 않음
-  const closed = past[past.length - 1] === "today" ? past.slice(0, -1) : past;
-  let streak = 0;
-  for (let i = closed.length - 1; i >= 0 && closed[i] === "done"; i--) streak++;
-  return {
-    cells,
-    passed: past.length,
-    done: cells.filter((x) => x === "done").length,
-    streak,
-    todayDoc: days.find((x) => x.uid === uid && x.date === today),
-    todayIn: dates.includes(today),
-  };
-}
-
-/** "6일째 / 14일" · "내일 시작" · "끝남" */
-function challengePhase(c: Challenge) {
-  const today = todayStr();
-  if (today < c.start) return "내일 시작";
-  if (today > challengeEnd(c)) return "끝남";
-  const nth = Array.from({ length: c.days }, (_, i) => addDays(c.start, i)).indexOf(today) + 1;
-  return `${nth}일째 / ${c.days}일`;
-}
 
 const md = (d: string) => `${Number(d.slice(5, 7))}.${Number(d.slice(8, 10))}`;
 

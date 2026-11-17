@@ -12,7 +12,7 @@ name: iOS app
 on:
   push:
     branches: [main]
-    paths: ["ios/**", "src/**", "package*.json", "capacitor.config.ts", ".github/workflows/ios.yml"]
+    paths: ["ios/**", "src/**", "package*.json", "capacitor.config.ts", ".github/workflows/ios.yml", ".github/scripts/**"]
   workflow_dispatch:
 
 concurrency:
@@ -36,6 +36,12 @@ jobs:
       - run: npm ci
       - run: npm run build:native
       - run: npx cap sync ios
+
+      # 홈 화면 위젯(ios/App/MealWidget)을 Xcode 프로젝트에 붙임 (Mac이 없어 여기서)
+      - name: 위젯 타깃 추가
+        run: |
+          gem list -i xcodeproj >/dev/null || sudo gem install xcodeproj --no-document
+          ruby .github/scripts/add_widget_target.rb ios/App/App.xcodeproj
 
       - name: 빌드 확인 (서명 없음)
         if: env.ASC_KEY_ID == ''

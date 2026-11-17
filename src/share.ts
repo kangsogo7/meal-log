@@ -141,6 +141,65 @@ export async function stopChallenge(g: Group) {
 }
 
 /** 챌린지 기간의 멤버 기록 전부 */
+export type Cell = "done" | "miss" | "today" | "future";
+
+/** 멤버 한 명의 챌린지 진행: 하루 한 칸, 지난 날 수(오늘 포함), 달성한 날 수, 지금까지 연속 */
+export function challengeStats(c: Challenge, days: SharedDay[], uid: string) {
+  const today = todayStr();
+  const dates = Array.from({ length: c.days }, (_, i) => addDays(c.start, i));
+  const cells: Cell[] = dates.map((d) => {
+    if (d > today) return "future";
+    if (challengeDone(c.kind, days.find((x) => x.uid === uid && x.date === d))) return "done";
+    return d === today ? "today" : "miss";
+  });
+  const past = cells.filter((x) => x !== "future");
+  // 오늘은 아직 진행 중이라 못 채웠어도 연속이 끊긴 걸로 보지 않음
+  const closed = past[past.length - 1] === "today" ? past.slice(0, -1) : past;
+  let streak = 0;
+  for (let i = closed.length - 1; i >= 0 && closed[i] === "done"; i--) streak++;
+  return {
+    cells,
+    passed: past.length,
+    done: cells.filter((x) => x === "done").length,
+    streak,
+    todayDoc: days.find((x) => x.uid === uid && x.date === today),
+    todayIn: dates.includes(today),
+  };
+}
+
+/** "6일째 / 14일" · "내일 시작" · "끝남" */
+export function challengePhase(c: Challenge) {
+  const today = todayStr();
+  if (today < c.start) return "내일 시작";
+  if (today > challengeEnd(c)) return "끝남";
+  const nth = Array.from({ length: c.days }, (_, i) => addDays(c.start, i)).indexOf(today) + 1;
+  return `${nth}일째 / ${c.days}일`;
+}
+
+/** 아이폰 챌린지 위젯용: 내 그룹 중 진행 중인 챌린지 하나의 멤버별 현황 (한 번만 읽음) */
+export interface WidgetChallenge { name: string; phase: string; members: { name: string; me: boolean; done: number; passed: number; today: boolean | null }[] }
+export async function challengeForWidget(): Promise<WidgetChallenge | null> {
+  const me = await loadMe();
+  if (!me) return null;
+  const snap = await getDocs(query(collection(fs, "groups"), where("members", "array-contains", me.uid)));
+  const g = snap.docs.map((d) => toGroup(d.id, d.data())).filter((x) => challengeActive(x.challenge)).sort((a, b) => a.name.localeCompare(b.name))[0];
+  const c = g?.challenge;
+  if (!g || !c) return null;
+  const days = (await getDocs(query(collection(fs, "groups", g.id, "days"), where("date", ">=", c.start), where("date", "<=", challengeEnd(c))))).docs.map(
+    (d) => ({ ...(d.data() as Omit<SharedDay, "id">), id: d.id }),
+  );
+  // 나를 맨 위에, 나머지는 이름순
+  const order = [...g.members].sort((a, b) => Number(b === me.uid) - Number(a === me.uid) || (g.names[a] ?? "").localeCompare(g.names[b] ?? "", "ko"));
+  return {
+    name: c.name,
+    phase: challengePhase(c),
+    members: order.map((uid) => {
+      const s = challengeStats(c, days, uid);
+      return { name: g.names[uid] ?? "멤버", me: uid === me.uid, done: s.done, passed: s.passed, today: s.todayIn ? s.cells[s.passed - 1] === "done" : null };
+    }),
+  };
+}
+
 export function watchChallengeDays(gid: string, c: Challenge, cb: (list: SharedDay[]) => void): Unsubscribe {
   return onSnapshot(query(collection(fs, "groups", gid, "days"), where("date", ">=", c.start), where("date", "<=", challengeEnd(c))), (snap) =>
     cb(snap.docs.map((d) => ({ ...(d.data() as Omit<SharedDay, "id">), id: d.id }))),
