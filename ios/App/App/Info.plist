@@ -84,7 +84,7 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>건강 앱에 데이터를 쓰지 않아요.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>음식, 인바디 결과지, 그룹 사진을 찍어 기록할 때 카메라를 사용해요.</string>
+	<string>음식, 인바디 결과지, 그룹 사진, 제품 바코드를 찍어 기록할 때 카메라를 사용해요.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>앨범에 있는 음식, 인바디 결과지 사진을 골라 기록할 때 사용해요.</string>
 </dict>

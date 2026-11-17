@@ -32,7 +32,8 @@ export const EXTRAS = [
 ] as const;
 export type ExtraKey = (typeof EXTRAS)[number]["key"];
 
-export type ItemSource = "db" | "ai" | "manual" | "saved";
+/** off = Open Food Facts, shared = 다른 사용자가 공유한 음식 */
+export type ItemSource = "db" | "ai" | "manual" | "saved" | "off" | "shared";
 
 /** 한 끼 기록 안의 음식/식재료 한 줄 */
 export interface Item {
@@ -51,6 +52,8 @@ export function sourceLabel(i: { source: ItemSource; via?: Item["via"] }): strin
   if (i.source === "db") return "식약처";
   if (i.source === "saved") return "내 기록";
   if (i.source === "manual") return "직접 입력";
+  if (i.source === "off") return "Open Food Facts";
+  if (i.source === "shared") return "공유";
   return i.via === "label" ? "포장지" : i.via === "web" ? "AI 검색" : i.via === "photo" || i.via === "guess" ? "AI 추정" : "AI";
 }
 

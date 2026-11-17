@@ -22,6 +22,9 @@ export interface Food {
   /** 프랜차이즈 영양 표시에 탄수화물·지방이 없어서(의무 표시 항목이 아님) 추정값으로 채운 메뉴 */
   partial: boolean;
   norm: string;
+  /** Open Food Facts 제품 (바코드) */
+  off?: boolean;
+  code?: string;
 }
 
 let foods: Food[] | null = null;
@@ -188,6 +191,73 @@ export function loadProductDb(): Promise<Food[]> {
       throw e;
     });
   return productsLoading;
+}
+
+// ---------- Open Food Facts (한국 판매 제품, 처음 쓸 때만 받음) ----------
+let offList: Promise<Food[]> | null = null;
+
+const offRow = (r: (string | number)[]): Food | null => {
+  const [name, brand, kcal, carb, protein, fat, sugar, sodium, serving, pkg, satFat = -1, fiber = -1, trans = -1, code] = r as [
+    string, string, number, number, number, number, number, number, number, number, number, number, number, string,
+  ];
+  if (!kcal) return null;
+  return {
+    name, kind: 2, brand, serving, pkg, group: "", off: true, code,
+    per100: { kcal, carb, protein, fat, sugar, sodium, ...extras(fat, satFat, fiber, trans) },
+    partial: false, norm: norm(name),
+  };
+};
+
+export function loadOffDb(): Promise<Food[]> {
+  offList ??= fetch(`${import.meta.env.BASE_URL}off-db.json`)
+    .then((r) => {
+      if (!r.ok) throw new Error("Open Food Facts DB를 불러오지 못했어요");
+      return r.json();
+    })
+    .then((d: { products: (string | number)[][] }) => d.products.map(offRow).filter((f): f is Food => !!f))
+    .catch((e) => {
+      offList = null;
+      throw e;
+    });
+  return offList;
+}
+
+/** 시판 제품 전체: 식약처 제품 + Open Food Facts (같이 순위를 매기려고 한 목록으로) */
+let allProducts: Promise<Food[]> | null = null;
+export function loadAllProducts(): Promise<Food[]> {
+  allProducts ??= Promise.all([loadProductDb(), loadOffDb().catch(() => [] as Food[])]).then(([a, b]) => {
+    const names = new Set(a.map((x) => x.norm));
+    return [...a, ...b.filter((x) => !names.has(x.norm))];
+  });
+  allProducts.catch(() => (allProducts = null));
+  return allProducts;
+}
+
+/** 바코드로 제품 찾기: 받아 둔 목록에 없으면 Open Food Facts에 바로 물어봄. 없으면 null */
+export async function findBarcode(code: string): Promise<Food | null> {
+  const local = (await loadOffDb().catch(() => [] as Food[])).find((f) => f.code === code);
+  if (local) return local;
+  const r = await fetch(
+    `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=code,product_name,product_name_ko,brands,nutriments,serving_quantity,product_quantity`,
+  );
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error("바코드 조회에 실패했어요. 잠시 뒤 다시 해 주세요.");
+  const d = await r.json();
+  const p = d.product;
+  if (!p) return null;
+  const nu = p.nutriments ?? {};
+  const g = (k: string) => (typeof nu[`${k}_100g`] === "number" ? (nu[`${k}_100g`] as number) : -1);
+  let kcal = g("energy-kcal");
+  if (kcal < 0 && g("energy") >= 0) kcal = g("energy") / 4.184;
+  const name = String(p.product_name_ko || p.product_name || "").trim();
+  if (!name || kcal <= 0) return null;
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+  const sod = g("sodium") >= 0 ? g("sodium") * 1000 : g("salt") >= 0 ? (g("salt") / 2.5) * 1000 : 0;
+  return offRow([
+    name, String(p.brands || "").split(",")[0].trim(), Math.round(kcal), r1(Math.max(0, g("carbohydrates"))), r1(Math.max(0, g("proteins"))),
+    r1(Math.max(0, g("fat"))), r1(Math.max(0, g("sugars"))), Math.round(sod), Math.round(Number(p.serving_quantity) || 0),
+    Math.round(Number(p.product_quantity) || 0), r1(g("saturated-fat")), r1(g("fiber")), r1(g("trans-fat")), code,
+  ]);
 }
 
 /** 제품 1개를 먹었을 때 기본 g: 한 번에 먹는 포장이면 포장 전체, 아니면 1회 제공량 */

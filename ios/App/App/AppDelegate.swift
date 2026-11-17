@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import WidgetKit
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -94,9 +95,123 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 }
 
-/** 앱 화면: Capacitor 기본 화면에 위젯 연결 플러그인을 붙임 */
+/** 앱 화면: Capacitor 기본 화면에 위젯 연결·바코드 플러그인을 붙임 */
 class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(WidgetBridgePlugin())
+        bridge?.registerPluginInstance(BarcodeScanPlugin())
+    }
+}
+
+// ---------- 바코드 찍기 ----------
+// 웹 코드의 registerPlugin("BarcodeScan")과 연결 (안드로이드와 같은 이름·함수). 찍으면 { code }, 닫으면 {}
+
+@objc(BarcodeScanPlugin)
+public class BarcodeScanPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "BarcodeScanPlugin"
+    public let jsName = "BarcodeScan"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise),
+    ]
+
+    @objc func scan(_ call: CAPPluginCall) {
+        AVCaptureDevice.requestAccess(for: .video) { ok in
+            DispatchQueue.main.async {
+                guard ok else {
+                    call.reject("카메라 권한이 없어요. 설정 → 식단 기록 → 카메라를 켜 주세요.")
+                    return
+                }
+                let vc = ScannerViewController()
+                vc.onDone = { code in
+                    if let code { call.resolve(["code": code]) } else { call.resolve([:]) }
+                }
+                vc.modalPresentationStyle = .fullScreen
+                self.bridge?.viewController?.present(vc, animated: true)
+            }
+        }
+    }
+}
+
+/** 전체 화면 카메라. 바코드가 보이면 바로 닫고 숫자를 넘김 */
+class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+    var onDone: ((String?) -> Void)?
+    private let session = AVCaptureSession()
+    private var finished = false
+    private var failed = false
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        guard let device = AVCaptureDevice.default(for: .video),
+              let input = try? AVCaptureDeviceInput(device: device),
+              session.canAddInput(input) else {
+            failed = true
+            return
+        }
+        session.addInput(input)
+        let output = AVCaptureMetadataOutput()
+        if session.canAddOutput(output) {
+            session.addOutput(output)
+            output.setMetadataObjectsDelegate(self, queue: .main)
+            output.metadataObjectTypes = [.ean13, .ean8, .upce, .code128].filter { output.availableMetadataObjectTypes.contains($0) }
+        }
+        let preview = AVCaptureVideoPreviewLayer(session: session)
+        preview.videoGravity = .resizeAspectFill
+        preview.frame = view.bounds
+        view.layer.addSublayer(preview)
+
+        let hint = UILabel()
+        hint.text = "바코드를 화면 가운데에 맞춰 주세요"
+        hint.textColor = .white
+        hint.font = .systemFont(ofSize: 15, weight: .medium)
+        hint.textAlignment = .center
+        hint.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(hint)
+
+        let close = UIButton(type: .system)
+        close.setTitle("닫기", for: .normal)
+        close.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
+        close.setTitleColor(.white, for: .normal)
+        close.translatesAutoresizingMaskIntoConstraints = false
+        close.addTarget(self, action: #selector(cancel), for: .touchUpInside)
+        view.addSubview(close)
+
+        NSLayoutConstraint.activate([
+            hint.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            hint.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -90),
+            close.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            close.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
+            close.widthAnchor.constraint(equalToConstant: 120),
+            close.heightAnchor.constraint(equalToConstant: 48),
+        ])
+        DispatchQueue.global(qos: .userInitiated).async { self.session.startRunning() }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if failed { finish(nil) }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        view.layer.sublayers?.compactMap { $0 as? AVCaptureVideoPreviewLayer }.forEach { $0.frame = view.bounds }
+    }
+
+    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+        guard let code = (metadataObjects.first as? AVMetadataMachineReadableCodeObject)?.stringValue else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        // UPC-A는 EAN-13 앞에 0이 붙어 나옴 → 데이터베이스 표기(12자리)로
+        finish(code.count == 13 && code.hasPrefix("0") ? String(code.dropFirst()) : code)
+    }
+
+    @objc private func cancel() { finish(nil) }
+
+    private func finish(_ code: String?) {
+        if finished { return }
+        finished = true
+        session.stopRunning()
+        let done = onDone
+        onDone = nil
+        dismiss(animated: true) { done?(code) }
     }
 }

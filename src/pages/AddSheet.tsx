@@ -28,6 +28,8 @@ export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: strin
   // 즐겨찾기·최근 메뉴에는 양 조절 전 1회 제공량으로
   const base = baseServing(d.items, d.k);
   await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: base, total: sumNutrients(base.map((i) => i.nutrients)), uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
+  // 숫자를 직접 넣어 만든 음식은 모두가 검색에서 쓰도록 올림 (실패해도 기록에는 영향 없음)
+  if (d.items.length && d.items.every((i) => i.source === "manual")) import("../publicFoods").then((m) => m.publishFood(d)).catch(() => {});
   return id as number;
 }
 

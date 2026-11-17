@@ -54,6 +54,7 @@ export async function renameMe(me: Me, name: string) {
   await setDoc(doc(fs, "users", me.uid), { name }, { merge: true });
   const groups = await getDocs(query(collection(fs, "groups"), where("members", "array-contains", me.uid)));
   await Promise.all(groups.docs.map((g) => updateDoc(g.ref, { [`names.${me.uid}`]: name })));
+  await import("./publicFoods").then((m) => m.renamePublisher(me.uid, name)).catch(() => {});
 }
 
 // ---------- 프로필 사진 ----------
