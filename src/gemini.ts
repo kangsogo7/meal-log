@@ -83,6 +83,8 @@ export function formatTrace(t: TraceStep[]) {
 
 /** 생각하기 최소 설정을 거절한 모델 (다음부터는 바로 빼고 보냄) */
 const noFastThinking = new Set<string>();
+/** 하루 요청 한도에 걸린 모델 → 다시 시도해 볼 시각 */
+const dayLimited = new Map<string, number>();
 
 // 3.7 Flash → 3.8, 3.5 Flash → 3.6으로 통합됨 (2026-10 구글 안내). 같은 모델로 다시 물어봐야 한도만 쓰므로 목록에서 뺌
 /** 없어진 모델 → 넘어간 모델 */
@@ -171,7 +173,10 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
   const first = RENAMED[settings.geminiModel] ?? settings.geminiModel;
   // prefer: 간단한 작업은 설정한 모델 대신 가벼운 모델부터 (그 모델이 안 되면 나머지 모델로)
   const order = [...(opts.prefer ?? []), first, ...GEMINI_MODELS];
-  const models = order.filter((m, i) => order.indexOf(m) === i);
+  const all = order.filter((m, i) => order.indexOf(m) === i);
+  // 오늘 하루 한도를 다 쓴 모델은 건너뜀 (다 막혔으면 전부 다시 시도)
+  const open = all.filter((m) => (dayLimited.get(m) ?? 0) < Date.now());
+  const models = open.length ? open : all;
   let sentThink: string = thinkingLevel;
   let thinkErr = "";
   const call = async (model: string) => {
@@ -221,6 +226,11 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       if (i > 0 && r.status === 404) continue outer; // 대신 쓰려던 모델이 없음
       if (r.status !== 429 && r.status < 500) break outer; // 키 오류 등은 다른 모델로 바꿔도 같음
       busy = true;
+      // 하루 한도 초과는 기다려도 안 풀리니 바로 다음 모델로, 1시간 동안 이 모델은 건너뜀
+      if (r.status === 429 && /PerDay/i.test(r.text)) {
+        dayLimited.set(model, Date.now() + 60 * 60 * 1000);
+        continue outer;
+      }
       if (attempt + 1 < tries) await sleep(1500 * (attempt + 1));
     }
   }
