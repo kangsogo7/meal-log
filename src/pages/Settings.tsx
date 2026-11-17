@@ -120,10 +120,23 @@ function UsageScreen({ onClose }: { onClose: () => void }) {
     .filter((r) => r !== null);
   const models = [...new Set(list.map((u) => u.model))];
   const since = list.length ? new Date(list[0].at) : null;
+  // 오늘 쓴 횟수와 유료였다면 든 돈 (가격 모르는 모델은 검색비만), 같은 속도로 30일 쓰면
+  const dayStart = new Date().setHours(0, 0, 0, 0);
+  const today = list.filter((u) => u.at >= dayStart);
+  const todayKrw = today.reduce((a, u) => a + usageCostKrw(u).krw, 0);
+  const todayByKind = kinds.map((k) => [k, today.filter((u) => u.kind === k).length] as const).filter(([, n]) => n);
 
   return (
     <FullScreen title="AI 사용 기록" onClose={onClose}>
       <div className="form key-screen">
+        {rows.length > 0 && (
+          <section className="key-box">
+            <span className="row-between"><b>오늘</b><span className="muted small">{today.length}회</span></span>
+            {todayByKind.length > 0 && <span className="small">{todayByKind.map(([k, n]) => `${AI_KIND_LABEL[k]} ${n}회`).join(" · ")}</span>}
+            <span className="small">유료였다면 약 <b>{Math.round(todayKrw).toLocaleString()}원</b> · 매일 이만큼 쓰면 한 달 약 {Math.round(todayKrw * 30).toLocaleString()}원</span>
+            <span className="small muted">성공한 요청만 세요. 한도에 걸려 실패한 요청은 빠져요.</span>
+          </section>
+        )}
         {!rows.length ? (
           <section className="key-box"><span className="muted small">아직 기록이 없어요. AI 검색이나 사진 분석을 쓰면 여기에 쌓여요.</span></section>
         ) : (
