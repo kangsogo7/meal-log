@@ -262,7 +262,13 @@ async function searchJson<T>(settings: Settings, parts: Part[], schema: object, 
     if (!res.value || !ok(res.value)) throw new GeminiError("형식 오류");
     return res;
   } catch {
-    return generateMeta<T>(settings, parts, schema, { kind });
+    // 검색으로 묻던 시간도 결과 아래 시간 줄에 같이 보이게
+    const first = lastTrace;
+    try {
+      return await generateMeta<T>(settings, parts, schema, { kind });
+    } finally {
+      lastTrace = [...first, ...lastTrace];
+    }
   }
 }
 
