@@ -3,10 +3,8 @@ name: Deploy Firebase rules + functions
 # firestore.rules(그룹 데이터 접근 규칙)와 functions/(AI 호출 서버)를 배포.
 # 저장소 Secrets의 FIREBASE_SERVICE_ACCOUNT(서비스 계정 키 JSON)로 로그인함.
 # AI 서버에는 Secret Manager의 GEMINI_API_KEY가 있어야 함 (없으면 함수 배포만 실패하고 규칙은 배포됨).
+# 2026-11-17: 출시 전이라 Blaze 요금제를 되돌리고 AI 서버를 지움. 서비스 계정 권한도 없어서 자동 실행은 끄고 수동으로만.
 on:
-  push:
-    branches: [main]
-    paths: ["firestore.rules", "functions/**", "firebase.json", ".github/workflows/firebase-backend.yml"]
   workflow_dispatch:
 
 permissions:
