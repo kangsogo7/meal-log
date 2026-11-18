@@ -293,9 +293,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .sheet-body:has(+ .sheet-foot) { padding-bottom: 16px; }
 .sheet-foot { display: flex; gap: 8px; padding: 10px 16px calc(10px + var(--safe-bottom)); border-top: 1px solid var(--border); }
 
-.seg { display: flex; background: var(--track); border-radius: 12px; padding: 3px; gap: 3px; margin-bottom: 12px; }
-.seg button { flex: 1; border: none; background: transparent; padding: 7px 4px; min-height: 36px; border-radius: 9px; font-size: var(--fs-sub); color: var(--muted); }
-.seg button.on { background: var(--sel-bg); color: var(--sel-ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+/* 앱 공통 탭: 회색 알약 안에 고른 칸만 흰 알약 + 굵은 글자 */
+:root { --seg-track: #ebeae7; --seg-on: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --seg-track: #2b2e35; --seg-on: #474c56; } }
+:root[data-theme="dark"] { --seg-track: #2b2e35; --seg-on: #474c56; }
+.seg { display: flex; background: var(--seg-track); border-radius: 999px; padding: 4px; gap: 4px; margin-bottom: 12px; }
+.seg button { flex: 1; border: none; background: transparent; padding: 7px 10px; min-height: 38px; border-radius: 999px; font-size: var(--fs-sub); color: var(--muted); font-weight: 600; }
+.seg button.on { background: var(--seg-on); color: var(--text); font-weight: 800; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+.seg.fit { margin: 0; }
+.seg.fit button { flex: none; padding: 7px 16px; }
 
 .form label { display: block; margin-bottom: 12px; font-size: var(--fs-sub); color: var(--muted); }
 .form label > input, .form label > select, .form label > textarea, .form label > .with-unit { margin-top: 4px; color: var(--text); }
@@ -1400,11 +1406,21 @@ input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), se
 .home-none { margin: 8px 0; text-align: center; color: var(--home-muted); font-size: 14px; }
 /* 오늘 | 주간 | 물/영양제 (오른쪽 위) */
 .view-tabs-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
-.view-tabs-row.on-home { margin: -8px -16px 0; padding: 8px 24px 0; background: var(--home-bg); }
-.view-tabs-row.on-home + .home { margin-top: 0; }
-.view-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--inset); }
-.view-tabs button { min-height: 36px; padding: 0 12px; border: none; border-radius: 999px; background: none; font-size: 14px; color: var(--muted); }
-.view-tabs button.on { background: var(--card); color: var(--text); font-weight: 700; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+.view-tabs-row { margin: -8px -16px 0; padding: 8px 16px 10px; background: var(--bg); }
+.view-tabs-row + .home { margin-top: 0; }
+/* 칼로리 옆 작은 원형 그래프 */
+.home-top { display: flex; align-items: center; gap: 8px; }
+.home-top > :first-child { flex: 1; min-width: 0; }
+.home-rings { display: flex; gap: 6px; }
+.ring { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; padding: 0; min-width: 44px; color: var(--home-muted); font-size: 11px; }
+.ring:disabled { opacity: 1; }
+.ring circle { fill: none; stroke-width: 5; }
+.ring .ring-track { stroke: var(--seg-track); }
+.home .ring .ring-track { stroke: #dcd8d0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .home .ring .ring-track { stroke: var(--seg-track); } }
+:root[data-theme="dark"] .home .ring .ring-track { stroke: var(--seg-track); }
+.ring .ring-on { stroke: var(--text); stroke-linecap: butt; }
+.ring .ring-on.over { stroke: var(--over); }
 .home-macros { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13px; color: var(--home-muted); }
 .home-macros b { color: var(--text); font-weight: 600; }
 .home-head .day-extras { margin-top: 2px; }
@@ -1420,7 +1436,7 @@ input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), se
 .home-sheet { margin-top: 18px; flex: 1; background: var(--home-sheet); border-radius: 28px 28px 0 0; padding: 12px 20px 120px; display: flex; flex-direction: column; gap: 14px; }
 .home-sheet .cheat-row { justify-content: flex-end; margin: 0; }
 .home-meal { display: flex; gap: 16px; padding: 0; border: none; border-radius: 0; background: none; color: inherit; text-align: left; }
-.hm-photo { width: 140px; height: 140px; flex: none; border-radius: 18px; object-fit: cover; background: var(--home-photo); }
+.hm-photo { width: 100px; height: 100px; flex: none; border-radius: 18px; object-fit: cover; background: var(--home-photo); }
 .hm-photo.none { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 12px; text-align: center; font-size: 15px; overflow: hidden; }
 .hm-photo.none b { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .hm-info { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; min-width: 0; }

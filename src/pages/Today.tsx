@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, EXTRAS, KIND_LABEL, MEALS, photoKey, setMealPhoto, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { Btn, BtnRow, DateButton, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput } from "../components/ui";
+import { Btn, BtnRow, DateButton, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
+import Ring from "../components/Ring";
+import { useDayCheck, useHydration, useSupplements } from "../checks";
 import CameraScreen from "../components/CameraScreen";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
@@ -154,6 +156,13 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const total = sumNutrients(entries.map((e) => e.total));
   const remain = target ? target.kcal - total.kcal : 0;
   const meal = openMeal ? MEALS.find((m) => m.key === openMeal)! : null;
+  // 물·영양제 원형 그래프
+  const hyd = useHydration();
+  const supps = useSupplements();
+  const dayCheck = useDayCheck(date);
+  const cups = Math.max(1, Math.ceil(hyd.goalMl / hyd.cupMl));
+  const filled = Math.floor(dayCheck.waterMl / hyd.cupMl);
+  const suppTaken = supps.filter((s) => dayCheck.supps[s.id]).length;
   // 분석 중에 앱이 닫혔던 사진 기록은 다시 분석
   useEffect(() => { resumePhotoMeals(); }, []);
   const removePhoto = async (m: Meal) => {
@@ -164,12 +173,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
 
   return (
     <>
-      <div className={`view-tabs-row ${view === "today" ? "on-home" : ""}`}>
-        <div className="view-tabs" role="tablist" aria-label="보기">
-          {([["today", "오늘"], ["week", "주간"], ["checks", "물/영양제"]] as const).map(([k, label]) => (
-            <button key={k} role="tab" aria-selected={view === k} className={view === k ? "on" : ""} onClick={() => setView(k)}>{label}</button>
-          ))}
-        </div>
+      <div className="view-tabs-row">
+        <Seg className="fit" label="보기" value={view} onChange={setView} options={[{ key: "today", label: "오늘" }, { key: "week", label: "주간" }, { key: "checks", label: "물/영양제" }]} />
       </div>
       {view !== "today" && <DateNav date={date} onChange={setDate} />}
       {view === "today" && (
@@ -179,11 +184,20 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
               <DateButton className="home-date-btn" value={date} onChange={setDate}>{longDate(date)}</DateButton>
               {date !== todayStr() && <button className="chip" onClick={() => setDate(todayStr())}>오늘</button>}
             </div>
-            <div className="home-kcal">
-              <b>{Math.round(total.kcal).toLocaleString()}</b>
-              <span>{target ? `/ ${target.kcal.toLocaleString()} kcal` : "kcal"}</span>
+            <div className="home-top">
+              <div>
+                <div className="home-kcal">
+                  <b>{Math.round(total.kcal).toLocaleString()}</b>
+                  <span>{target ? `/ ${target.kcal.toLocaleString()} kcal` : "kcal"}</span>
+                </div>
+                {target && <div className={`home-remain ${remain < 0 ? "over" : ""}`}>{Math.abs(Math.round(remain)).toLocaleString()} kcal {remain >= 0 ? "남음" : "초과"}</div>}
+              </div>
+              <div className="home-rings">
+                <Ring label="칼로리" value={total.kcal} max={target?.kcal ?? 0} over={remain < 0} />
+                <Ring label="물" value={filled} max={cups} steps={cups} onClick={() => setView("checks")} />
+                <Ring label="영양제" value={suppTaken} max={supps.length} steps={supps.length} onClick={() => setView("checks")} />
+              </div>
             </div>
-            {target && <div className={`home-remain ${remain < 0 ? "over" : ""}`}>{Math.abs(Math.round(remain)).toLocaleString()} kcal {remain >= 0 ? "남음" : "초과"}</div>}
             <div className="home-macros">
               {([["carb", "탄"], ["protein", "단"], ["fat", "지"]] as const).map(([k, label]) => (
                 <span key={k}>{label} <b className={target && total[k] > target[k] * 1.05 ? "over-text" : ""}>{Math.round(total[k])}</b>{target ? `/${Math.round(target[k])}g` : "g"}</span>
