@@ -1395,11 +1395,16 @@ input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), se
 .home-kcal { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .home-kcal b { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
 .home-kcal span { font-size: 15px; color: var(--home-muted); }
-.home-kcal .home-remain { margin-left: auto; font-size: 14px; color: var(--text); font-weight: 600; }
-.home-kcal .home-remain.over { color: var(--over); }
-.home-bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; margin-top: 4px; }
-.home-bar i { display: block; height: 100%; border-radius: 3px; background: var(--text); }
-.home-bar i.over { background: var(--over); }
+.home-remain { margin-top: -4px; font-size: 15px; color: var(--text); font-weight: 600; }
+.home-remain.over { color: var(--over); }
+.home-none { margin: 8px 0; text-align: center; color: var(--home-muted); font-size: 14px; }
+/* 오늘 | 주간 | 물/영양제 (오른쪽 위) */
+.view-tabs-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.view-tabs-row.on-home { margin: -8px -16px 0; padding: 8px 24px 0; background: var(--home-bg); }
+.view-tabs-row.on-home + .home { margin-top: 0; }
+.view-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--inset); }
+.view-tabs button { min-height: 36px; padding: 0 12px; border: none; border-radius: 999px; background: none; font-size: 14px; color: var(--muted); }
+.view-tabs button.on { background: var(--card); color: var(--text); font-weight: 700; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .home-macros { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13px; color: var(--home-muted); }
 .home-macros b { color: var(--text); font-weight: 600; }
 .home-head .day-extras { margin-top: 2px; }
