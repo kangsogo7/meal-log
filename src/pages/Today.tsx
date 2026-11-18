@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { addDays, db, EXTRAS, KIND_LABEL, MEALS, photoKey, setMealPhoto, sumNutrients, todayStr, type Entry, type Meal } from "../db";
+import { addDays, db, EXTRAS, KIND_LABEL, MEALS, photoKey, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
 import { Btn, BtnRow, DateButton, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
 import Ring from "../components/Ring";
 import { useDayCheck, useHydration, useSupplements } from "../checks";
 import CameraScreen from "../components/CameraScreen";
-import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
+import { evaluateMeal, GRADE_LABEL, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
@@ -119,11 +119,11 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const [view, setView] = useState<"today" | "week" | "checks">("today");
   const [saveSet, setSaveSet] = useState<{ label: string; list: Entry[] } | null>(null);
   // 끼니 타일을 누르면 그 끼니 기록을 시트로
-  const [openMeal, setOpenMeal] = useState<Meal | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
   // 물·영양제 창 (알림을 눌러 들어오면 오늘 날짜로 열기)
   const [checksOpen, setChecksOpen] = useState(false);
   // 사진 찍기: new = + 버튼(찍고 기록), 끼니 = 그 끼니 사진 바꾸기
-  const [cam, setCam] = useState<"new" | Meal | null>(null);
+  const [cam, setCam] = useState<"new" | number | null>(null);
   const [addPhoto, setAddPhoto] = useState<Blob | null>(null);
   const photos = useMealPhotos(date);
   // 끼니 사진(예전 방식) · 기록마다 사진(사진으로 바로 기록)
@@ -157,7 +157,11 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const entries = useLiveQuery(() => db.entries.where("date").equals(date).sortBy("createdAt"), [date], []);
   const total = sumNutrients(entries.map((e) => e.total));
   const remain = target ? target.kcal - total.kcal : 0;
-  const meal = openMeal ? MEALS.find((m) => m.key === openMeal)! : null;
+  // 기록 사진: 기록마다 사진, 없으면 예전 끼니 사진을 그 끼니의 사진 없는 첫 기록에
+  const legacyOf = (m: Meal) => entries.find((x) => x.meal === m && (!x.photo || !photos[x.photo]));
+  const photoOf = (e: Entry): { src: string; own: boolean } | null =>
+    e.photo && photos[e.photo] ? { src: photos[e.photo], own: true } : legacyOf(e.meal) === e && mealPhoto(e.meal) ? { src: mealPhoto(e.meal)!, own: false } : null;
+  const opened = openId != null ? entries.find((e) => e.id === openId) ?? null : null;
   // 물·영양제 원형 그래프
   const hyd = useHydration();
   const supps = useSupplements();
@@ -167,11 +171,25 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const suppTaken = supps.filter((s) => dayCheck.supps[s.id]).length;
   // 분석 중에 앱이 닫혔던 사진 기록은 다시 분석
   useEffect(() => { resumePhotoMeals(); }, []);
-  const removePhoto = async (m: Meal) => {
-    const old = await db.photos.get(photoKey(date, m));
-    await db.photos.delete(photoKey(date, m));
-    if (old) flash("사진을 지웠어요", 4000, { label: "되돌리기", run: () => void db.photos.put(old) });
+  const removePhoto = async (e: Entry) => {
+    const ph = photoOf(e);
+    if (!ph) return;
+    const key = ph.own ? e.photo! : photoKey(date, e.meal);
+    const old = await db.photos.get(key);
+    await db.photos.delete(key);
+    if (ph.own) await db.entries.update(e.id!, { photo: undefined });
+    if (old) flash("사진을 지웠어요", 4000, { label: "되돌리기", run: () => void (async () => { await db.photos.put(old); if (ph.own) await db.entries.update(e.id!, { photo: key }); })() });
   };
+  const changePhoto = async (e: Entry, blob: Blob) => {
+    const ph = photoOf(e);
+    if (ph && !ph.own) await db.photos.delete(photoKey(date, e.meal));
+    if (ph?.own) await db.photos.delete(e.photo!);
+    const at = Date.now();
+    const key = `${photoKey(date, e.meal)}|${at}`;
+    await db.photos.put({ key, date, meal: e.meal, blob, at });
+    await db.entries.update(e.id!, { photo: key });
+  };
+
 
   return (
     <>
@@ -240,12 +258,11 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
               const list = entries.filter((e) => e.meal === m.key);
               const sub = sumNutrients(list.map((e) => e.total));
               const ev = target && profile && !cheat ? evaluateMeal(m.key, sub, target, profile.goal) : null;
-              // 한 끼에 여러 개면 따로따로. 예전 끼니 사진은 사진 없는 첫 기록에
-              const legacy = list.find((e) => !e.photo || !photos[e.photo]);
+              // 한 끼에 여러 개면 따로따로
               return list.map((e, i) => {
-                const src = e.photo && photos[e.photo] ? photos[e.photo] : e === legacy ? mealPhoto(m.key) : undefined;
+                const src = photoOf(e)?.src;
                 return (
-                  <button key={e.id} className="home-meal" onClick={() => setOpenMeal(m.key)}>
+                  <button key={e.id} className="home-meal" onClick={() => setOpenId(e.id!)}>
                     {src ? (
                       <img className="hm-photo" src={src} alt={`${m.label} 사진`} />
                     ) : (
@@ -274,65 +291,42 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
 
       <CheckTiles tiles={view === "checks"} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
 
-      {meal && (() => {
-        const list = entries.filter((e) => e.meal === meal.key);
-        const sub = sumNutrients(list.map((e) => e.total));
-        const ev = target && profile && list.length && !cheat ? evaluateMeal(meal.key, sub, target, profile.goal) : null;
+      {opened && (() => {
+        const e = opened;
+        const m = MEALS.find((x) => x.key === e.meal)!;
+        const ph = photoOf(e);
         return (
           <FullScreen
-            title={`${meal.icon} ${meal.label} · ${Math.round(sub.kcal).toLocaleString()}kcal`}
-            onClose={() => setOpenMeal(null)}
+            title={`${m.icon} ${m.label} · ${Math.round(e.total.kcal).toLocaleString()}kcal`}
+            onClose={() => setOpenId(null)}
             footer={
               <>
-                {list.length > 0 && <Btn onClick={() => setSaveSet({ label: meal.label, list })}>식사 세트로 저장</Btn>}
+                <Btn onClick={() => setSaveSet({ label: m.label, list: [e] })}>식사 세트로 저장</Btn>
                 <span className="spacer" />
-                <Btn kind="primary" onClick={() => { setOpenMeal(null); setAdding(meal.key); }}>+ 추가</Btn>
+                <Btn kind="primary" onClick={() => { setOpenId(null); setAdding(e.meal); }}>+ 추가</Btn>
               </>
             }
           >
             <div className="meal-photo">
-              {mealPhoto(meal.key) ? <img src={mealPhoto(meal.key)} alt={`${meal.label} 사진`} /> : null}
+              {ph ? <img src={ph.src} alt={`${m.label} 사진`} /> : null}
               <div className="meal-photo-btns">
-                <Btn onClick={() => setCam(meal.key)}>{mealPhoto(meal.key) ? "사진 바꾸기" : "사진 추가"}</Btn>
-                {mealPhoto(meal.key) && <Btn onClick={() => removePhoto(meal.key)}>사진 지우기</Btn>}
+                <Btn onClick={() => setCam(e.id!)}>{ph ? "사진 바꾸기" : "사진 추가"}</Btn>
+                {ph && <Btn onClick={() => removePhoto(e)}>사진 지우기</Btn>}
               </div>
             </div>
-            {/* 이 끼니 합계: 칼로리·탄단지·나트륨·세부 영양 */}
-            {list.length > 0 && <div className="meal-sum"><NutrientGrid n={sub} /></div>}
-            {cheat && list.length > 0 && <p className="small muted">🍕 치팅데이라 이 끼니는 평가하지 않아요</p>}
-            {ev && (
-              <div className="eval">
-                <p className="small muted"><span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span> {GOALS[profile!.goal].label} · 하루 목표의 {Math.round(MEAL_SHARE[meal.key] * 100)}% 기준</p>
-                <div className="eval-cells">
-                  {ev.cells.map((c) => (
-                    <div key={c.key} className="eval-cell">
-                      <span className="muted small">{c.label}</span>
-                      <b>{c.value}</b>
-                      <span className="muted small">하루 {Math.round(c.dayPct * 100)}%</span>
-                      <span className={`eval-word ${c.grade ?? "none"}`}>{c.word}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {list.length ? (
-              <FoodList>
-                {list.map((e) => (
-                  <FoodRow
-                    key={e.id}
-                    title={entryTitle(e)}
-                    place={e.place}
-                    sub={e.pending ? "사진 기록" : KIND_LABEL[e.kind]}
-                    n={e.total}
-                    kcal={e.total.kcal}
-                    onClick={() => (e.pending === "failed" ? analyzePhotoEntry(e.id!) : e.pending === "ai" ? undefined : setEditing(e))}
-                    trailing={<FavStar getDraft={() => entryDraft(e)} />}
-                  />
-                ))}
-              </FoodList>
-            ) : (
-              <p className="muted small">기록이 없어요</p>
-            )}
+            {/* 이 기록의 칼로리·탄단지·나트륨·세부 영양 */}
+            <div className="meal-sum"><NutrientGrid n={e.total} /></div>
+            <FoodList>
+              <FoodRow
+                title={entryTitle(e)}
+                place={e.place}
+                sub={e.pending ? "사진 기록" : KIND_LABEL[e.kind]}
+                n={e.total}
+                kcal={e.total.kcal}
+                onClick={() => (e.pending === "failed" ? analyzePhotoEntry(e.id!) : e.pending === "ai" ? undefined : setEditing(e))}
+                trailing={<FavStar getDraft={() => entryDraft(e)} />}
+              />
+            </FoodList>
           </FullScreen>
         );
       })()}
@@ -347,7 +341,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
       {adding && <AddSheet date={date} meal={adding} photo={addPhoto} restore={restore?.meal === adding ? restore : null} onClose={() => { setAdding(null); setRestore(null); setAddPhoto(null); }} />}
       {cam && (
         <CameraScreen
-          title={cam === "new" ? "카메라" : `${MEALS.find((m) => m.key === cam)!.label} 사진`}
+          title={cam === "new" ? "카메라" : "사진 바꾸기"}
           onClose={() => setCam(null)}
           onSkip={cam === "new" ? () => { setCam(null); setAddPhoto(null); setAdding(mealNow()); } : undefined}
           onPhoto={async (blob) => {
@@ -356,7 +350,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
               await recordPhotoMeal(date, meal, blob);
               flash(`${MEALS.find((m) => m.key === meal)!.label}에 기록했어요. AI가 칼로리를 찾는 중이에요`, 3000);
             } else {
-              await setMealPhoto(date, cam, blob);
+              const e = entries.find((x) => x.id === cam);
+              if (e) await changePhoto(e, blob);
             }
             setCam(null);
           }}
