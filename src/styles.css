@@ -1534,3 +1534,11 @@ button.crop-wait { border: none; background: none; width: 100%; font-size: 15px;
 .cheat-toggle.on { color: var(--text); }
 .cheat-toggle.on i { background: var(--text); }
 .cheat-toggle.on i b { transform: translateX(12px); background: var(--home-bg); }
+
+/* 왼쪽으로 밀어서 삭제 */
+.swipe { position: relative; overflow: hidden; border-radius: 18px; }
+.swipe-body { position: relative; background: var(--home-sheet, var(--bg)); touch-action: pan-y; transition: transform .2s ease; user-select: none; -webkit-user-select: none; }
+.swipe-body.drag { transition: none; }
+.swipe-body img { -webkit-user-drag: none; pointer-events: none; }
+.swipe-del { position: absolute; top: 0; right: 0; bottom: 0; border: none; border-radius: 18px; background: var(--over); color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: flex-end; padding: 0 22px; }
+.swipe-body .home-meal { width: 100%; }

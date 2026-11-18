@@ -135,11 +135,11 @@ function extractJson(text: string): string {
 /** 구글 검색에서 실제로 참고한 웹페이지 (모델이 쓴 말이 아니라 응답의 검색 근거 정보) */
 export interface WebSource { title: string; uri: string }
 
-async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind } = {}): Promise<T> {
+async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind; signal?: AbortSignal } = {}): Promise<T> {
   return (await generateMeta<T>(settings, parts, schema, opts)).value;
 }
 
-async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind } = {}): Promise<{ value: T; sources: WebSource[] }> {
+async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind; signal?: AbortSignal } = {}): Promise<{ value: T; sources: WebSource[] }> {
   const apiKey = cleanKey(settings.geminiKey);
   // 내 키가 있으면 지금처럼 폰에서 바로, 없으면 AI 호출 서버로 (서버가 켜져 있을 때만)
   const viaServer = !apiKey && AI_SERVER;
@@ -190,6 +190,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       } else {
         const res = await fetch(url, {
           method: "POST",
+          signal: opts.signal,
           headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
           body,
         });
@@ -198,6 +199,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       trace.push({ model, status: out.status, ms: Math.round(performance.now() - t0), search: !!opts.search, server: viaServer });
       return out;
     };
+    opts.signal?.throwIfAborted();
     try {
       const fast = !noFastThinking.has(`${model}|${thinkingLevel}`);
       sentThink = fast ? thinkingLevel : "none";
@@ -211,6 +213,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       }
       return res;
     } catch (e) {
+      if (opts.signal?.aborted) throw opts.signal.reason;
       if (e instanceof Error && e.name === "ServerError") throw new GeminiError(e.message);
       const reason = e instanceof Error ? e.message : String(e);
       throw new GeminiError(`구글 서버에 연결하지 못했어요. 와이파이/데이터를 바꿔 보거나, 광고 차단 앱이 있다면 꺼 보세요. (${reason})`);
@@ -233,6 +236,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
         continue outer;
       }
       if (attempt + 1 < tries) await sleep(1500 * (attempt + 1));
+      opts.signal?.throwIfAborted();
     }
   }
 
@@ -268,16 +272,17 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
 }
 
 /** 구글 검색으로 최신 공식 정보를 찾아서 답하게. 검색을 못 쓰거나 형식이 깨지면 검색 없이 */
-async function searchJson<T>(settings: Settings, parts: Part[], schema: object, ok: (r: T) => boolean, kind: AiKind): Promise<{ value: T; sources: WebSource[] }> {
+async function searchJson<T>(settings: Settings, parts: Part[], schema: object, ok: (r: T) => boolean, kind: AiKind, signal?: AbortSignal): Promise<{ value: T; sources: WebSource[] }> {
   try {
-    const res = await generateMeta<T>(settings, parts, schema, { search: true, kind });
+    const res = await generateMeta<T>(settings, parts, schema, { search: true, kind, signal });
     if (!res.value || !ok(res.value)) throw new GeminiError("형식 오류");
     return res;
-  } catch {
+  } catch (e) {
+    if (signal?.aborted) throw e;
     // 검색으로 묻던 시간도 결과 아래 시간 줄에 같이 보이게
     const first = lastTrace;
     try {
-      return await generateMeta<T>(settings, parts, schema, { kind });
+      return await generateMeta<T>(settings, parts, schema, { kind, signal });
     } finally {
       lastTrace = [...first, ...lastTrace];
     }
@@ -419,7 +424,8 @@ export interface PhotoResult {
 }
 
 /** memo: 사용자가 자유롭게 적은 설명 (가게·메뉴·사이즈·먹은 양). 적었으면 공식 메뉴 정보를 구글 검색으로 참고 */
-export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: string; data: string }, memo = ""): Promise<PhotoResult> {
+/** signal: 기록을 지우면 분석 요청을 끊음 */
+export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: string; data: string }, memo = "", signal?: AbortSignal): Promise<PhotoResult> {
   memo = memo.trim();
   const prompt = `이 사진의 영양 정보를 알려줘. ${LATEST}${memo ? `
 사용자 설명: ${memo}
@@ -452,7 +458,7 @@ export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: st
     required: ["type", "items", "note", "place"],
   };
   const parts = [{ inlineData: image }, { text: prompt }];
-  const { value: res, sources } = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length, "photo");
+  const { value: res, sources } = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length, "photo", signal);
   if (!res?.items?.length) throw new GeminiError("사진에서 음식이나 영양성분표를 찾지 못했어요. 다시 찍어 주세요.");
   return {
     type: res.type === "label" ? "label" : "food",

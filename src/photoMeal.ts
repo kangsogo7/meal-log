@@ -6,6 +6,15 @@ import { runInBackground } from "./bgJobs";
 
 export const photoJobKey = (id: number) => `photoEntry:${id}`;
 
+/** 분석 중인 기록의 요청 (기록을 지우면 끊음) */
+const running = new Map<number, AbortController>();
+
+/** 기록을 지울 때: 분석 중이면 AI 요청을 멈춤 */
+export function cancelPhotoEntry(id: number) {
+  running.get(id)?.abort(new DOMException("기록을 지웠어요", "AbortError"));
+  running.delete(id);
+}
+
 /** 사진을 끼니 사진으로 두고 "분석 중" 기록을 바로 만든 뒤 분석 시작. 만든 기록의 id */
 export async function recordPhotoMeal(date: string, meal: Meal, blob: Blob): Promise<number> {
   // 기록마다 사진 따로 (한 끼에 여러 장이어도 덮어쓰지 않음)
@@ -27,6 +36,8 @@ export function analyzePhotoEntry(id: number) {
     async () => {
       const e = await db.entries.get(id);
       if (!e) return;
+      const ctrl = new AbortController();
+      running.set(id, ctrl);
       await db.entries.update(id, { pending: "ai" });
       try {
         const settings = await getKV("settings", DEFAULT_SETTINGS);
@@ -34,7 +45,7 @@ export function analyzePhotoEntry(id: number) {
         const photo = e.photo ? await db.photos.get(e.photo) : undefined;
         if (!photo) throw new GeminiError("사진을 찾지 못했어요");
         const image = await imageToBase64(new File([photo.blob], "meal.jpg", { type: photo.blob.type || "image/jpeg" }), 1024);
-        const r = await analyzeFoodPhoto(settings, image);
+        const r = await analyzeFoodPhoto(settings, image, "", ctrl.signal);
         if (!r.items.length) throw new GeminiError("사진에서 음식을 찾지 못했어요");
         const items: Item[] = r.items.map((f) => ({
           name: f.name,
@@ -52,8 +63,11 @@ export function analyzePhotoEntry(id: number) {
           items, total: sumNutrients(items.map((i) => i.nutrients)), pending: undefined,
         });
       } catch (err) {
+        if (ctrl.signal.aborted) throw ctrl.signal.reason; // 지운 기록: 알림 없이 끝
         if (await db.entries.get(id)) await db.entries.update(id, { pending: "failed" });
         throw err;
+      } finally {
+        if (running.get(id) === ctrl) running.delete(id);
       }
     },
     { done: "사진 분석이 끝났어요", fail: (e) => (e instanceof GeminiError ? e.message : "사진을 분석하지 못했어요. 기록을 눌러 다시 해 주세요.") },

@@ -11,7 +11,8 @@ import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
-import { analyzePhotoEntry, recordPhotoMeal, resumePhotoMeals } from "../photoMeal";
+import { analyzePhotoEntry, cancelPhotoEntry, recordPhotoMeal, resumePhotoMeals } from "../photoMeal";
+import SwipeRow from "../components/SwipeRow";
 import { CheckTiles, CheckWeekCard } from "./Checks";
 import { cheatInWeek, setCheat, useCheatDays } from "../cheat";
 
@@ -182,6 +183,21 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
     if (ph.own) await db.entries.update(e.id!, { photo: undefined });
     if (old) flash("사진을 지웠어요", 4000, { label: "되돌리기", run: () => void (async () => { await db.photos.put(old); if (ph.own) await db.entries.update(e.id!, { photo: key }); })() });
   };
+  // 밀어서 삭제: AI 분석 중이면 멈추고, 기록마다 사진도 같이 지움 (되돌리기 가능)
+  const deleteEntry = async (e: Entry) => {
+    cancelPhotoEntry(e.id!);
+    const photo = e.photo ? await db.photos.get(e.photo) : undefined;
+    await db.entries.delete(e.id!);
+    if (photo) await db.photos.delete(photo.key);
+    flash("기록을 지웠어요", 4000, {
+      label: "되돌리기",
+      run: () => void (async () => {
+        if (photo) await db.photos.put(photo);
+        await db.entries.put(e);
+        if (e.pending) analyzePhotoEntry(e.id!);
+      })(),
+    });
+  };
   const changePhoto = async (e: Entry, blob: Blob) => {
     const ph = photoOf(e);
     if (ph && !ph.own) await db.photos.delete(photoKey(date, e.meal));
@@ -256,7 +272,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
               return list.map((e) => {
                 const src = photoOf(e)?.src;
                 return (
-                  <button key={e.id} className="home-meal" onClick={() => setOpenId(e.id!)}>
+                  <SwipeRow key={e.id} onDelete={() => deleteEntry(e)}>
+                  <button className="home-meal" onClick={() => setOpenId(e.id!)}>
                     {src ? (
                       <img className="hm-photo" src={src} alt={`${m.label} 사진`} />
                     ) : (
@@ -270,6 +287,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                       <span className="muted small hm-title">{src ? entryTitle(e) : "사진 없이 기록"}</span>
                     </span>
                   </button>
+                  </SwipeRow>
                 );
               });
             })}

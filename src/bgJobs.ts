@@ -35,6 +35,8 @@ function start(key: string, job: Job) {
       flash(job.done);
     })
     .catch((e) => {
+      // 사용자가 멈춘 작업(분석 중에 기록 삭제)은 알림 없이 끝
+      if (e instanceof DOMException && e.name === "AbortError") return set(key, idle);
       // 앱이 뒤로 간 사이 끊긴 요청은 오류로 보지 않고, 돌아오면 다시
       if ((wentHidden || document.hidden) && job.tries < MAX_TRIES) {
         retryOnResume.set(key, job);
