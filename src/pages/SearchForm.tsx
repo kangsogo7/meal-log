@@ -8,7 +8,7 @@ import type { PublicFood } from "../publicFoods";
 import { aiReady, askFood, formatTrace, GeminiError, getLastTrace, type MenuEstimate } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { useSettings } from "../hooks";
-import { DataNote, FoodList, FoodRow, TextInput, Btn } from "../components/ui";
+import { DataNote, FoodList, FoodRow, TextInput, Btn, flash } from "../components/ui";
 import FoodDetail from "../components/FoodDetail";
 import { makePortion, storedPortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
@@ -31,6 +31,8 @@ interface Choice {
   by?: string;
   /** 내가 모두에게 공유 중인 음식 (빼기용) */
   pubId?: string;
+  /** 이전 기록(즐겨찾기 아닌 내 기록)이면 저장 키 (지우기용) */
+  prevKey?: string;
 }
 
 const PLACEHOLDER = "음식 검색 (예: 교촌치킨 허니콤보)";
@@ -143,18 +145,19 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
         const prev = rankUserFoods(mine.map((s) => ({ s, name: s.title, place: s.place, fav: s.groupId != null, at: s.updatedAt })), q);
         // 다른 사람이 공유한 음식 (내 기록에 같은 이름이 있으면 내 것만)
         const myKeys = new Set(mine.map((s) => s.key));
-        const others = rankUserFoods(pub.filter((f) => !f.mine && !myKeys.has(f.key)).map((f) => ({ f, name: f.title, place: f.place, fav: false, at: f.at })), q).slice(0, 8);
+        // 내가 공유했지만 이전 기록에서 지운 음식도 여기 (공유 빼기를 할 수 있게)
+        const others = rankUserFoods(pub.filter((f) => !myKeys.has(f.key)).map((f) => ({ f, name: f.title, place: f.place, fav: false, at: f.at })), q).slice(0, 8);
         const myPub = new Map(pub.filter((f) => f.mine).map((f) => [f.key, f.id]));
         if (cancelled) return;
         setSplit(sp);
         setResults(found);
         setSharedHits(others.map(({ f }) => ({
           id: `pub-${f.id}`, label: `${f.place ? f.place + " " : ""}${f.title}`, title: f.title, place: f.place,
-          kind: f.kind === "out" ? "out" : "food", source: "shared", by: f.by, portion: storedPortion(f),
+          kind: f.kind === "out" ? "out" : "food", source: "shared", by: f.mine ? undefined : f.by, pubId: f.mine ? f.id : undefined, portion: storedPortion(f),
         })));
         setSavedHits(prev.map(({ s, fav }, i) => ({
           id: `saved${i}`, label: `${fav ? "★ " : "이전 기록 · "}${s.place ? s.place + " " : ""}${s.title}`, title: s.title, place: s.place,
-          kind: s.kind === "out" ? "out" : "food", source: "saved", portion: storedPortion(s), pubId: myPub.get(s.key),
+          kind: s.kind === "out" ? "out" : "food", source: "saved", portion: storedPortion(s), pubId: myPub.get(s.key), prevKey: fav ? undefined : s.key,
         })));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -183,6 +186,16 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
     } finally {
       setScanning(false);
     }
+  };
+
+  /** 이전 기록에서 지우기 (먹은 기록은 그대로, 검색·자주 먹는 목록에서만 빠짐) */
+  const removePrev = async (c: Choice) => {
+    if (!c.prevKey) return;
+    const old = await db.saved.get(c.prevKey);
+    await db.saved.delete(c.prevKey);
+    setSavedHits((l) => l.filter((h) => h.id !== c.id));
+    setChoice(null);
+    flash("이전 기록에서 지웠어요", 4000, old ? { label: "되돌리기", run: () => void db.saved.put(old) } : undefined);
   };
 
   /** 내가 공유한 음식을 모두의 검색에서 빼기 */
@@ -307,7 +320,7 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
             <ResultButton key={h.id} tag="내 기록" label={h.label} n={portionNutrients(h.portion)} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
           ))}
           {sharedHits.map((h) => (
-            <ResultButton key={h.id} tag="공유" label={h.label} n={portionNutrients(h.portion)} suffix={h.by} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
+            <ResultButton key={h.id} tag="공유" label={h.label} n={portionNutrients(h.portion)} suffix={h.by ?? "내가 공유"} selected={choice?.id === h.id} onClick={() => setChoice(h)} fav={() => toDraft(h)} />
           ))}
           {results.map((f, i) => (
             <ResultButton
@@ -338,6 +351,7 @@ export default function SearchForm({ onSave, initialQuery = "", onQueryChange, a
             onPortion={(portion, manual) => setChoice({ ...choice, portion, ...(manual ? { source: "manual" as const, via: undefined } : {}) })}
           />
           <Btn kind="primary" className="block" onClick={save}>{actionLabel}</Btn>
+          {choice.prevKey && <Btn className="block" onClick={() => removePrev(choice)}>이전 기록에서 지우기</Btn>}
           {choice.pubId && (
             <>
               <p className="muted small">직접 입력한 음식이라 모두의 검색에 공유 중이에요</p>
