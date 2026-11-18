@@ -5,6 +5,7 @@ import { Btn, BtnRow, flash, FoodList, FoodRow, Screen, Seg, Sheet, FullScreen, 
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { openSharedFood, type SharedFood } from "../foodShare";
+import { cheatEmoji } from "../cheat";
 import { androidAppLink, clearInvite, inviteLink, isAndroid, isIOS, isKakao, isNativeApp, isStandalone, kakaoExternalLink, onInvite, pendingInvite, type Invite } from "../invite";
 import {
   addComment, afterMembershipChange, createGroup, createMe, deleteComment, joinGroup, leaveGroup, loadMe, renameGroup, renameMe,
@@ -730,7 +731,7 @@ function MemberWeek({ me, gid, uid, name, week }: {
                 <span key={d.date}>
                   {DOW[i]}
                   <i className={`wd-dot ${d.status === "scored" && d.grade ? d.grade : d.status === "today" ? "today" : "none"}`} aria-hidden />
-                  <small>{d.status === "scored" ? d.score : d.status === "today" ? "오늘" : d.status === "cheat" ? "치팅" : ""}</small>
+                  <small>{d.status === "scored" ? d.score : d.status === "today" ? "오늘" : d.status === "cheat" ? <span aria-label="치팅데이">{cheatEmoji(d.date)}</span> : ""}</small>
                 </span>
               ))}
             </div>

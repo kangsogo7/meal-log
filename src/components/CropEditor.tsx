@@ -1,14 +1,8 @@
-// 사진 영역 고르기 (A안): 비율(1:1 · 4:5 · 4:3 · 원본)을 고르고, 사진을 끌어서 옮기고 두 손가락으로 크기 조절.
+// 사진 영역 고르기: 1:1 영역에 맞춰 사진을 끌어서 옮기고 두 손가락으로 크기 조절.
 // 바깥은 어둡게 덮고 3등분 격자 + 굵은 모서리. exportCrop()으로 고른 영역을 JPEG로
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export type Ratio = "1:1" | "4:5" | "4:3" | "orig";
-const RATIOS: { key: Ratio; label: string; w: number; h: number; dashed?: boolean }[] = [
-  { key: "1:1", label: "1:1", w: 16, h: 16 },
-  { key: "4:5", label: "4:5", w: 14, h: 18 },
-  { key: "4:3", label: "4:3", w: 18, h: 14 },
-  { key: "orig", label: "원본", w: 18, h: 12, dashed: true },
-];
 const PAD = 12;
 const OUT_MAX = 1440;
 
@@ -35,7 +29,8 @@ const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready
   const stage = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [img, setImg] = useState<HTMLImageElement | null>(null);
-  const [ratio, setRatio] = useState<Ratio>("1:1");
+  // 비율은 1:1로 고정 (비율 고르기 버튼은 뺌, 2026-11-18)
+  const ratio = "1:1" as Ratio;
   const [view, setView] = useState<View>({ s: 1, x: 0, y: 0 });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
 
@@ -172,14 +167,6 @@ const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready
         {!img && (src || !onEmptyTap ? <span className="crop-wait">{src ? "사진 여는 중..." : empty}</span> : <button className="crop-wait" onClick={onEmptyTap}>{empty}</button>)}
       </div>
       <div className="crop-tools">
-        <div className="crop-ratios" role="radiogroup" aria-label="비율">
-          {RATIOS.map((r) => (
-            <button key={r.key} role="radio" aria-checked={ratio === r.key} className={ratio === r.key ? "on" : ""} onClick={() => setRatio(r.key)}>
-              <i style={{ width: r.w, height: r.h, borderStyle: r.dashed ? "dashed" : "solid" }} aria-hidden />
-              {r.label}
-            </button>
-          ))}
-        </div>
         <button className="crop-icon" onClick={rotate} disabled={!img} aria-label="왼쪽으로 돌리기">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8V3M4 3h5M4 3l3.5 3.5A8 8 0 1 1 4 12" /></svg>
         </button>

@@ -9,7 +9,7 @@ import { ThemePage, TpStat } from "../components/ui";
 import { aiReady, GeminiError, weeklyComment } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { CRITERIA, CRITERIA_ORDER, evaluateDay, evaluateWeek, weekDays, weekLabel, weekStartOf, type WeekResult } from "../weekly";
-import { useCheatDays } from "../cheat";
+import { cheatEmoji, useCheatDays } from "../cheat";
 import { profileOn, useProfileHistory } from "../profileHistory";
 
 const DOW = ["월", "화", "수", "목", "금", "토", "일"];
@@ -56,7 +56,7 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
           <button key={d.date} className={`wd ${d.date === date ? "sel" : ""}`} onClick={() => onSelect(d.date)}>
             <span className="muted">{DOW[i]}</span>
             <span className={`wd-mark ${d.status === "today" ? "txt" : ""}`}>
-              {d.status === "scored" ? <i className={`wd-dot ${d.grade}`} aria-label={GRADE_LABEL[d.grade!]} /> : d.status === "today" ? "오늘" : d.status === "cheat" ? "치팅" : d.status === "none" ? "–" : ""}
+              {d.status === "scored" ? <i className={`wd-dot ${d.grade}`} aria-label={GRADE_LABEL[d.grade!]} /> : d.status === "today" ? "오늘" : d.status === "cheat" ? <span aria-label="치팅데이">{cheatEmoji(d.date)}</span> : d.status === "none" ? "–" : ""}
             </span>
             <span className="wd-score">{d.status === "scored" ? d.score : ""}</span>
           </button>

@@ -17,3 +17,10 @@ export async function setCheat(date: string, on: boolean) {
   const rest = days.filter((d) => d !== date && (!on || weekStartOf(d) !== weekStartOf(date)));
   await setKV(KEY, on ? [...rest, date].sort() : rest);
 }
+
+/** 주간 화면에서 치팅데이 표시: 치킨·햄버거·피자 중 하나 (날짜마다 정해져 있어서 화면을 다시 그려도 그대로) */
+const CHEAT_EMOJIS = ["🍗", "🍔", "🍕"];
+export function cheatEmoji(date: string): string {
+  const n = [...date].reduce((a, c) => a * 31 + c.charCodeAt(0), 7);
+  return CHEAT_EMOJIS[Math.abs(n) % CHEAT_EMOJIS.length];
+}

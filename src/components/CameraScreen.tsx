@@ -138,6 +138,9 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
   const [torch, setTorch] = useState<boolean | null>(null); // null = 플래시 없음
   const [busy, setBusy] = useState(false);
   const [cropReady, setCropReady] = useState(false);
+  // 찍은 사진 확인: 다시 촬영 / 확인
+  const [shot, setShot] = useState<{ blob: Blob; url: string } | null>(null);
+  useEffect(() => () => { if (shot) URL.revokeObjectURL(shot.url); }, [shot]);
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const crop = useRef<CropHandle>(null);
@@ -148,7 +151,7 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
 
   // 카메라 켜기 (탭·앞뒤가 바뀌면 다시)
   useEffect(() => {
-    if (tab !== "camera") return;
+    if (tab !== "camera" || shot) return;
     let stop = false;
     setError("");
     (async () => {
@@ -171,7 +174,7 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
       stream.current?.getTracks().forEach((t) => t.stop());
       stream.current = null;
     };
-  }, [tab, facing]);
+  }, [tab, facing, !!shot]);
 
   const toggleTorch = async () => {
     const t = stream.current?.getVideoTracks()[0];
@@ -189,9 +192,11 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
     if (!v || !v.videoWidth || busy) return;
     setBusy(true);
     try {
-      onPhoto(await squareJpeg(v, v.videoWidth, v.videoHeight, facing === "user"));
+      const blob = await squareJpeg(v, v.videoWidth, v.videoHeight, facing === "user");
+      setShot({ blob, url: URL.createObjectURL(blob) });
     } catch (e) {
       setError(e instanceof Error ? e.message : "사진을 찍지 못했어요");
+    } finally {
       setBusy(false);
     }
   };
@@ -209,23 +214,23 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
       <header className="cam-head">
         <button className="cam-text" onClick={onClose}>취소</button>
         <b>{tab === "album" ? "사진앨범" : title}</b>
-        {tab === "album" ? (
-          <button className="cam-text done" onClick={done} disabled={!cropReady || busy}>완료</button>
-        ) : onSkip ? (
-          <button className="cam-text" onClick={onSkip}>건너뛰기</button>
-        ) : <span />}
+        <span className="cam-right">
+          {onSkip && <button className="cam-text" onClick={onSkip}>직접 입력</button>}
+          {tab === "album" && <button className="cam-text done" onClick={done} disabled={!cropReady || busy}>완료</button>}
+        </span>
       </header>
       {tab === "camera" ? (
         <>
           <div className="cam-view">
-            {!error && <video ref={video} className={facing === "user" ? "mirror" : ""} playsInline muted autoPlay />}
+            {shot && <img className="cam-shot" src={shot.url} alt="찍은 사진" />}
+            {!error && !shot && <video ref={video} className={facing === "user" ? "mirror" : ""} playsInline muted autoPlay />}
             {error && (
               <div className="cam-empty">
                 <p>{error}</p>
                 <button className="cam-pick" onClick={() => { if (!hasLibrary()) openWebPicker(); setTab("album"); }}>사진앨범에서 고르기</button>
               </div>
             )}
-            {!error && (
+            {!error && !shot && (
               <>
                 {torch !== null && (
                   <button className={`cam-round left ${torch ? "on" : ""}`} onClick={toggleTorch} aria-label={torch ? "플래시 끄기" : "플래시 켜기"}>
@@ -239,7 +244,14 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
             )}
           </div>
           <div className="cam-shutter-area">
-            {!error && <button className="cam-shutter" onClick={shoot} disabled={busy} aria-label="사진 찍기"><i /></button>}
+            {shot ? (
+              <div className="cam-confirm">
+                <button className="cam-retake" onClick={() => setShot(null)}>다시 촬영</button>
+                <button className="cam-ok" onClick={() => onPhoto(shot.blob)}>확인</button>
+              </div>
+            ) : (
+              !error && <button className="cam-shutter" onClick={shoot} disabled={busy} aria-label="사진 찍기"><i /></button>
+            )}
           </div>
         </>
       ) : (
@@ -247,7 +259,7 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
       )}
       <nav className="cam-tabs">
         <button className={tab === "album" ? "on" : ""} onClick={() => { if (!hasLibrary()) openWebPicker(); setTab("album"); }}>사진앨범</button>
-        <button className={tab === "camera" ? "on" : ""} onClick={() => { setError(""); setCropReady(false); setTab("camera"); }}>카메라</button>
+        <button className={tab === "camera" ? "on" : ""} onClick={() => { setError(""); setCropReady(false); setShot(null); setTab("camera"); }}>카메라</button>
       </nav>
       <input ref={webInput} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setWebFile(f); }} />
     </div>,

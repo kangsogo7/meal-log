@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { addDays, db, EXTRAS, KIND_LABEL, MEALS, photoKey, sumNutrients, todayStr, type Entry, type Meal } from "../db";
+import { db, EXTRAS, KIND_LABEL, MEALS, photoKey, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
 import { Btn, BtnRow, Dialog, MealSeg, DateButton, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
 import Ring from "../components/Ring";
@@ -13,6 +13,7 @@ import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
 import { analyzePhotoEntry, cancelPhotoEntry, recordPhotoMeal, resumePhotoMeals } from "../photoMeal";
 import SwipeRow from "../components/SwipeRow";
+import HomeCalendar from "../components/HomeCalendar";
 import { CheckTiles, ChecksPage } from "./Checks";
 import { cheatInWeek, setCheat, useCheatDays } from "../cheat";
 
@@ -33,14 +34,6 @@ const longDate = (d: string) => {
 function mealNow(): Meal {
   const h = new Date().getHours() + new Date().getMinutes() / 60;
   return h < 10.5 ? "breakfast" : h < 15 ? "lunch" : h < 17.5 ? "snack" : "dinner";
-}
-
-/** 그 날짜가 있는 주 (월~일) */
-function weekOf(date: string): string[] {
-  const [y, m, d] = date.split("-").map(Number);
-  const back = (new Date(y, m - 1, d).getDay() + 6) % 7;
-  const mon = addDays(date, -back);
-  return Array.from({ length: 7 }, (_, i) => addDays(mon, i));
 }
 
 /** 날짜의 끼니 사진 → 화면에 쓸 주소 */
@@ -133,8 +126,6 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const photos = useMealPhotos(date);
   // 끼니 사진(예전 방식) · 기록마다 사진(사진으로 바로 기록)
   const mealPhoto = (m: Meal): string | undefined => photos[photoKey(date, m)];
-  const week = weekOf(date);
-  const weekDone = useLiveQuery(async () => new Set((await db.entries.where("date").between(week[0], week[6], true, true).toArray()).map((e) => e.date)), [week[0]], new Set<string>());
   useEffect(() => {
     if (!openChecks) return;
     setDate(todayStr());
@@ -256,15 +247,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
             {!target && <button className="link small" onClick={onGoToGoals}>목표 설정하기 →</button>}
           </div>
 
-          <div className="home-week">
-            {week.map((d, i) => (
-              <button key={d} className={`hw-day ${d === date ? "on" : ""} ${d > todayStr() ? "future" : ""}`} onClick={() => setDate(d)} aria-label={longDate(d)}>
-                <span>{DOWS[(i + 1) % 7]}</span>
-                <b>{Number(d.slice(8))}</b>
-                <i className={weekDone.has(d) ? "dot" : ""} aria-hidden />
-              </button>
-            ))}
-          </div>
+          <HomeCalendar date={date} onSelect={setDate} />
 
           <div className="home-sheet">
             {MEALS.filter((m) => entries.some((e) => e.meal === m.key)).flatMap((m) => {
