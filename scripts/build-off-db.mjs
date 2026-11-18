@@ -1,6 +1,7 @@
 // Open Food Facts(누구나 고칠 수 있는 공개 식품 DB)에서 한국에서 파는 제품을 받아 public/off-db.json으로 저장.
 // 이름 검색 API가 한글을 못 찾아서, 식약처 DB처럼 미리 받아 두고 기기 안에서 검색함. 바코드는 앱에서 그때그때 조회.
-// 검색 API는 1분에 10번까지라 7초 간격으로 받음 (3,500개 ≈ 4분). 사용: node scripts/build-off-db.mjs
+// 검색 API는 1분에 10번까지라 7초 간격으로 받음. 한 번에 1,000개(10쪽)까지만 넘겨 주므로 정렬을 바꿔 여러 번 받고 합침.
+// 받지 못한 쪽은 건너뛰고 받은 만큼 저장 (바코드는 앱에서 바로 조회하니 빠진 제품도 바코드로는 찾음). 사용: node scripts/build-off-db.mjs
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,32 +16,36 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const r1 = (v) => Math.round(v * 10) / 10;
 const num = (v) => (typeof v === "number" && isFinite(v) && v >= 0 ? v : typeof v === "string" && v.trim() && isFinite(+v) && +v >= 0 ? +v : -1);
 
-async function page(n) {
-  const file = join(CACHE, `${n}.json`);
+// 많이 찾는 순(기본) · 등록 순 · 최근 수정 순 · 이름 순
+const SORTS = ["", "created_t", "last_modified_t", "product_name"];
+
+async function page(sort, n) {
+  const file = join(CACHE, `${sort || "pop"}-${n}.json`);
   try {
     return { cached: true, ...JSON.parse(await readFile(file, "utf8")) };
   } catch {
     /* 아직 안 받음 */
   }
-  const url = `https://world.openfoodfacts.org/api/v2/search?countries_tags_en=south-korea&page_size=100&page=${n}&fields=${FIELDS}`;
-  for (let i = 0; i < 10; i++) {
+  const url = `https://world.openfoodfacts.org/api/v2/search?countries_tags_en=south-korea&page_size=100&page=${n}${sort ? `&sort_by=${sort}` : ""}&fields=${FIELDS}`;
+  for (let i = 0; i < 4; i++) {
     const r = await fetch(url, { headers: { "User-Agent": UA } }).catch(() => null);
     if (r?.ok) {
       const d = await r.json();
       await writeFile(file, JSON.stringify(d));
       return d;
     }
-    console.log(`  ${n}쪽 ${r?.status ?? "연결 실패"} → ${30 * (i + 1)}초 뒤 다시`);
+    console.log(`  ${sort || "기본"} ${n}쪽 ${r?.status ?? "연결 실패"} → ${30 * (i + 1)}초 뒤 다시`);
     await sleep(30000 * (i + 1));
   }
-  throw new Error(`${n}쪽을 받지 못함`);
+  console.log(`  ${sort || "기본"} ${n}쪽은 건너뜀`);
+  return null;
 }
 
 const rows = [];
 const seen = new Set();
-let total = Infinity;
-for (let n = 1; (n - 1) * 100 < total; n++) {
-  const d = await page(n);
+for (const sort of SORTS) for (let n = 1, total = Infinity; n <= 10 && (n - 1) * 100 < total; n++) {
+  const d = await page(sort, n);
+  if (!d) continue;
   total = d.count;
   for (const p of d.products) {
     const nu = p.nutriments ?? {};
@@ -59,7 +64,7 @@ for (let n = 1; (n - 1) * 100 < total; n++) {
       r1(g("saturated-fat")), r1(g("fiber")), r1(g("trans-fat")), p.code,
     ]);
   }
-  console.log(`${n}쪽 · ${rows.length}개 / 전체 ${total}`);
+  console.log(`${sort || "기본"} ${n}쪽 · ${rows.length}개 / 전체 ${total}`);
   if (!d.cached) await sleep(7000);
 }
 
