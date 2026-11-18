@@ -205,6 +205,10 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
             <div className="home-date">
               <DateButton className="home-date-btn" value={date} onChange={setDate}>{longDate(date)}</DateButton>
               {date !== todayStr() && <button className="chip" onClick={() => setDate(todayStr())}>오늘</button>}
+              <span className="spacer" />
+              <button className={`cheat-toggle ${cheat ? "on" : ""}`} role="switch" aria-checked={cheat} onClick={toggleCheat}>
+                치팅데이<i aria-hidden><b /></i>
+              </button>
             </div>
             <div className="home-top">
               <div>
@@ -212,10 +216,10 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                   <b>{Math.round(total.kcal).toLocaleString()}</b>
                   <span>{target ? `/ ${target.kcal.toLocaleString()} kcal` : "kcal"}</span>
                 </div>
-                {target && <div className={`home-remain ${remain < 0 ? "over" : ""}`}>{Math.abs(Math.round(remain)).toLocaleString()} kcal {remain >= 0 ? "남음" : "초과"}</div>}
+                {target && <div className={`home-remain ${remain < 0 && !cheat ? "over" : ""}`}>{Math.abs(Math.round(remain)).toLocaleString()} kcal {remain >= 0 ? "남음" : "초과"}</div>}
               </div>
               <div className="home-rings">
-                <Ring label="칼로리" value={total.kcal} max={target?.kcal ?? 0} over={remain < 0} />
+                <Ring label="칼로리" value={total.kcal} max={target?.kcal ?? 0} over={remain < 0 && !cheat} />
                 <Ring label="물" value={filled} max={cups} steps={cups} onClick={() => setView("checks")} />
                 <Ring label="영양제" value={suppTaken} max={supps.length} steps={supps.length} onClick={() => setView("checks")} />
               </div>
@@ -246,20 +250,10 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
           </div>
 
           <div className="home-sheet">
-            <div className="cheat-row">
-              {cheat ? (
-                <>
-                  <span className="cheat-chip">🍕 치팅데이</span>
-                  <button className="link small" onClick={toggleCheat}>해제</button>
-                </>
-              ) : (
-                <button className="link small muted-link" onClick={toggleCheat}>치팅데이로 지정</button>
-              )}
-            </div>
             {MEALS.filter((m) => entries.some((e) => e.meal === m.key)).flatMap((m) => {
               const list = entries.filter((e) => e.meal === m.key);
               // 한 끼에 여러 개면 따로따로
-              return list.map((e, i) => {
+              return list.map((e) => {
                 const src = photoOf(e)?.src;
                 return (
                   <button key={e.id} className="home-meal" onClick={() => setOpenId(e.id!)}>
@@ -271,7 +265,6 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                     <span className="hm-info">
                       <span className="hm-chips">
                         <span className="hm-chip">{m.label}</span>
-                        {i === 0 && cheat && <span className="grade-chip cheat">치팅</span>}
                       </span>
                       <b className="hm-kcal">{Math.round(e.total.kcal).toLocaleString()} kcal</b>
                       <span className="muted small hm-title">{src ? entryTitle(e) : "사진 없이 기록"}</span>
