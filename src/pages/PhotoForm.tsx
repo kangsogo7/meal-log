@@ -16,7 +16,7 @@ interface Row { on: boolean; name: string; portion: Portion }
 /** 사진 화면이 열려 있는지. 나간 뒤에 끝난 분석 결과는 버림 */
 let open = false;
 
-export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => void }) {
+export default function PhotoForm({ onSave, initial }: { onSave: (drafts: Draft[]) => void; /** 홈 + 버튼으로 찍은 끼니 사진 */ initial?: Blob | null }) {
   const settings = useSettings();
   const job = useJob(KEY);
   const saved = useLiveQuery(() => getKV<Saved | null>(KEY, null), [], null);
@@ -44,6 +44,9 @@ export default function PhotoForm({ onSave }: { onSave: (drafts: Draft[]) => voi
     setPhoto({ file, url: URL.createObjectURL(file) });
     await setKV(KEY, null); // 새 사진이면 이전 결과는 지움
   };
+  useEffect(() => {
+    if (initial) pick(new File([initial], "meal.jpg", { type: initial.type || "image/jpeg" }));
+  }, [initial]);
 
   const analyze = () => {
     if (!photo) return;

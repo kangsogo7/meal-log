@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, EXTRAS, KIND_LABEL, MEALS, sumNutrients, todayStr, type Entry, type Meal } from "../db";
+import { addDays, db, EXTRAS, KIND_LABEL, MEALS, photoKey, setMealPhoto, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { Btn, BtnRow, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
-import { SplitRing } from "../components/charts";
+import { Btn, BtnRow, DateButton, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
+import CameraScreen from "../components/CameraScreen";
 import { evaluateMeal, GOALS, GRADE_LABEL, MEAL_SHARE, SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
@@ -12,13 +12,40 @@ import WeeklyCard from "./WeeklyCard";
 import { CheckSteps, CheckTiles, CheckWeekCard } from "./Checks";
 import { cheatInWeek, setCheat, useCheatDays } from "../cheat";
 
-/** 끼니의 기록들을 식사 세트로 저장 (즐겨찾기 탭에서 한 번에 기록) */
 const DOWS = ["일", "월", "화", "수", "목", "금", "토"];
 /** "10/28(수)" */
 const mdDow = (d: string) => {
   const [y, m, day] = d.split("-").map(Number);
   return `${m}/${day}(${DOWS[new Date(y, m - 1, day).getDay()]})`;
 };
+
+/** "11월 18일 수요일" */
+const longDate = (d: string) => {
+  const [y, m, day] = d.split("-").map(Number);
+  return `${m}월 ${day}일 ${DOWS[new Date(y, m - 1, day).getDay()]}요일`;
+};
+
+/** 지금 시각으로 고르는 끼니 (+ 버튼) */
+function mealNow(): Meal {
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  return h < 10.5 ? "breakfast" : h < 15 ? "lunch" : h < 17.5 ? "snack" : "dinner";
+}
+
+/** 그 날짜가 있는 주 (월~일) */
+function weekOf(date: string): string[] {
+  const [y, m, d] = date.split("-").map(Number);
+  const back = (new Date(y, m - 1, d).getDay() + 6) % 7;
+  const mon = addDays(date, -back);
+  return Array.from({ length: 7 }, (_, i) => addDays(mon, i));
+}
+
+/** 날짜의 끼니 사진 → 화면에 쓸 주소 */
+function useMealPhotos(date: string): Partial<Record<Meal, string>> {
+  const rows = useLiveQuery(() => db.photos.where("date").equals(date).toArray(), [date], []);
+  const urls = useMemo(() => Object.fromEntries(rows.map((r) => [r.meal, URL.createObjectURL(r.blob)])) as Partial<Record<Meal, string>>, [rows]);
+  useEffect(() => () => Object.values(urls).forEach((u) => u && URL.revokeObjectURL(u)), [urls]);
+  return urls;
+}
 
 /** 끼니의 기록들을 식사 세트로 저장하는 창: 이름 + 넣을 음식 고르기 */
 function SaveSetSheet({ mealLabel, list, onClose }: { mealLabel: string; list: Entry[]; onClose: () => void }) {
@@ -89,6 +116,12 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const [openMeal, setOpenMeal] = useState<Meal | null>(null);
   // 물·영양제 창 (알림을 눌러 들어오면 오늘 날짜로 열기)
   const [checksOpen, setChecksOpen] = useState(false);
+  // 사진 찍기: new = + 버튼(찍고 기록), 끼니 = 그 끼니 사진 바꾸기
+  const [cam, setCam] = useState<"new" | Meal | null>(null);
+  const [addPhoto, setAddPhoto] = useState<Blob | null>(null);
+  const photos = useMealPhotos(date);
+  const week = weekOf(date);
+  const weekDone = useLiveQuery(async () => new Set((await db.entries.where("date").between(week[0], week[6], true, true).toArray()).map((e) => e.date)), [week[0]], new Set<string>());
   useEffect(() => {
     if (!openChecks) return;
     setDate(todayStr());
@@ -116,105 +149,107 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const total = sumNutrients(entries.map((e) => e.total));
   const remain = target ? target.kcal - total.kcal : 0;
   const meal = openMeal ? MEALS.find((m) => m.key === openMeal)! : null;
+  const removePhoto = async (m: Meal) => {
+    const old = await db.photos.get(photoKey(date, m));
+    await db.photos.delete(photoKey(date, m));
+    if (old) flash("사진을 지웠어요", 4000, { label: "되돌리기", run: () => void db.photos.put(old) });
+  };
 
   return (
     <>
-      <DateNav date={date} onChange={setDate} />
-      <Seg className="today-view" label="보기" value={view} onChange={setView} options={[{ key: "today", label: "오늘" }, { key: "week", label: "주간" }]} />
-      {view === "today" && <>
-      <div className="cheat-row">
-        {cheat ? (
-          <>
-            <span className="cheat-chip">🍕 치팅데이</span>
-            <button className="link small" onClick={toggleCheat}>해제</button>
-          </>
-        ) : (
-          <button className="link small muted-link" onClick={toggleCheat}>🍕 치팅데이로 지정</button>
-        )}
-      </div>
-
-      <section className="card today-summary">
-        <div className="ts-top">
-          <span className="ts-label">칼로리</span>
-          <span className="ts-label right">영양성분</span>
-          <SplitRing
-            kcal={{ value: total.kcal, max: target?.kcal ?? 0 }}
-            macros={[
-              { key: "carb", value: total.carb, max: target?.carb ?? 0 },
-              { key: "protein", value: total.protein, max: target?.protein ?? 0 },
-              { key: "fat", value: total.fat, max: target?.fat ?? 0 },
-            ]}
-          >
-            {target ? (
-              <>
-                <b className="ring-num">{Math.abs(Math.round(remain)).toLocaleString()}</b>
-                <span className="muted small">{remain >= 0 ? "kcal 남음" : "kcal 초과"}</span>
-                <span className="muted small">{Math.round(total.kcal).toLocaleString()} / {target.kcal.toLocaleString()}</span>
-              </>
-            ) : (
-              <>
-                <b className="ring-num">{Math.round(total.kcal).toLocaleString()}</b>
-                <span className="muted small">kcal</span>
-              </>
-            )}
-          </SplitRing>
-        </div>
-        <hr className="ts-line" />
-        <div className="ts-cells">
-          {([["carb", "탄수화물"], ["protein", "단백질"], ["fat", "지방"]] as const).map(([k, label]) => (
-            <div key={k} className={`ts-cell ${k}`}>
-              <span className="muted small"><i aria-hidden />{label}</span>
-              <b className={target && total[k] > target[k] * 1.05 ? "over-text" : ""}>{Math.round(total[k])}g</b>
-              <span className="muted small">{target ? `/ ${Math.round(target[k])}g` : ""}</span>
+      {view === "week" && <DateNav date={date} onChange={setDate} />}
+      {view === "week" && <Seg className="today-view" label="보기" value={view} onChange={setView} options={[{ key: "today", label: "오늘" }, { key: "week", label: "주간" }]} />}
+      {view === "today" && (
+        <div className="home">
+          <div className="home-head">
+            <div className="home-date">
+              <DateButton className="home-date-btn" value={date} onChange={setDate}>{longDate(date)}</DateButton>
+              {date !== todayStr() && <button className="chip" onClick={() => setDate(todayStr())}>오늘</button>}
+              <span className="spacer" />
+              <button className="home-link" onClick={() => setView("week")}>주간</button>
             </div>
-          ))}
-          <div className="ts-cell sodium">
-            <span className="muted small"><i aria-hidden />나트륨</span>
-            <b className={(total.sodium ?? 0) > (target?.sodium ?? SODIUM_LIMIT) ? "over-text" : ""}>{Math.round(total.sodium ?? 0).toLocaleString()}mg</b>
-            <span className="muted small">/ {(target?.sodium ?? SODIUM_LIMIT).toLocaleString()}mg</span>
+            <div className="home-kcal">
+              <b>{Math.round(total.kcal).toLocaleString()}</b>
+              <span>{target ? `/ ${target.kcal.toLocaleString()} kcal` : "kcal"}</span>
+              {target && <span className={`home-remain ${remain < 0 ? "over" : ""}`}>{Math.abs(Math.round(remain)).toLocaleString()} {remain >= 0 ? "남음" : "초과"}</span>}
+            </div>
+            {target && <div className="home-bar"><i style={{ width: `${Math.min(100, (total.kcal / target.kcal) * 100)}%` }} className={remain < 0 ? "over" : ""} /></div>}
+            <div className="home-macros">
+              {([["carb", "탄"], ["protein", "단"], ["fat", "지"]] as const).map(([k, label]) => (
+                <span key={k}>{label} <b className={target && total[k] > target[k] * 1.05 ? "over-text" : ""}>{Math.round(total[k])}</b>{target ? `/${Math.round(target[k])}g` : "g"}</span>
+              ))}
+              <span>나트륨 <b className={(total.sodium ?? 0) > (target?.sodium ?? SODIUM_LIMIT) ? "over-text" : ""}>{Math.round(total.sodium ?? 0).toLocaleString()}</b>mg</span>
+            </div>
+            {EXTRAS.some(({ key }) => total[key] != null) && (
+              <details className="day-extras">
+                <summary className="muted small">세부 영양</summary>
+                <ExtrasList n={total} always />
+              </details>
+            )}
+            {!target && <button className="link small" onClick={onGoToGoals}>목표 설정하기 →</button>}
           </div>
-        </div>
-        {EXTRAS.some(({ key }) => total[key] != null) && (
-          <details className="day-extras">
-            <summary className="muted small">세부 영양</summary>
-            <ExtrasList n={total} always />
-          </details>
-        )}
-        <hr className="ts-line" />
-        <CheckSteps date={date} onOpen={() => setChecksOpen(true)} />
-        {!target && <button className="link small" onClick={onGoToGoals}>목표 설정하기 →</button>}
-      </section>
 
-      <div className="meal-tiles">
-        {MEALS.map((m) => {
-          const list = entries.filter((e) => e.meal === m.key);
-          if (!list.length) {
-            return (
-              <button key={m.key} className="meal-tile add" onClick={() => setAdding(m.key)}>
-                <b className="plus" aria-hidden>+</b>
-                <b><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label} 기록</b>
-                {target && <span className="muted small">{Math.max(0, Math.round(remain)).toLocaleString()}kcal 남음</span>}
+          <div className="home-week">
+            {week.map((d, i) => (
+              <button key={d} className={`hw-day ${d === date ? "on" : ""} ${d > todayStr() ? "future" : ""}`} onClick={() => setDate(d)} aria-label={longDate(d)}>
+                <span>{DOWS[(i + 1) % 7]}</span>
+                <b>{Number(d.slice(8))}</b>
+                <i className={weekDone.has(d) ? "dot" : ""} aria-hidden />
               </button>
-            );
-          }
-          const sub = sumNutrients(list.map((e) => e.total));
-          const ev = target && profile && !cheat ? evaluateMeal(m.key, sub, target, profile.goal) : null;
-          return (
-            <button key={m.key} className="meal-tile" onClick={() => setOpenMeal(m.key)}>
-              <span className="row-between">
-                <b className="tile-name"><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}</b>
-                {ev && <span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>}
-                {cheat && <span className="grade-chip cheat">치팅</span>}
-              </span>
-              <b className="tile-kcal">{Math.round(sub.kcal).toLocaleString()}<span className="muted"> kcal</span></b>
-              <span className="muted small tile-sub">{list[0].title}{list.length > 1 ? ` 외 ${list.length - 1}개` : ""}</span>
-            </button>
-          );
-        })}
-      </div>
-      </>}
+            ))}
+          </div>
 
-      <CheckTiles tiles={view === "today"} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
+          <div className="home-sheet">
+            <div className="cheat-row">
+              {cheat ? (
+                <>
+                  <span className="cheat-chip">🍕 치팅데이</span>
+                  <button className="link small" onClick={toggleCheat}>해제</button>
+                </>
+              ) : (
+                <button className="link small muted-link" onClick={toggleCheat}>치팅데이로 지정</button>
+              )}
+            </div>
+            {MEALS.filter((m) => entries.some((e) => e.meal === m.key)).map((m) => {
+              const list = entries.filter((e) => e.meal === m.key);
+              const sub = sumNutrients(list.map((e) => e.total));
+              const ev = target && profile && !cheat ? evaluateMeal(m.key, sub, target, profile.goal) : null;
+              const more = list.length > 1 ? `외 ${list.length - 1}개` : "";
+              return (
+                <button key={m.key} className="home-meal" onClick={() => setOpenMeal(m.key)}>
+                  {photos[m.key] ? (
+                    <img className="hm-photo" src={photos[m.key]} alt={`${m.label} 사진`} />
+                  ) : (
+                    <span className="hm-photo none"><b>{list[0].title}</b>{more && <span className="muted small">{more}</span>}</span>
+                  )}
+                  <span className="hm-info">
+                    <span className="hm-chips">
+                      <span className="hm-chip">{m.label}</span>
+                      {ev && <span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>}
+                      {cheat && <span className="grade-chip cheat">치팅</span>}
+                    </span>
+                    <b className="hm-kcal">{Math.round(sub.kcal).toLocaleString()} kcal</b>
+                    <span className="muted small hm-title">{photos[m.key] ? `${list[0].title} ${more}`.trim() : "사진 없이 기록"}</span>
+                  </span>
+                </button>
+              );
+            })}
+            {MEALS.some((m) => !entries.some((e) => e.meal === m.key)) && (
+              <div className="home-empty">
+                {MEALS.filter((m) => !entries.some((e) => e.meal === m.key)).map((m) => (
+                  <button key={m.key} onClick={() => setAdding(m.key)}>+ {m.label}</button>
+                ))}
+              </div>
+            )}
+            <div className="home-checks"><CheckSteps date={date} onOpen={() => setChecksOpen(true)} /></div>
+          </div>
+          <button className="fab" onClick={() => setCam("new")} aria-label="사진 찍고 기록">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+        </div>
+      )}
+
+      <CheckTiles tiles={false} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
 
       {meal && (() => {
         const list = entries.filter((e) => e.meal === meal.key);
@@ -232,6 +267,13 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
               </>
             }
           >
+            <div className="meal-photo">
+              {photos[meal.key] ? <img src={photos[meal.key]} alt={`${meal.label} 사진`} /> : null}
+              <div className="meal-photo-btns">
+                <Btn onClick={() => setCam(meal.key)}>{photos[meal.key] ? "사진 바꾸기" : "사진 추가"}</Btn>
+                {photos[meal.key] && <Btn onClick={() => removePhoto(meal.key)}>사진 지우기</Btn>}
+              </div>
+            </div>
             {/* 이 끼니 합계: 칼로리·탄단지·나트륨·세부 영양 */}
             {list.length > 0 && <div className="meal-sum"><NutrientGrid n={sub} /></div>}
             {cheat && list.length > 0 && <p className="small muted">🍕 치팅데이라 이 끼니는 평가하지 않아요</p>}
@@ -279,7 +321,23 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
         </>
       )}
 
-      {adding && <AddSheet date={date} meal={adding} restore={restore?.meal === adding ? restore : null} onClose={() => { setAdding(null); setRestore(null); }} />}
+      {adding && <AddSheet date={date} meal={adding} photo={addPhoto} restore={restore?.meal === adding ? restore : null} onClose={() => { setAdding(null); setRestore(null); setAddPhoto(null); }} />}
+      {cam && (
+        <CameraScreen
+          title={cam === "new" ? "카메라" : `${MEALS.find((m) => m.key === cam)!.label} 사진`}
+          onClose={() => setCam(null)}
+          onSkip={cam === "new" ? () => { setCam(null); setAddPhoto(null); setAdding(mealNow()); } : undefined}
+          onPhoto={async (blob) => {
+            if (cam === "new") {
+              setAddPhoto(blob);
+              setAdding(mealNow());
+            } else {
+              await setMealPhoto(date, cam, blob);
+            }
+            setCam(null);
+          }}
+        />
+      )}
       {saveSet && <SaveSetSheet mealLabel={saveSet.label} list={saveSet.list} onClose={() => setSaveSet(null)} />}
       {editing && <EntrySheet entry={editing} onClose={() => setEditing(null)} />}
     </>

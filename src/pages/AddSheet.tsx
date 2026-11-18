@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { baseServing, db, MEALS, savedKey, sumNutrients, type Entry, type Item, type Meal } from "../db";
+import { baseServing, db, MEALS, savedKey, setMealPhoto, sumNutrients, type Entry, type Item, type Meal } from "../db";
 import { Dialog, flash, FoodList, FoodRow, MealTitle, Screen, BackButton, Btn } from "../components/ui";
 import SearchForm from "./SearchForm";
 import HomeForm from "./HomeForm";
@@ -55,7 +55,18 @@ const saveAddDraft = (d: AddDraft | null) => {
 
 const MODE_TITLE: Record<Exclude<Mode, "quick">, string> = { photo: "사진", home: "재료로 요리", manual: "숫자 입력" };
 
-export default function AddSheet({ date, meal: initialMeal, onClose: close, restore }: { date: string; meal: Meal; onClose: () => void; restore?: AddDraft | null }) {
+export default function AddSheet({ date, meal: initialMeal, onClose: close, restore, photo: initialPhoto }: {
+  date: string; meal: Meal; onClose: () => void; restore?: AddDraft | null;
+  /** 홈 + 버튼으로 찍은 사진: 처음 기록할 때 이 끼니 사진으로 저장 */ photo?: Blob | null;
+}) {
+  const [photo, setPhoto] = useState<Blob | null>(initialPhoto ?? null);
+  const [photoUrl, setPhotoUrl] = useState("");
+  useEffect(() => {
+    if (!photo) return setPhotoUrl("");
+    const u = URL.createObjectURL(photo);
+    setPhotoUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [photo]);
   const onClose = () => {
     saveAddDraft(null);
     close();
@@ -81,6 +92,10 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
     try {
       const ids: number[] = [];
       for (const d of list) ids.push(await saveEntry(date, meal, d));
+      if (photo) {
+        await setMealPhoto(date, meal, photo);
+        setPhoto(null);
+      }
       const name = label ?? (list.length === 1 ? list[0].title : `${list.length}개`);
       flash(`${name} 기록했어요`, 4000, { label: "되돌리기", run: () => db.entries.bulkDelete(ids) });
       setQuery("");
@@ -107,6 +122,15 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
     >
       {mode === "quick" && (
         <>
+          {photoUrl && (
+            <div className="add-photo">
+              <img src={photoUrl} alt="찍은 사진" />
+              <div>
+                <span className="muted small">기록하면 {mealLabel} 사진으로 저장돼요</span>
+                <Btn onClick={() => setMode("photo")}>이 사진으로 AI 분석</Btn>
+              </div>
+            </div>
+          )}
           <SearchForm key={searchKey} onSave={(d) => record([d])} actionLabel={recordLabel} initialQuery={query} onQueryChange={setQuery} trailing={
             <>
               <button className="sf-mode" onClick={() => setMode("photo")} aria-label="사진으로 기록">
@@ -142,7 +166,7 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
       )}
 
       {mode === "home" && <HomeForm onSave={(d) => record([d])} actionLabel={recordLabel} />}
-      {mode === "photo" && <PhotoForm onSave={(list) => record(list)} />}
+      {mode === "photo" && <PhotoForm onSave={(list) => record(list)} initial={photo} />}
       {mode === "manual" && <ManualForm onSave={(d) => record([d])} actionLabel={recordLabel} />}
       {confirmDel && (
         <Dialog

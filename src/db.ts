@@ -147,6 +147,17 @@ export interface DayActivity {
   syncedAt: number;
 }
 
+/** 끼니 사진 (날짜·끼니마다 한 장, 1:1로 잘라 저장). 폰에만 있음 (백업 파일에는 안 들어감) */
+export interface MealPhoto {
+  key: string; // "2026-11-18|lunch"
+  date: string;
+  meal: Meal;
+  blob: Blob;
+  at: number;
+}
+export const photoKey = (date: string, meal: Meal) => `${date}|${meal}`;
+export const setMealPhoto = (date: string, meal: Meal, blob: Blob) => db.photos.put({ key: photoKey(date, meal), date, meal, blob, at: Date.now() });
+
 export interface KV {
   key: string;
   value: unknown;
@@ -159,6 +170,7 @@ export const db = new Dexie("meal-log") as Dexie & {
   sets: EntityTable<MealSet, "id">;
   groups: EntityTable<FavGroup, "id">;
   activity: EntityTable<DayActivity, "date">;
+  photos: EntityTable<MealPhoto, "key">;
   kv: EntityTable<KV, "key">;
 };
 
@@ -190,6 +202,9 @@ db.version(5).upgrade(async (tx) => {
     delete s.k;
   });
 });
+
+// v6: 끼니 사진
+db.version(6).stores({ photos: "key, date" });
 
 // 새로 설치한 경우에도 "기본" 그룹이 항상 있게
 db.on("ready", async () => {
