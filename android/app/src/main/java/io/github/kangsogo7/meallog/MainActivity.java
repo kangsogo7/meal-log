@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // 홈 화면 위젯 연결·바코드 (앱 안 플러그인은 super.onCreate 전에 등록)
         registerPlugin(WidgetBridge.class);
         registerPlugin(BarcodeScan.class);
+        registerPlugin(PhotoLibrary.class);
         super.onCreate(savedInstanceState);
     }
 }

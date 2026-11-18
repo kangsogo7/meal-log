@@ -9,6 +9,7 @@ import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
+import { analyzePhotoEntry, recordPhotoMeal, resumePhotoMeals } from "../photoMeal";
 import { CheckSteps, CheckTiles, CheckWeekCard } from "./Checks";
 import { cheatInWeek, setCheat, useCheatDays } from "../cheat";
 
@@ -46,6 +47,9 @@ function useMealPhotos(date: string): Partial<Record<Meal, string>> {
   useEffect(() => () => Object.values(urls).forEach((u) => u && URL.revokeObjectURL(u)), [urls]);
   return urls;
 }
+
+/** 사진으로 바로 기록한 것은 분석 상태로 */
+const entryTitle = (e: Entry) => (e.pending === "ai" ? "AI가 사진 분석 중..." : e.pending === "failed" ? "사진 분석 실패 · 눌러서 다시" : e.title);
 
 /** 끼니의 기록들을 식사 세트로 저장하는 창: 이름 + 넣을 음식 고르기 */
 function SaveSetSheet({ mealLabel, list, onClose }: { mealLabel: string; list: Entry[]; onClose: () => void }) {
@@ -149,6 +153,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const total = sumNutrients(entries.map((e) => e.total));
   const remain = target ? target.kcal - total.kcal : 0;
   const meal = openMeal ? MEALS.find((m) => m.key === openMeal)! : null;
+  // 분석 중에 앱이 닫혔던 사진 기록은 다시 분석
+  useEffect(() => { resumePhotoMeals(); }, []);
   const removePhoto = async (m: Meal) => {
     const old = await db.photos.get(photoKey(date, m));
     await db.photos.delete(photoKey(date, m));
@@ -220,7 +226,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                   {photos[m.key] ? (
                     <img className="hm-photo" src={photos[m.key]} alt={`${m.label} 사진`} />
                   ) : (
-                    <span className="hm-photo none"><b>{list[0].title}</b>{more && <span className="muted small">{more}</span>}</span>
+                    <span className="hm-photo none"><b>{entryTitle(list[0])}</b>{more && <span className="muted small">{more}</span>}</span>
                   )}
                   <span className="hm-info">
                     <span className="hm-chips">
@@ -229,7 +235,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                       {cheat && <span className="grade-chip cheat">치팅</span>}
                     </span>
                     <b className="hm-kcal">{Math.round(sub.kcal).toLocaleString()} kcal</b>
-                    <span className="muted small hm-title">{photos[m.key] ? `${list[0].title} ${more}`.trim() : "사진 없이 기록"}</span>
+                    <span className="muted small hm-title">{photos[m.key] ? `${entryTitle(list[0])} ${more}`.trim() : "사진 없이 기록"}</span>
                   </span>
                 </button>
               );
@@ -297,12 +303,12 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                 {list.map((e) => (
                   <FoodRow
                     key={e.id}
-                    title={e.title}
+                    title={entryTitle(e)}
                     place={e.place}
-                    sub={KIND_LABEL[e.kind]}
+                    sub={e.pending ? "사진 기록" : KIND_LABEL[e.kind]}
                     n={e.total}
                     kcal={e.total.kcal}
-                    onClick={() => setEditing(e)}
+                    onClick={() => (e.pending === "failed" ? analyzePhotoEntry(e.id!) : e.pending === "ai" ? undefined : setEditing(e))}
                     trailing={<FavStar getDraft={() => entryDraft(e)} />}
                   />
                 ))}
@@ -329,8 +335,9 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
           onSkip={cam === "new" ? () => { setCam(null); setAddPhoto(null); setAdding(mealNow()); } : undefined}
           onPhoto={async (blob) => {
             if (cam === "new") {
-              setAddPhoto(blob);
-              setAdding(mealNow());
+              const meal = mealNow();
+              await recordPhotoMeal(date, meal, blob);
+              flash(`${MEALS.find((m) => m.key === meal)!.label}에 기록했어요. AI가 칼로리를 찾는 중이에요`, 3000);
             } else {
               await setMealPhoto(date, cam, blob);
             }

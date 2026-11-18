@@ -2,6 +2,7 @@ import UIKit
 import Capacitor
 import WidgetKit
 import AVFoundation
+import Photos
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -100,6 +101,7 @@ class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(WidgetBridgePlugin())
         bridge?.registerPluginInstance(BarcodeScanPlugin())
+        bridge?.registerPluginInstance(PhotoLibraryPlugin())
     }
 }
 
@@ -213,5 +215,105 @@ class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDel
         let done = onDone
         onDone = nil
         dismiss(animated: true) { done?(code) }
+    }
+}
+
+// ---------- 앱 안 사진앨범 ----------
+// 웹 코드의 registerPlugin("PhotoLibrary")와 연결 (안드로이드와 같은 이름·함수).
+// 최근 사진 목록(작은 미리보기 base64 JPEG)과 고른 사진 원본을 넘김
+
+@objc(PhotoLibraryPlugin)
+public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "PhotoLibraryPlugin"
+    public let jsName = "PhotoLibrary"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "access", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "more", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "list", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "full", returnType: CAPPluginReturnPromise),
+    ]
+    private var assets: PHFetchResult<PHAsset>?
+
+    private func fetch() -> PHFetchResult<PHAsset> {
+        let o = PHFetchOptions()
+        o.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        return PHAsset.fetchAssets(with: .image, options: o)
+    }
+
+    private func name(_ s: PHAuthorizationStatus) -> String {
+        switch s {
+        case .authorized: return "full"
+        case .limited: return "limited"
+        default: return "denied"
+        }
+    }
+
+    /** 권한 확인 (처음이면 물어봄): full / limited / denied */
+    @objc func access(_ call: CAPPluginCall) {
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { s in
+            self.assets = nil
+            call.resolve(["status": self.name(s)])
+        }
+    }
+
+    /** "선택한 사진만"일 때 사진 더 고르기 */
+    @objc func more(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if let vc = self.bridge?.viewController, PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited {
+                PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: vc) { _ in
+                    self.assets = nil
+                    call.resolve(["status": self.name(PHPhotoLibrary.authorizationStatus(for: .readWrite))])
+                }
+            } else {
+                call.resolve(["status": self.name(PHPhotoLibrary.authorizationStatus(for: .readWrite))])
+            }
+        }
+    }
+
+    @objc func list(_ call: CAPPluginCall) {
+        let offset = call.getInt("offset") ?? 0
+        let limit = call.getInt("limit") ?? 40
+        DispatchQueue.global(qos: .userInitiated).async {
+            if offset == 0 || self.assets == nil { self.assets = self.fetch() }
+            guard let r = self.assets else { call.resolve(["items": [[String: Any]](), "total": 0]); return }
+            let opt = PHImageRequestOptions()
+            opt.isSynchronous = true
+            opt.deliveryMode = .highQualityFormat
+            opt.resizeMode = .fast
+            opt.isNetworkAccessAllowed = true
+            var items: [[String: Any]] = []
+            let end = min(r.count, offset + limit)
+            if offset < end {
+                for i in offset..<end {
+                    let a = r.object(at: i)
+                    var b64 = ""
+                    PHImageManager.default().requestImage(for: a, targetSize: CGSize(width: 240, height: 240), contentMode: .aspectFill, options: opt) { img, _ in
+                        if let d = img?.jpegData(compressionQuality: 0.7) { b64 = d.base64EncodedString() }
+                    }
+                    if !b64.isEmpty { items.append(["id": a.localIdentifier, "thumb": b64]) }
+                }
+            }
+            call.resolve(["items": items, "total": r.count])
+        }
+    }
+
+    @objc func full(_ call: CAPPluginCall) {
+        guard let id = call.getString("id"),
+              let a = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
+            call.reject("사진을 찾지 못했어요")
+            return
+        }
+        let side = CGFloat(call.getInt("max") ?? 2048)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let opt = PHImageRequestOptions()
+            opt.isSynchronous = true
+            opt.deliveryMode = .highQualityFormat
+            opt.isNetworkAccessAllowed = true
+            var out: String?
+            PHImageManager.default().requestImage(for: a, targetSize: CGSize(width: side, height: side), contentMode: .aspectFit, options: opt) { img, _ in
+                if let d = img?.jpegData(compressionQuality: 0.9) { out = d.base64EncodedString() }
+            }
+            if let out { call.resolve(["data": out]) } else { call.reject("사진을 열지 못했어요") }
+        }
     }
 }

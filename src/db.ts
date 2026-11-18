@@ -74,6 +74,10 @@ export interface Entry {
   k?: number;
   memo?: string;
   createdAt: number;
+  /** 사진으로 바로 기록한 경우: ai = AI가 분석 중, failed = 분석 실패 */
+  pending?: "ai" | "failed";
+  /** 분석에 쓰는 끼니 사진 (photos 키) */
+  photo?: string;
 }
 
 export interface BodyRecord {
