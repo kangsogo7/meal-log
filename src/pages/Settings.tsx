@@ -6,7 +6,7 @@ import { exportBackup, importBackup } from "../backup";
 import { AI_KIND_LABEL, clearUsage, cleanKey, GEMINI_MODELS as MODELS, GeminiError, looksLikeKey, testGemini, usageCostKrw, type AiKind, type AiUsage } from "../gemini";
 import { useSettings } from "../hooks";
 import { getTheme, setTheme, type Theme } from "../theme";
-import { Btn, BtnRow, FullScreen, Seg, TextInput } from "../components/ui";
+import { Btn, BtnRow, FullScreen, Seg, TextInput, ThemePage } from "../components/ui";
 
 const THEMES: { key: Theme; label: string }[] = [
   { key: "system", label: "시스템" },
@@ -27,19 +27,22 @@ export default function SettingsPage() {
   const [usageOpen, setUsageOpen] = useState(false);
 
   return (
-    <>
-      <header className="page-head"><h1>설정</h1></header>
-
+    <ThemePage
+      head={
+        <>
+          <h1>설정</h1>
+          <span className="tp-label">화면 테마</span>
+          <Seg label="화면 테마" value={theme} onChange={(t) => { setTheme(t); setThemeState(t); }} options={THEMES} />
+        </>
+      }
+    >
       <section className="card">
-        <h2>화면 테마</h2>
-        <Seg label="화면 테마" value={theme} onChange={(t) => { setTheme(t); setThemeState(t); }} options={THEMES} />
-      </section>
-
-      <section className="card">
-        <h2>즐겨찾기</h2>
-        <BtnRow>
-          <Btn onClick={() => setFolders(true)}>폴더 관리</Btn>
-        </BtnRow>
+        <button className="setting-row" onClick={() => setFolders(true)}>
+          <span className="fr-text">
+            <span className="fr-title">즐겨찾기 폴더 관리</span>
+          </span>
+          <span className="fr-chev" aria-hidden>›</span>
+        </button>
       </section>
       {folders && <FolderScreen onClose={() => setFolders(false)} onOpen={(id) => setFolderId(id)} />}
       {folderGroup && <FoodEditScreen group={folderGroup} onClose={() => setFolderId(null)} />}
@@ -89,7 +92,7 @@ export default function SettingsPage() {
         영양 데이터: 식품의약품안전처 (공공데이터포털)<br />
         버전 {__APP_VERSION__}
       </p>
-    </>
+    </ThemePage>
   );
 }
 

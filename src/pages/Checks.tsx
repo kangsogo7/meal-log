@@ -10,7 +10,7 @@ import {
 import { askNotifyPermission, canNotify } from "../notify";
 import { useLatestBody } from "../hooks";
 import { StepBar } from "../components/charts";
-import { EditButton, flash, NumInput, Screen, Sheet, FullScreen, TextInput, BackButton, Btn, BtnRow } from "../components/ui";
+import { EditButton, flash, NumInput, Screen, Sheet, FullScreen, TextInput, BackButton, Btn, BtnRow, ThemePage, TpStat, DateNav } from "../components/ui";
 
 const CheckIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -119,14 +119,11 @@ export function CheckTiles({ date, open, onOpen, onClose, tiles = true }: { date
 /** 오늘 물·영양제 체크 창 */
 function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => void; onManage: () => void }) {
   const hyd = useHydration();
-  const rem = useReminders();
-  const supps = useSupplements();
   const day = useDayCheck(date);
   const cups = Math.max(1, Math.ceil(hyd.goalMl / hyd.cupMl));
   const filled = Math.floor(day.waterMl / hyd.cupMl);
   // 칸을 누르면 그 잔까지, 마지막으로 채운 칸을 다시 누르면 한 잔 빼기
   const tapCup = (i: number) => setWater(date, (i + 1 === filled ? i : i + 1) * hyd.cupMl);
-  const time = (t: number) => new Date(t).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
 
   return (
     <FullScreen title="물 · 영양제" onClose={onClose}>
@@ -147,6 +144,20 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
         </BtnRow>
       </section>
 
+      <SuppSection date={date} />
+
+      <button className="block" onClick={onManage}>영양제 목록 · 물 목표 · 알림</button>
+    </FullScreen>
+  );
+}
+
+/** 영양제 체크 목록 (때별로) */
+function SuppSection({ date }: { date: string }) {
+  const rem = useReminders();
+  const supps = useSupplements();
+  const day = useDayCheck(date);
+  const time = (t: number) => new Date(t).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return (
       <section className="check-section">
         <div className="row-between">
           <b><span className="meal-ic" aria-hidden>💊</span>영양제</b>
@@ -173,9 +184,40 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
           );
         })}
       </section>
+  );
+}
 
-      <button className="block" onClick={onManage}>영양제 목록 · 물 목표 · 알림</button>
-    </FullScreen>
+/** 식단 → 물/영양제 보기: 크림색 머리에 오늘 물, 흰 시트에 영양제 체크와 이번 주 */
+export function ChecksPage({ date, onDate }: { date: string; onDate: (d: string) => void }) {
+  const hyd = useHydration();
+  const day = useDayCheck(date);
+  const [managing, setManaging] = useState(false);
+  const cups = Math.max(1, Math.ceil(hyd.goalMl / hyd.cupMl));
+  const filled = Math.floor(day.waterMl / hyd.cupMl);
+  const tapCup = (i: number) => setWater(date, (i + 1 === filled ? i : i + 1) * hyd.cupMl);
+  return (
+    <ThemePage
+      className="checks-page"
+      head={
+        <>
+          <DateNav date={date} onChange={onDate} />
+          <div className="checks-water">
+            <TpStat label="물" value={filled} unit={`/ ${cups}잔 · ${day.waterMl.toLocaleString()}ml`} />
+            <button className="cup-add-big" onClick={() => addWater(date, hyd.cupMl)}>+ 한 잔</button>
+          </div>
+          <div className="cup-grid tp-cups">
+            {Array.from({ length: Math.max(cups, filled) }, (_, i) => (
+              <button key={i} className={i >= cups ? "on extra" : i < filled ? "on" : ""} aria-label={`${i + 1}잔`} aria-pressed={i < filled} onClick={() => tapCup(i)} />
+            ))}
+          </div>
+        </>
+      }
+    >
+      <SuppSection date={date} />
+      <button className="block" onClick={() => setManaging(true)}>영양제 목록 · 물 목표 · 알림</button>
+      <CheckWeekCard date={date} />
+      {managing && <ManageScreen onClose={() => setManaging(false)} />}
+    </ThemePage>
   );
 }
 

@@ -35,7 +35,7 @@ export function WeekChart({
             <rect x={x} y={top} width={bw} height={plotH + bottom} fill="transparent" />
             <path
               d={roundedTop(x + bw * 0.15, top + plotH - h, bw * 0.7, h, Math.min(4, h))}
-              className={over ? "bar over" : `bar${tone ? " tone-" + tone : ""}`}
+              className={`${over ? "bar over" : `bar${tone ? " tone-" + tone : ""}`}${sel ? " sel" : ""}`}
               opacity={sel ? 1 : 0.55}
             />
             {(sel || showAll) && v > 0 && (

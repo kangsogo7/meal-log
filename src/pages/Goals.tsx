@@ -7,7 +7,7 @@ import { getCheatDays } from "../cheat";
 import { getProfileHistory, lastGoalChange, saveProfile } from "../profileHistory";
 import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } from "../hooks";
 import { aiReady, GeminiError, imageToBase64, readInBody } from "../gemini";
-import { DateButton, Dialog, EditButton, flash, NumInput, FullScreen, Seg, Btn, BtnRow } from "../components/ui";
+import { DateButton, Dialog, EditButton, flash, NumInput, FullScreen, Seg, Btn, BtnRow, ThemePage, TpStat } from "../components/ui";
 import { WeightChart } from "../components/charts";
 
 export default function Goals() {
@@ -22,22 +22,28 @@ export default function Goals() {
   const set = (patch: Partial<Profile>) => saveProfile({ ...profile!, ...patch });
 
   return (
-    <>
-      <header className="page-head"><h1>목표 · 체중</h1></header>
-
+    <ThemePage
+      head={
+        <TpStat
+          label={<>하루 목표 · {GOALS[profile.goal].label}</>}
+          value={target ? target.kcal.toLocaleString() : "—"}
+          unit="kcal"
+          sub={target ? (
+            <span className="tp-macros">
+              <span>탄 <b>{target.carb}</b>g</span>
+              <span>단 <b>{target.protein}</b>g</span>
+              <span>지 <b>{target.fat}</b>g</span>
+              <span>나트륨 <b>{(target.sodium ?? SODIUM_LIMIT).toLocaleString()}</b>mg 이하</span>
+            </span>
+          ) : <span className="tp-macros">목표를 아직 계산하지 않았어요</span>}
+        />
+      }
+    >
       <section className="card">
         <h2>하루 목표</h2>
         {target ? (
           <>
-            <p className="target-kcal"><b>{target.kcal.toLocaleString()}</b> <span className="muted">kcal</span></p>
-            <MacroBar n={target} />
-            <div className="tone-tiles in-card">
-              <div className="tone-tile carb"><span>탄수화물</span><b>{target.carb}<small>g</small></b></div>
-              <div className="tone-tile protein"><span>단백질</span><b>{target.protein}<small>g</small></b></div>
-              <div className="tone-tile fat"><span>지방</span><b>{target.fat}<small>g</small></b></div>
-            </div>
             <div className="goal-row">
-              <span className={`goal-chip ${profile.goal}`}>{GOALS[profile.goal].label}</span>
               <span className="muted small">
                 {profile.override
                   ? "직접 정한 목표"
@@ -47,7 +53,6 @@ export default function Goals() {
               </span>
               {!profile.override && !!profile.kcalAdjust && <button className="link small" onClick={() => set({ kcalAdjust: 0 })}>되돌리기</button>}
             </div>
-            <p className="muted small">나트륨 {(target.sodium ?? SODIUM_LIMIT).toLocaleString()}mg 이하</p>
           </>
         ) : !saved ? (
           <>
@@ -165,21 +170,7 @@ export default function Goals() {
       </section>
 
       {bodyForm && <BodyForm record={bodyForm} onClose={() => setBodyForm(null)} />}
-    </>
-  );
-}
-
-/** 목표 칼로리의 탄수화물·단백질·지방 비율 막대 */
-function MacroBar({ n }: { n: Nutrients }) {
-  const kc = [n.carb * 4, n.protein * 4, n.fat * 9];
-  const sum = kc.reduce((a, b) => a + b, 0) || 1;
-  const pct = (v: number) => Math.round((v / sum) * 100);
-  return (
-    <div className="macro-bar" role="img" aria-label={`탄수화물 ${pct(kc[0])}%, 단백질 ${pct(kc[1])}%, 지방 ${pct(kc[2])}%`}>
-      <span className="carb" style={{ flexGrow: kc[0] }} />
-      <span className="protein" style={{ flexGrow: kc[1] }} />
-      <span className="fat" style={{ flexGrow: kc[2] }} />
-    </div>
+    </ThemePage>
   );
 }
 

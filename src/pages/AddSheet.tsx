@@ -119,31 +119,36 @@ export default function AddSheet({ date, meal: initialMeal, onClose: close, rest
       left={<BackButton onClick={() => (mode === "quick" ? onClose() : setMode("quick"))} />}
       title={<MealTitle meal={meal} suffix={mode === "quick" ? " 기록" : ` · ${MODE_TITLE[mode]}`} onChange={setMeal} />}
       footer={mode === "home" || mode === "manual" ? <div id="add-foot" /> : undefined}
+      // 바로 기록 화면: 검색칸은 크림색 머리, 오늘 기록·음식 모음은 흰 시트 (홈과 같은 테마)
+      head={mode === "quick" ? (
+        <>
+            {photoUrl && (
+              <div className="add-photo">
+                <img src={photoUrl} alt="찍은 사진" />
+                <div>
+                  <span className="muted small">기록하면 {mealLabel} 사진으로 저장돼요</span>
+                  <Btn onClick={() => setMode("photo")}>이 사진으로 AI 분석</Btn>
+                </div>
+              </div>
+            )}
+            <SearchForm key={searchKey} onSave={(d) => record([d])} actionLabel={recordLabel} initialQuery={query} onQueryChange={setQuery} trailing={
+              <>
+                <button className="sf-mode" onClick={() => setMode("photo")} aria-label="사진으로 기록">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+                </button>
+                <button className="sf-mode" onClick={() => setMode("home")} aria-label="재료로 요리">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
+                </button>
+                <button className="sf-mode" onClick={() => setMode("manual")} aria-label="숫자로 직접 입력">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 8h8M8 13h8M8 17h4" /></svg>
+                </button>
+              </>
+            } />
+        </>
+      ) : undefined}
     >
       {mode === "quick" && (
         <>
-          {photoUrl && (
-            <div className="add-photo">
-              <img src={photoUrl} alt="찍은 사진" />
-              <div>
-                <span className="muted small">기록하면 {mealLabel} 사진으로 저장돼요</span>
-                <Btn onClick={() => setMode("photo")}>이 사진으로 AI 분석</Btn>
-              </div>
-            </div>
-          )}
-          <SearchForm key={searchKey} onSave={(d) => record([d])} actionLabel={recordLabel} initialQuery={query} onQueryChange={setQuery} trailing={
-            <>
-              <button className="sf-mode" onClick={() => setMode("photo")} aria-label="사진으로 기록">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
-              </button>
-              <button className="sf-mode" onClick={() => setMode("home")} aria-label="재료로 요리">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11h14v1a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-1Z" /><path d="M17 12h4" /><path d="M8 7c0-1 1-1 1-2M12 7c0-1 1-1 1-2" /></svg>
-              </button>
-              <button className="sf-mode" onClick={() => setMode("manual")} aria-label="숫자로 직접 입력">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 8h8M8 13h8M8 17h4" /></svg>
-              </button>
-            </>
-          } />
           {!query.trim() && (
             <>
               {logged.length > 0 && (

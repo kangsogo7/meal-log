@@ -66,16 +66,24 @@ export function Dialog({ title, children, actions }: { title: string; children: 
 }
 
 /** 화면 전체를 덮는 페이지 (음식 편집, 내 폴더 등) */
-export function Screen({ title, left, right, footer, children }: { title: ReactNode; left: ReactNode; right?: ReactNode; footer?: ReactNode; children: ReactNode }) {
+/** head: 있으면 홈 테마 (크림색 머리 + 흰 시트), 내용은 시트에 */
+export function Screen({ title, left, right, footer, children, head }: { title: ReactNode; left: ReactNode; right?: ReactNode; footer?: ReactNode; children: ReactNode; head?: ReactNode }) {
   const z = useLayer();
   return createPortal(
-    <div className="screen-page" style={{ zIndex: z }} role="dialog" aria-label={typeof title === "string" ? title : undefined}>
+    <div className={`screen-page ${head ? "themed" : ""}`} style={{ zIndex: z }} role="dialog" aria-label={typeof title === "string" ? title : undefined}>
       <header className="screen-head">
         <div>{left}</div>
         <h2>{title}</h2>
         <div className="screen-right">{right}</div>
       </header>
-      <div className="screen-body">{children}</div>
+      {head ? (
+        <div className="screen-body">
+          <div className="tp-head">{head}</div>
+          <div className="tp-sheet">{children}</div>
+        </div>
+      ) : (
+        <div className="screen-body">{children}</div>
+      )}
       {footer && <footer className="screen-foot">{footer}</footer>}
     </div>,
     document.body,
@@ -566,16 +574,11 @@ export function Seg<T extends string>({ options, value, onChange, label, classNa
 }
 
 /** 밑줄 탭 (음식 모음: 즐겨찾기·세트·자주 먹는 것·최근). 앱의 모든 밑줄 탭은 이것 하나 */
+/** 탭: 앱 공통 알약 탭(Seg)과 같은 모양 */
 export function Tabs<T extends string>({ options, value, onChange, label }: {
   options: { key: T; label: ReactNode }[]; value: T; onChange: (v: T) => void; label?: string;
 }) {
-  return (
-    <div className="qa-tabs" role="tablist" aria-label={label}>
-      {options.map((o) => (
-        <button key={o.key} role="tab" aria-selected={value === o.key} className={value === o.key ? "on" : ""} onClick={() => onChange(o.key)}>{o.label}</button>
-      ))}
-    </div>
-  );
+  return <Seg className="qa-seg" options={options} value={value} onChange={onChange} label={label} />;
 }
 
 /** 아침·점심·간식·저녁 고르기 (나도 기록하기) */
@@ -638,4 +641,29 @@ export function flash(message: string, ms = 1500, action?: { label: string; run:
 export function Toast({ message }: { message: string | null }) {
   if (!message) return null;
   return <div className="toast">{message}</div>;
+}
+
+/** 홈 화면과 같은 틀: 위는 크림색 머리(큰 숫자), 아래는 위가 둥근 흰 시트. 모든 탭 화면이 같이 씀 */
+export function ThemePage({ head, children, className = "" }: { head: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={`tp ${className}`}>
+      <div className="tp-head">{head}</div>
+      <div className="tp-sheet">{children}</div>
+    </div>
+  );
+}
+
+/** 크림색 머리의 큰 숫자: 6,432 걸음 / 아래 한 줄 */
+export function TpStat({ label, value, unit, sub, extra }: { label?: ReactNode; value: ReactNode; unit?: ReactNode; sub?: ReactNode; extra?: ReactNode }) {
+  return (
+    <div className="tp-stat">
+      {label && <div className="tp-label">{label}</div>}
+      <div className="home-kcal">
+        <b>{value}</b>
+        {unit && <span>{unit}</span>}
+        {extra}
+      </div>
+      {sub && <div className="home-remain">{sub}</div>}
+    </div>
+  );
 }

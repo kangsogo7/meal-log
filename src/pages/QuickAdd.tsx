@@ -44,7 +44,7 @@ export default function QuickAdd({ onRecord, recordLabel }: { onRecord: (drafts:
   const tabs: { label: string; on: boolean; go: Source }[] = [
     { label: "즐겨찾기", on: src.kind === "fav", go: { kind: "fav" } },
     { label: "세트", on: src.kind === "sets", go: { kind: "sets" } },
-    { label: "자주 먹는 것", on: src.kind === "often", go: { kind: "often" } },
+    { label: "자주 먹는", on: src.kind === "often", go: { kind: "often" } },
     { label: "최근", on: src.kind === "recent", go: { kind: "recent" } },
   ];
 

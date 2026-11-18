@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, todayStr, type DayActivity } from "../db";
-import { DateNav, flash, Btn } from "../components/ui";
-import { WeekChart, type Tone } from "../components/charts";
+import { DateNav, flash, Btn, ThemePage, TpStat } from "../components/ui";
+import { WeekChart } from "../components/charts";
 import { HealthError, healthMode, importShortcutText, openHealthSettings, syncFromHealth } from "../health";
 
 export const APK_URL = "https://github.com/kangsogo7/meal-log/releases/download/android/meal-log.apk";
@@ -42,15 +42,20 @@ export default function Activity() {
     return `평균보다 ${d >= 0 ? "+" : ""}${d.toLocaleString()}`;
   };
 
+  const stepsVs = vsAvg("steps");
   return (
-    <>
-      <DateNav date={date} onChange={setDate} />
-
-      <div className="tone-tiles">
-        <Stat tone="carb" label="걸음" value={day?.steps} sub={vsAvg("steps")} />
-        <Stat tone="fat" label="활동 칼로리" value={day?.activeKcal} sub={vsAvg("activeKcal")} />
-        <Stat tone="protein" label="운동" value={day ? workoutMin : undefined} sub={day ? `분 · ${day.workouts.length}회` : ""} />
-      </div>
+    <ThemePage
+      head={
+        <>
+          <DateNav date={date} onChange={setDate} />
+          <TpStat
+            value={day?.steps != null ? day.steps.toLocaleString() : "—"}
+            unit={<>걸음{stepsVs && <> · {stepsVs}</>}</>}
+            sub={day ? `활동 ${(day.activeKcal ?? 0).toLocaleString()} kcal · 운동 ${workoutMin}분` : "이 날짜의 건강 데이터가 없어요"}
+          />
+        </>
+      }
+    >
 
       <section className="card">
         <h2>운동 기록</h2>
@@ -82,18 +87,7 @@ export default function Activity() {
       </section>
 
       <SyncCard mode={mode} lastSync={last?.syncedAt} />
-    </>
-  );
-}
-
-/** 홈 화면 색을 쓴 숫자 타일 */
-function Stat({ tone, label, value, sub }: { tone: Tone; label: string; value?: number; sub: string }) {
-  return (
-    <div className={`tone-tile ${tone}`}>
-      <span>{label}</span>
-      <b>{value != null ? value.toLocaleString() : "—"}</b>
-      <small>{sub || " "}</small>
-    </div>
+    </ThemePage>
   );
 }
 

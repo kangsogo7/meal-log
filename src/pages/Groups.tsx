@@ -1,7 +1,7 @@
 // 그룹: 멤버를 초대해 서로의 식단을 날짜별로 보고 댓글을 남김
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { addDays, formatDate, MEALS, todayStr, type Meal } from "../db";
-import { Btn, BtnRow, flash, FoodList, FoodRow, Screen, Seg, Sheet, FullScreen, TextInput, BackButton } from "../components/ui";
+import { Btn, BtnRow, flash, FoodList, FoodRow, Screen, Seg, Sheet, FullScreen, TextInput, BackButton, ThemePage } from "../components/ui";
 import { GRADE_LABEL, type Grade } from "../nutrition";
 import { CRITERIA, CRITERIA_ORDER, weekLabel, weekStartOf } from "../weekly";
 import { openSharedFood, type SharedFood } from "../foodShare";
@@ -191,8 +191,7 @@ function Setup({ invite, onDone, error: initialError }: { invite: Invite | null;
     }
   };
   return (
-    <>
-      <header className="page-head"><h1>그룹</h1></header>
+    <ThemePage head={<h1>그룹</h1>}>
       <section className="card form">
         {invite ? (
           <>
@@ -214,7 +213,7 @@ function Setup({ invite, onDone, error: initialError }: { invite: Invite | null;
           <button className="link small" onClick={() => setWebJoin(true)}>앱이 없어요 · 이 브라우저에서 참여</button>
         )}
       </section>
-    </>
+    </ThemePage>
   );
 }
 
@@ -243,12 +242,35 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
   };
 
   return (
-    <>
-      <header className="page-head row-between">
-        <h1>그룹</h1>
-        <button className="chip primary" onClick={() => setCreating(true)}>+ 새 그룹</button>
-      </header>
-
+    <ThemePage
+      head={
+        <>
+          <div className="row-between">
+            <h1>그룹</h1>
+            <button className="chip primary" onClick={() => setCreating(true)}>+ 새 그룹</button>
+          </div>
+          <div className="row-between me-card">
+            <MyPhoto me={me} />
+            {renaming ? (
+              <div className="input-with-star" style={{ flex: 1 }}>
+                <TextInput value={name} onChange={setName} maxLength={20} aria-label="닉네임" />
+                <button className="text-btn" onClick={() => run("rename", async () => {
+                  if (!name.trim()) return;
+                  await renameMe(me, name.trim());
+                  setMe({ ...me, name: name.trim() });
+                  setRenaming(false);
+                })}>저장</button>
+              </div>
+            ) : (
+              <>
+                <span><span className="muted small">닉네임 </span><b>{me.name}</b></span>
+                <button className="text-btn" onClick={() => setRenaming(true)}>이름 변경</button>
+              </>
+            )}
+          </div>
+        </>
+      }
+    >
       {invite && (
         <section className="card invite-card">
           {groups?.some((g) => g.code === invite.code) ? (
@@ -274,25 +296,6 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
         </section>
       )}
 
-      <section className="card row-between me-card">
-        <MyPhoto me={me} />
-        {renaming ? (
-          <div className="input-with-star" style={{ flex: 1 }}>
-            <TextInput value={name} onChange={setName} maxLength={20} aria-label="닉네임" />
-            <button className="text-btn" onClick={() => run("rename", async () => {
-              if (!name.trim()) return;
-              await renameMe(me, name.trim());
-              setMe({ ...me, name: name.trim() });
-              setRenaming(false);
-            })}>저장</button>
-          </div>
-        ) : (
-          <>
-            <span><span className="muted small">닉네임 </span><b>{me.name}</b></span>
-            <button className="text-btn" onClick={() => setRenaming(true)}>이름 변경</button>
-          </>
-        )}
-      </section>
 
       <div className="list-head"><span className="muted">내 그룹 {groups?.length ?? 0}개</span></div>
       {groups === null && <p className="muted small">불러오는 중...</p>}
@@ -318,7 +321,7 @@ function Home({ me, setMe, invite, dismiss, openFirst }: { me: Me; setMe: (m: Me
 
       {creating && <NewGroupSheet me={me} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); setOpen(id); }} />}
       {open && <GroupScreen me={me} gid={open} onClose={() => setOpen(null)} />}
-    </>
+    </ThemePage>
   );
 }
 
@@ -411,14 +414,28 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
       left={<BackButton onClick={onClose} />}
       title={<>{group.name} <span className="title-count">{group.members.length}명</span></>}
       right={<button className="text-btn" onClick={() => setMembers(true)}>멤버</button>}
+      head={
+        <>
+          <div className="group-date">
+            <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
+            <b>{formatDate(date)}</b>
+            <button className="ghost" onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</button>
+          </div>
+          <Seg
+            className="meal-tabs"
+            label="끼니"
+            value={meal}
+            onChange={setMeal}
+            options={MEALS.map((m) => {
+              const n = days.filter((d) => group.members.includes(d.uid) && d.meals.some((x) => x.meal === m.key)).length;
+              return { key: m.key, label: <><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}<span className="meal-n">({n})</span></> };
+            })}
+          />
+        </>
+      }
     >
       <ChallengeCard me={me} group={group} order={order} />
 
-      <div className="group-date">
-        <button className="ghost" onClick={() => setDate(addDays(date, -1))} aria-label="이전 날">◀</button>
-        <b>{formatDate(date)}</b>
-        <button className="ghost" onClick={() => setDate(addDays(date, 1))} aria-label="다음 날" disabled={date >= todayStr()}>▶</button>
-      </div>
 
       {syncErr && (
         <div className="sync-err">
@@ -427,16 +444,6 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
         </div>
       )}
 
-      <Seg
-        className="meal-tabs"
-        label="끼니"
-        value={meal}
-        onChange={setMeal}
-        options={MEALS.map((m) => {
-          const n = days.filter((d) => group.members.includes(d.uid) && d.meals.some((x) => x.meal === m.key)).length;
-          return { key: m.key, label: <><span className="meal-ic" aria-hidden>{m.icon}</span>{m.label}<span className="meal-n">({n})</span></> };
-        })}
-      />
 
       <ul className="food-cards">
         {order.filter((uid) => mealOf(uid)).map((uid) => {

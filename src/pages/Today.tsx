@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, EXTRAS, KIND_LABEL, MEALS, photoKey, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { Btn, BtnRow, Dialog, MealSeg, DateButton, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
+import { Btn, BtnRow, Dialog, MealSeg, DateButton, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
 import Ring from "../components/Ring";
 import { useDayCheck, useHydration, useSupplements } from "../checks";
 import CameraScreen from "../components/CameraScreen";
@@ -13,7 +13,7 @@ import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
 import { analyzePhotoEntry, cancelPhotoEntry, recordPhotoMeal, resumePhotoMeals } from "../photoMeal";
 import SwipeRow from "../components/SwipeRow";
-import { CheckTiles, CheckWeekCard } from "./Checks";
+import { CheckTiles, ChecksPage } from "./Checks";
 import { cheatInWeek, setCheat, useCheatDays } from "../cheat";
 
 const DOWS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -121,6 +121,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const [saveSet, setSaveSet] = useState<{ label: string; list: Entry[] } | null>(null);
   // 끼니 타일을 누르면 그 끼니 기록을 시트로
   const [openId, setOpenId] = useState<number | null>(null);
+  // 사진 없는 기록 묶음 카드를 누르면 그 끼니 기록 목록
+  const [openMeal, setOpenMeal] = useState<Meal | null>(null);
   // 물·영양제 창 (알림을 눌러 들어오면 오늘 날짜로 열기)
   const [checksOpen, setChecksOpen] = useState(false);
   // 사진 찍기: new = + 버튼(찍고 기록), 끼니 = 그 끼니 사진 바꾸기
@@ -214,7 +216,6 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
       <div className="view-tabs-row">
         <Seg className="fit" label="보기" value={view} onChange={setView} options={[{ key: "today", label: "오늘" }, { key: "week", label: "주간" }, { key: "checks", label: "물/영양제" }]} />
       </div>
-      {view !== "today" && <DateNav date={date} onChange={setDate} />}
       {view === "today" && (
         <div className="home">
           <div className="home-head">
@@ -268,8 +269,23 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
           <div className="home-sheet">
             {MEALS.filter((m) => entries.some((e) => e.meal === m.key)).flatMap((m) => {
               const list = entries.filter((e) => e.meal === m.key);
-              // 한 끼에 여러 개면 따로따로
-              return list.map((e) => {
+              // 사진이 있는 기록은 하나씩, 사진 없이 등록한 기록은 끼니마다 한 카드로 묶기
+              const withPhoto = list.filter((e) => photoOf(e));
+              const noPhoto = list.filter((e) => !photoOf(e));
+              const group = noPhoto.length > 1 ? (
+                <button key={`${m.key}-group`} className="home-meal" onClick={() => setOpenMeal(m.key)}>
+                  <span className="hm-photo none hm-count"><b>{noPhoto.length}</b><span>개 기록</span></span>
+                  <span className="hm-info">
+                    <span className="hm-chips">
+                      <span className="hm-chip">{m.label}</span>
+                    </span>
+                    <b className="hm-kcal">{Math.round(sumNutrients(noPhoto.map((e) => e.total)).kcal).toLocaleString()} kcal</b>
+                    <span className="muted small hm-title">{noPhoto.map(entryTitle).join(", ")}</span>
+                  </span>
+                </button>
+              ) : null;
+              const singles = noPhoto.length > 1 ? withPhoto : list;
+              return [...singles.map((e) => {
                 const src = photoOf(e)?.src;
                 return (
                   <SwipeRow key={e.id} square onDelete={() => deleteEntry(e)}>
@@ -289,7 +305,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                   </button>
                   </SwipeRow>
                 );
-              });
+              }), group];
             })}
             {!entries.length && <p className="home-none">아직 기록이 없어요</p>}
           </div>
@@ -299,7 +315,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
         </div>
       )}
 
-      <CheckTiles tiles={view === "checks"} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
+      <CheckTiles tiles={false} date={date} open={checksOpen} onOpen={() => setChecksOpen(true)} onClose={() => setChecksOpen(false)} />
 
       {opened && (() => {
         const e = opened;
@@ -341,12 +357,40 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
         );
       })()}
 
+      {openMeal && (() => {
+        const m = MEALS.find((x) => x.key === openMeal)!;
+        const list = entries.filter((e) => e.meal === openMeal && !photoOf(e));
+        if (!list.length) return null;
+        return (
+          <FullScreen
+            title={`${m.icon} ${m.label} · 사진 없이 기록 ${list.length}개`}
+            onClose={() => setOpenMeal(null)}
+            footer={
+              <>
+                <Btn onClick={() => setSaveSet({ label: m.label, list })}>식사 세트로 저장</Btn>
+                <span className="spacer" />
+                <Btn kind="primary" onClick={() => { setOpenMeal(null); setAdding(openMeal); }}>+ 추가</Btn>
+              </>
+            }
+          >
+            <NutrientGrid n={sumNutrients(list.map((e) => e.total))} />
+            <div className="meal-group-list">
+              {list.map((e) => (
+                <SwipeRow key={e.id} onDelete={() => deleteEntry(e)}>
+                  <FoodRow title={entryTitle(e)} n={e.total} kcal={e.total.kcal} chevron onClick={() => setOpenId(e.id!)} />
+                </SwipeRow>
+              ))}
+            </div>
+          </FullScreen>
+        );
+      })()}
+
       {view === "week" && (
         <>
           <WeeklyCard date={date} onSelect={(d) => { setDate(d); setView("today"); }} />
         </>
       )}
-      {view === "checks" && <CheckWeekCard date={date} />}
+      {view === "checks" && <ChecksPage date={date} onDate={setDate} />}
 
       {adding && <AddSheet date={date} meal={adding} photo={addPhoto} restore={restore?.meal === adding ? restore : null} onClose={() => { setAdding(null); setRestore(null); setAddPhoto(null); }} />}
       {cam && (

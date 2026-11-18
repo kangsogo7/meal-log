@@ -5,6 +5,7 @@ import { addDays, db, getKV, MEALS, setKV } from "../db";
 import { useProfile, useSettings, useTargetsFor } from "../hooks";
 import { GOALS, GRADE_LABEL } from "../nutrition";
 import { WeekChart } from "../components/charts";
+import { ThemePage, TpStat } from "../components/ui";
 import { aiReady, GeminiError, weeklyComment } from "../gemini";
 import { runInBackground, useJob } from "../bgJobs";
 import { CRITERIA, CRITERIA_ORDER, evaluateDay, evaluateWeek, weekDays, weekLabel, weekStartOf, type WeekResult } from "../weekly";
@@ -35,25 +36,20 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
   const goalKcal = goals.length ? Math.round(goals.reduce((a, b) => a + b, 0) / goals.length) : null;
 
   return (
-    <section className="card weekly">
-      <div className="weekly-head">
-        <h2>주간 평가</h2>
-        <div className="week-nav">
-          <button className="ghost" onClick={() => setStart(addDays(start, -7))} aria-label="지난주">◀</button>
-          <span>{weekLabel(start)}</span>
-          <button className="ghost" onClick={() => setStart(addDays(start, 7))} aria-label="다음 주">▶</button>
-        </div>
-      </div>
-
-      {week.score != null ? (
-        <div className="week-score">
-          <span className={`grade-chip ${week.grade}`}>{GRADE_LABEL[week.grade!]}</span>
-          <b>{week.score}점</b>
-          <span className="muted small">기록한 {week.scored.length}일 평균</span>
-        </div>
-      ) : (
-        <p className="muted small">아직 평가할 날이 없어요. 하루가 끝난 날부터 점수를 매겨요.</p>
-      )}
+    <ThemePage
+      className="weekly"
+      head={
+        <>
+          <div className="tp-label week-nav">
+            <button className="ghost" onClick={() => setStart(addDays(start, -7))} aria-label="지난주">‹</button>
+            <span>{weekLabel(start)} 주간 평가</span>
+            <button className="ghost" onClick={() => setStart(addDays(start, 7))} aria-label="다음 주">›</button>
+          </div>
+          {week.score != null ? (
+            <TpStat value={week.score} unit="점" extra={<span className="tp-chip">{GRADE_LABEL[week.grade!]}</span>} sub={`기록한 ${week.scored.length}일 평균`} />
+          ) : (
+            <p className="tp-macros">아직 평가할 날이 없어요. 하루가 끝난 날부터 점수를 매겨요.</p>
+          )}
 
       <div className="week-days">
         {week.days.map((d, i) => (
@@ -67,6 +63,9 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
         ))}
       </div>
 
+        </>
+      }
+    >
       <WeekChart days={days} values={week.days.map((d) => Math.round(d.total.kcal))} goal={goalKcal} selected={date} onSelect={onSelect} label="이번 주 섭취 칼로리" />
 
       {week.scored.length > 0 && (
@@ -88,7 +87,7 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
           <AiComment start={start} week={week} goalLabel={profile ? GOALS[profile.goal].label : "유지"} entries={entries} />
         </>
       )}
-    </section>
+    </ThemePage>
   );
 }
 
