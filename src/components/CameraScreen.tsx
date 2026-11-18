@@ -23,7 +23,7 @@ function squareJpeg(src: CanvasImageSource, w: number, h: number, mirror = false
 }
 
 /** 사진앨범: 위에 영역 고르기, 아래에 최근 사진 격자 */
-function Album({ crop, onReady, webFile, onPickWeb }: { crop: React.RefObject<CropHandle | null>; onReady: (r: boolean) => void; webFile: File | null; onPickWeb: () => void }) {
+function Album({ crop, onReady, webFile, onPickWeb, tools }: { crop: React.RefObject<CropHandle | null>; onReady: (r: boolean) => void; webFile: File | null; onPickWeb: () => void; tools: React.ReactNode }) {
   const native = hasLibrary();
   const [status, setStatus] = useState<LibraryStatus | "loading">(native ? "loading" : "full");
   const [items, setItems] = useState<LibraryItem[]>([]);
@@ -98,7 +98,7 @@ function Album({ crop, onReady, webFile, onPickWeb }: { crop: React.RefObject<Cr
 
   return (
     <>
-      <CropEditor ref={crop} src={src} onReady={onReady} {...(native && status !== "denied" ? {} : { empty: "눌러서 사진 고르기", onEmptyTap: native ? () => file.current?.click() : onPickWeb })} />
+      <CropEditor ref={crop} src={src} onReady={onReady} tools={tools} {...(native && status !== "denied" ? {} : { empty: "눌러서 사진 고르기", onEmptyTap: native ? () => file.current?.click() : onPickWeb })} />
       {error && <p className="cam-error">{error}</p>}
       <div className="album-grid" onScroll={onScroll}>
         {status === "limited" && <button className="album-more" onClick={more}>사진 더 고르기</button>}
@@ -215,8 +215,7 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
         <button className="cam-text" onClick={onClose}>취소</button>
         <b>{tab === "album" ? "사진앨범" : title}</b>
         <span className="cam-right">
-          {onSkip && <button className="cam-text" onClick={onSkip}>직접 입력</button>}
-          {tab === "album" && <button className="cam-text done" onClick={done} disabled={!cropReady || busy}>완료</button>}
+          {onSkip && tab === "camera" && <button className="cam-text" onClick={onSkip}>직접 입력</button>}
         </span>
       </header>
       {tab === "camera" ? (
@@ -255,7 +254,18 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
           </div>
         </>
       ) : (
-        <Album crop={crop} onReady={setCropReady} webFile={webFile} onPickWeb={openWebPicker} />
+        <Album
+          crop={crop}
+          onReady={setCropReady}
+          webFile={webFile}
+          onPickWeb={openWebPicker}
+          tools={
+            <>
+              {onSkip && <button className="crop-btn" onClick={onSkip}>직접 입력</button>}
+              <button className="crop-btn primary" onClick={done} disabled={!cropReady || busy}>완료</button>
+            </>
+          }
+        />
       )}
       <nav className="cam-tabs">
         <button className={tab === "album" ? "on" : ""} onClick={() => { if (!hasLibrary()) openWebPicker(); setTab("album"); }}>사진앨범</button>
