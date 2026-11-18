@@ -424,19 +424,19 @@ export function CheckWeekCard({ date }: { date: string }) {
         <>
           <div className="tone-tiles in-card">
             <div className="tone-tile water">
-              <span>💧 물 목표 달성</span>
+              <span>물 목표 달성</span>
               <b>{waterDays}<small>/{n}일</small></b>
               <small>{drank.length ? `하루 평균 ${avgL}L` : "기록 없음"}</small>
             </div>
             <div className="tone-tile protein">
-              <span>💊 영양제 다 먹은 날</span>
+              <span>영양제 다 먹은 날</span>
               <b>{supps.length ? suppDays : "—"}<small>{supps.length ? `/${n}일` : ""}</small></b>
               <small>{supps.length ? (missed ? `빠뜨린 것 ${missed}번` : "빠뜨린 것 없음") : "등록한 영양제 없음"}</small>
             </div>
           </div>
 
           <div className="cw-block">
-            <span className="muted small">💧 물</span>
+            <span className="muted small">물</span>
             <div className="cw-bars" role="img" aria-label={`물 목표 ${hyd.goalMl}ml, ${days.map((_, i) => `${DOW[i]} ${checks[i].waterMl}ml`).join(", ")}`}>
               <div className="cw-goal" style={{ bottom: `${(hyd.goalMl / max) * 100}%` }} />
               {checks.map((c, i) => (
@@ -452,7 +452,7 @@ export function CheckWeekCard({ date }: { date: string }) {
 
           {supps.length > 0 && (
             <div className="cw-block">
-              <span className="muted small">💊 영양제</span>
+              <span className="muted small">영양제</span>
               <div className="cw-supps">
                 {supps.map((s) => (
                   <div key={s.id} className="cw-supp-row">

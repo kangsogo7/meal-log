@@ -33,9 +33,9 @@
   --carb-bg: #fde7d2;
   --protein-bg: #dbe8f4;
   --fat-bg: #fbe1e7;
-  --water: #5b9bd5;
-  --water-bg: #dbe8f4;
-  --water-ink: #2a5f93;
+  --water: #1b1f17;
+  --water-bg: #efece7;
+  --water-ink: #6b6660;
   --track: #e8e5df;
   /* 평가 색 (좋음·보통·아쉬움) */
   --good: #1b1f17;
@@ -81,9 +81,9 @@
     --carb: #fcc95a;
     --protein: #4ade80;
     --fat: #fb7a8f;
-    --water: #60a5fa;
-    --water-bg: #1c2b40;
-    --water-ink: #bfdbfe;
+    --water: #eef0f3;
+    --water-bg: #2b2e35;
+    --water-ink: #9aa1ad;
     --track: #30343b;
     --good: #eef0f3;
     --ok: #fcc95a;
@@ -124,9 +124,9 @@
   --carb: #fcc95a;
   --protein: #4ade80;
   --fat: #fb7a8f;
-  --water: #60a5fa;
-  --water-bg: #1c2b40;
-  --water-ink: #bfdbfe;
+  --water: #eef0f3;
+  --water-bg: #2b2e35;
+  --water-ink: #9aa1ad;
   --track: #30343b;
   --good: #eef0f3;
   --ok: #fcc95a;
@@ -1651,3 +1651,10 @@ body:has(.content > .tp:first-child) { background: var(--home-bg); }
 .screen-page:not(.themed) .screen-body { background: var(--home-sheet); border-radius: 28px 28px 0 0; margin-top: 6px; padding-top: 20px; }
 .screen-page .screen-foot { background: var(--home-sheet); border-top-color: var(--tp-line); }
 .tp-sheet .check-section > .row-between b { font-size: 17px; font-weight: 700; }
+/* 물·영양제 주간: 파란 칸·막대 대신 홈 테마 흑백 */
+.check-week .tone-tile.water, .check-week .tone-tile.protein { background: var(--home-bg); color: var(--text); }
+.check-week .tone-tile > span, .check-week .tone-tile small { color: var(--home-muted); }
+.check-week .tone-tile b { font-size: 24px; font-weight: 800; }
+.check-week .tone-tiles.in-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cw-bar { background: var(--text); opacity: 0.2; border-radius: 6px 6px 0 0; }
+.cw-bar.on { opacity: 1; }
