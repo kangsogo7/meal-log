@@ -31,7 +31,7 @@ async function rotated(img: HTMLImageElement, quarter: number): Promise<HTMLImag
   return out;
 }
 
-const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready: boolean) => void }>(function CropEditor({ src, onReady }, ref) {
+const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready: boolean) => void; empty?: string; onEmptyTap?: () => void }>(function CropEditor({ src, onReady, empty = "아래에서 사진을 골라 주세요", onEmptyTap }, ref) {
   const stage = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -169,7 +169,7 @@ const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready
             </div>
           </>
         )}
-        {!img && <span className="crop-wait">{src ? "사진 여는 중..." : "아래에서 사진을 골라 주세요"}</span>}
+        {!img && (src || !onEmptyTap ? <span className="crop-wait">{src ? "사진 여는 중..." : empty}</span> : <button className="crop-wait" onClick={onEmptyTap}>{empty}</button>)}
       </div>
       <div className="crop-tools">
         <div className="crop-ratios" role="radiogroup" aria-label="비율">

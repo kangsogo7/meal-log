@@ -23,7 +23,7 @@ function squareJpeg(src: CanvasImageSource, w: number, h: number, mirror = false
 }
 
 /** 사진앨범: 위에 영역 고르기, 아래에 최근 사진 격자 */
-function Album({ crop, onReady }: { crop: React.RefObject<CropHandle | null>; onReady: (r: boolean) => void }) {
+function Album({ crop, onReady, webFile, onPickWeb }: { crop: React.RefObject<CropHandle | null>; onReady: (r: boolean) => void; webFile: File | null; onPickWeb: () => void }) {
   const native = hasLibrary();
   const [status, setStatus] = useState<LibraryStatus | "loading">(native ? "loading" : "full");
   const [items, setItems] = useState<LibraryItem[]>([]);
@@ -82,6 +82,9 @@ function Album({ crop, onReady }: { crop: React.RefObject<CropHandle | null>; on
     });
   };
 
+  // 웹: 탭을 누를 때 바로 연 사진 고르기 창에서 고른 사진
+  useEffect(() => { if (webFile) pickFile(webFile); }, [webFile]);
+
   const more = async () => {
     const s = await libraryMore().catch(() => status as LibraryStatus);
     setStatus(s);
@@ -95,7 +98,7 @@ function Album({ crop, onReady }: { crop: React.RefObject<CropHandle | null>; on
 
   return (
     <>
-      <CropEditor ref={crop} src={src} onReady={onReady} />
+      <CropEditor ref={crop} src={src} onReady={onReady} {...(native && status !== "denied" ? {} : { empty: "눌러서 사진 고르기", onEmptyTap: native ? () => file.current?.click() : onPickWeb })} />
       {error && <p className="cam-error">{error}</p>}
       <div className="album-grid" onScroll={onScroll}>
         {status === "limited" && <button className="album-more" onClick={more}>사진 더 고르기</button>}
@@ -105,11 +108,7 @@ function Album({ crop, onReady }: { crop: React.RefObject<CropHandle | null>; on
             <button className="cam-pick" onClick={() => file.current?.click()}>파일에서 고르기</button>
           </div>
         )}
-        {!native && (
-          <div className="album-empty">
-            <button className="cam-pick" onClick={() => file.current?.click()}>사진 고르기</button>
-          </div>
-        )}
+        {!native && <p className="album-note">앨범 목록은 앱에서만 보여요. 웹에서는 위를 눌러 골라 주세요.</p>}
         {items.length > 0 && (
           <div className="album-cells">
             {items.map((it) => (
@@ -142,6 +141,10 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const crop = useRef<CropHandle>(null);
+  const webInput = useRef<HTMLInputElement>(null);
+  const [webFile, setWebFile] = useState<File | null>(null);
+  // 웹은 앨범 목록을 읽을 수 없어서, 사진앨범 탭을 누르면 바로 사진 고르기 창을 엶
+  const openWebPicker = () => webInput.current?.click();
 
   // 카메라 켜기 (탭·앞뒤가 바뀌면 다시)
   useEffect(() => {
@@ -219,7 +222,7 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
             {error && (
               <div className="cam-empty">
                 <p>{error}</p>
-                <button className="cam-pick" onClick={() => setTab("album")}>사진앨범에서 고르기</button>
+                <button className="cam-pick" onClick={() => { if (!hasLibrary()) openWebPicker(); setTab("album"); }}>사진앨범에서 고르기</button>
               </div>
             )}
             {!error && (
@@ -240,12 +243,13 @@ export default function CameraScreen({ title = "카메라", onPhoto, onSkip, onC
           </div>
         </>
       ) : (
-        <Album crop={crop} onReady={setCropReady} />
+        <Album crop={crop} onReady={setCropReady} webFile={webFile} onPickWeb={openWebPicker} />
       )}
       <nav className="cam-tabs">
-        <button className={tab === "album" ? "on" : ""} onClick={() => setTab("album")}>사진앨범</button>
+        <button className={tab === "album" ? "on" : ""} onClick={() => { if (!hasLibrary()) openWebPicker(); setTab("album"); }}>사진앨범</button>
         <button className={tab === "camera" ? "on" : ""} onClick={() => { setError(""); setCropReady(false); setTab("camera"); }}>카메라</button>
       </nav>
+      <input ref={webInput} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setWebFile(f); }} />
     </div>,
     document.body,
   );
