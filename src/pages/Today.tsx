@@ -43,9 +43,9 @@ function weekOf(date: string): string[] {
 }
 
 /** 날짜의 끼니 사진 → 화면에 쓸 주소 */
-function useMealPhotos(date: string): Partial<Record<Meal, string>> {
+function useMealPhotos(date: string): Record<string, string> {
   const rows = useLiveQuery(() => db.photos.where("date").equals(date).toArray(), [date], []);
-  const urls = useMemo(() => Object.fromEntries(rows.map((r) => [r.meal, URL.createObjectURL(r.blob)])) as Partial<Record<Meal, string>>, [rows]);
+  const urls = useMemo(() => Object.fromEntries(rows.map((r) => [r.key, URL.createObjectURL(r.blob)])) as Record<string, string>, [rows]);
   useEffect(() => () => Object.values(urls).forEach((u) => u && URL.revokeObjectURL(u)), [urls]);
   return urls;
 }
@@ -126,6 +126,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const [cam, setCam] = useState<"new" | Meal | null>(null);
   const [addPhoto, setAddPhoto] = useState<Blob | null>(null);
   const photos = useMealPhotos(date);
+  // 끼니 사진(예전 방식) · 기록마다 사진(사진으로 바로 기록)
+  const mealPhoto = (m: Meal): string | undefined => photos[photoKey(date, m)];
   const week = weekOf(date);
   const weekDone = useLiveQuery(async () => new Set((await db.entries.where("date").between(week[0], week[6], true, true).toArray()).map((e) => e.date)), [week[0]], new Set<string>());
   useEffect(() => {
@@ -234,29 +236,33 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                 <button className="link small muted-link" onClick={toggleCheat}>치팅데이로 지정</button>
               )}
             </div>
-            {MEALS.filter((m) => entries.some((e) => e.meal === m.key)).map((m) => {
+            {MEALS.filter((m) => entries.some((e) => e.meal === m.key)).flatMap((m) => {
               const list = entries.filter((e) => e.meal === m.key);
               const sub = sumNutrients(list.map((e) => e.total));
               const ev = target && profile && !cheat ? evaluateMeal(m.key, sub, target, profile.goal) : null;
-              const more = list.length > 1 ? `외 ${list.length - 1}개` : "";
-              return (
-                <button key={m.key} className="home-meal" onClick={() => setOpenMeal(m.key)}>
-                  {photos[m.key] ? (
-                    <img className="hm-photo" src={photos[m.key]} alt={`${m.label} 사진`} />
-                  ) : (
-                    <span className="hm-photo none"><b>{entryTitle(list[0])}</b>{more && <span className="muted small">{more}</span>}</span>
-                  )}
-                  <span className="hm-info">
-                    <span className="hm-chips">
-                      <span className="hm-chip">{m.label}</span>
-                      {ev && <span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>}
-                      {cheat && <span className="grade-chip cheat">치팅</span>}
+              // 한 끼에 여러 개면 따로따로. 예전 끼니 사진은 사진 없는 첫 기록에
+              const legacy = list.find((e) => !e.photo || !photos[e.photo]);
+              return list.map((e, i) => {
+                const src = e.photo && photos[e.photo] ? photos[e.photo] : e === legacy ? mealPhoto(m.key) : undefined;
+                return (
+                  <button key={e.id} className="home-meal" onClick={() => setOpenMeal(m.key)}>
+                    {src ? (
+                      <img className="hm-photo" src={src} alt={`${m.label} 사진`} />
+                    ) : (
+                      <span className="hm-photo none"><b>{entryTitle(e)}</b></span>
+                    )}
+                    <span className="hm-info">
+                      <span className="hm-chips">
+                        <span className="hm-chip">{m.label}</span>
+                        {i === 0 && ev && <span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>}
+                        {i === 0 && cheat && <span className="grade-chip cheat">치팅</span>}
+                      </span>
+                      <b className="hm-kcal">{Math.round(e.total.kcal).toLocaleString()} kcal</b>
+                      <span className="muted small hm-title">{src ? entryTitle(e) : "사진 없이 기록"}</span>
                     </span>
-                    <b className="hm-kcal">{Math.round(sub.kcal).toLocaleString()} kcal</b>
-                    <span className="muted small hm-title">{photos[m.key] ? `${entryTitle(list[0])} ${more}`.trim() : "사진 없이 기록"}</span>
-                  </span>
-                </button>
-              );
+                  </button>
+                );
+              });
             })}
             {!entries.length && <p className="home-none">아직 기록이 없어요</p>}
           </div>
@@ -285,10 +291,10 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
             }
           >
             <div className="meal-photo">
-              {photos[meal.key] ? <img src={photos[meal.key]} alt={`${meal.label} 사진`} /> : null}
+              {mealPhoto(meal.key) ? <img src={mealPhoto(meal.key)} alt={`${meal.label} 사진`} /> : null}
               <div className="meal-photo-btns">
-                <Btn onClick={() => setCam(meal.key)}>{photos[meal.key] ? "사진 바꾸기" : "사진 추가"}</Btn>
-                {photos[meal.key] && <Btn onClick={() => removePhoto(meal.key)}>사진 지우기</Btn>}
+                <Btn onClick={() => setCam(meal.key)}>{mealPhoto(meal.key) ? "사진 바꾸기" : "사진 추가"}</Btn>
+                {mealPhoto(meal.key) && <Btn onClick={() => removePhoto(meal.key)}>사진 지우기</Btn>}
               </div>
             </div>
             {/* 이 끼니 합계: 칼로리·탄단지·나트륨·세부 영양 */}

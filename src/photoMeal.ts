@@ -1,6 +1,6 @@
 // 사진으로 바로 기록: 찍거나 고르면 끼니에 먼저 기록해 두고, 뒤에서 AI가 사진을 보고 음식·칼로리·영양성분을 채움.
 // 앱을 닫았다 열어도 분석 중이던 기록은 다시 이어서 분석
-import { db, DEFAULT_SETTINGS, getKV, photoKey, setMealPhoto, sumNutrients, todayStr, addDays, ZERO, type Item, type Meal } from "./db";
+import { db, DEFAULT_SETTINGS, getKV, photoKey, sumNutrients, todayStr, addDays, ZERO, type Item, type Meal } from "./db";
 import { aiReady, analyzeFoodPhoto, GeminiError, imageToBase64 } from "./gemini";
 import { runInBackground } from "./bgJobs";
 
@@ -8,10 +8,13 @@ export const photoJobKey = (id: number) => `photoEntry:${id}`;
 
 /** 사진을 끼니 사진으로 두고 "분석 중" 기록을 바로 만든 뒤 분석 시작. 만든 기록의 id */
 export async function recordPhotoMeal(date: string, meal: Meal, blob: Blob): Promise<number> {
-  await setMealPhoto(date, meal, blob);
+  // 기록마다 사진 따로 (한 끼에 여러 장이어도 덮어쓰지 않음)
+  const at = Date.now();
+  const key = `${photoKey(date, meal)}|${at}`;
+  await db.photos.put({ key, date, meal, blob, at });
   const id = (await db.entries.add({
     date, meal, kind: "home", title: "사진 분석 중", items: [], total: { ...ZERO },
-    createdAt: Date.now(), pending: "ai", photo: photoKey(date, meal),
+    createdAt: at, pending: "ai", photo: key,
   })) as number;
   analyzePhotoEntry(id);
   return id;

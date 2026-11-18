@@ -297,8 +297,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 :root { --seg-track: #ebeae7; --seg-on: #ffffff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --seg-track: #2b2e35; --seg-on: #474c56; } }
 :root[data-theme="dark"] { --seg-track: #2b2e35; --seg-on: #474c56; }
-.seg { display: flex; background: var(--seg-track); border-radius: 999px; padding: 4px; gap: 4px; margin-bottom: 12px; }
-.seg button { flex: 1; border: none; background: transparent; padding: 7px 10px; min-height: 38px; border-radius: 999px; font-size: var(--fs-sub); color: var(--muted); font-weight: 600; }
+.seg { display: flex; background: var(--seg-track); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 12px; }
+.seg button { flex: 1; border: none; background: transparent; padding: 7px 10px; min-height: 38px; border-radius: 9px; font-size: var(--fs-sub); color: var(--muted); font-weight: 600; }
 .seg button.on { background: var(--seg-on); color: var(--text); font-weight: 800; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
 .seg.fit { margin: 0; }
 .seg.fit button { flex: none; padding: 7px 16px; }
