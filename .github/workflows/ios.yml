@@ -21,7 +21,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Xcode 27(iOS 27 SDK)로 빌드: 2027년 4월부터 애플이 요구 (ITMS-90725). xcode-27 이미지는 아직 미리보기라 문제가 생기면 macos-latest로
+    runs-on: xcode-27
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
