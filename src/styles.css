@@ -1682,8 +1682,3 @@ body:has(.content > .tp:first-child) { background: var(--home-bg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hc-handle i { background: var(--border); } }
 :root[data-theme="dark"] .hc-handle i { background: var(--border); }
 .home-cal + .home-sheet { margin-top: 6px; }
-/* 사진앨범: 사진 아래 오른쪽 직접 입력 · 완료 */
-.crop-tools { justify-content: flex-end; }
-.crop-btn { min-height: 44px; padding: 0 18px; border-radius: 999px; border: none; background: #e8e5df; color: #111; font-size: var(--fs-main); font-weight: 700; }
-.crop-btn.primary { background: #111; color: #fff; }
-.crop-btn:disabled { opacity: 0.35; }

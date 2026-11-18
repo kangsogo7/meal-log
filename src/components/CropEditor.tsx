@@ -9,7 +9,23 @@ const OUT_MAX = 1440;
 export interface CropHandle { exportCrop: () => Promise<Blob | null> }
 interface View { s: number; x: number; y: number }
 
-const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready: boolean) => void; empty?: string; onEmptyTap?: () => void; /** 사진 아래 오른쪽 버튼 */ tools?: React.ReactNode }>(function CropEditor({ src, onReady, empty = "아래에서 사진을 골라 주세요", onEmptyTap, tools }, ref) {
+/** 이미지를 90도씩 돌린 새 이미지 */
+async function rotated(img: HTMLImageElement, quarter: number): Promise<HTMLImageElement> {
+  const c = document.createElement("canvas");
+  const swap = quarter % 2 === 1;
+  c.width = swap ? img.naturalHeight : img.naturalWidth;
+  c.height = swap ? img.naturalWidth : img.naturalHeight;
+  const g = c.getContext("2d")!;
+  g.translate(c.width / 2, c.height / 2);
+  g.rotate((quarter * Math.PI) / 2);
+  g.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+  const out = new Image();
+  out.src = c.toDataURL("image/jpeg", 0.92);
+  await out.decode();
+  return out;
+}
+
+const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready: boolean) => void; empty?: string; onEmptyTap?: () => void }>(function CropEditor({ src, onReady, empty = "아래에서 사진을 골라 주세요", onEmptyTap }, ref) {
   const stage = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -70,6 +86,16 @@ const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready
     setView({ s, x: box.x + (box.w - img.naturalWidth * s) / 2, y: box.y + (box.h - img.naturalHeight * s) / 2 });
     onReady?.(true);
   }, [img, ratio, size.w, size.h]);
+
+  const reset = () => {
+    if (!img) return;
+    setView({ s: minScale, x: box.x + (box.w - img.naturalWidth * minScale) / 2, y: box.y + (box.h - img.naturalHeight * minScale) / 2 });
+  };
+
+  const rotate = async () => {
+    if (!img) return;
+    setImg(await rotated(img, 3));
+  };
 
   // 끌기·두 손가락 확대
   const down = (e: React.PointerEvent) => {
@@ -140,7 +166,14 @@ const CropEditor = forwardRef<CropHandle, { src: string | null; onReady?: (ready
         )}
         {!img && (src || !onEmptyTap ? <span className="crop-wait">{src ? "사진 여는 중..." : empty}</span> : <button className="crop-wait" onClick={onEmptyTap}>{empty}</button>)}
       </div>
-      {tools && <div className="crop-tools">{tools}</div>}
+      <div className="crop-tools">
+        <button className="crop-icon" onClick={rotate} disabled={!img} aria-label="왼쪽으로 돌리기">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8V3M4 3h5M4 3l3.5 3.5A8 8 0 1 1 4 12" /></svg>
+        </button>
+        <button className="crop-icon" onClick={reset} disabled={!img} aria-label="처음 위치로">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 4h6M4 4v6M20 20h-6M20 20v-6M4 20h6M4 20v-6M20 4h-6M20 4v6" /></svg>
+        </button>
+      </div>
     </div>
   );
 });
