@@ -9,9 +9,12 @@ name: iOS app
 #   APPLE_TEAM_ID   developer.apple.com → Membership의 Team ID (10자리)
 # 인증서·프로비저닝 프로필은 Xcode가 API 키로 자동 생성(클라우드 서명), HealthKit도 entitlements 보고 자동으로 켬.
 # 빌드마다 생기는 개발용 인증서("Created via API")는 빌드 앞뒤로 폐기 (.github/scripts/clean_dev_certs.py).
-# 자동 업로드는 꺼 둠(사용자 요청 2026-11-18). 올릴 때만 Actions에서 직접 실행
+# 푸시할 때 자동 업로드는 꺼 둠(사용자 요청 2026-11-18). 직접 실행하거나,
+# TestFlight 빌드가 90일이면 만료되므로 두 달마다 1일에 자동으로 한 번 올림(사용자 요청 2026-11-18)
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 18 1 */2 *" # 홀수 달 1일 18:00 UTC = 한국 시간 다음 날 새벽 3시
 
 concurrency:
   group: ios
