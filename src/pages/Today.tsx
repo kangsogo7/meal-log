@@ -323,7 +323,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
         const ph = photoOf(e);
         return (
           <FullScreen
-            title={`${m.icon} ${m.label} · ${Math.round(e.total.kcal).toLocaleString()}kcal`}
+            title={`${m.label} · ${Math.round(e.total.kcal).toLocaleString()}kcal`}
             onClose={() => setOpenId(null)}
             footer={
               <>
@@ -363,7 +363,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
         if (!list.length) return null;
         return (
           <FullScreen
-            title={`${m.icon} ${m.label} · 사진 없이 기록 ${list.length}개`}
+            title={`${m.label} · 사진 없이 기록 ${list.length}개`}
             onClose={() => setOpenMeal(null)}
             footer={
               <>

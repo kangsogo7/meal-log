@@ -56,7 +56,7 @@ export default function WeeklyCard({ date, onSelect: select }: { date: string; o
           <button key={d.date} className={`wd ${d.date === date ? "sel" : ""}`} onClick={() => onSelect(d.date)}>
             <span className="muted">{DOW[i]}</span>
             <span className={`wd-mark ${d.status === "today" ? "txt" : ""}`}>
-              {d.status === "scored" ? <i className={`wd-dot ${d.grade}`} aria-label={GRADE_LABEL[d.grade!]} /> : d.status === "today" ? "오늘" : d.status === "cheat" ? "🍕" : d.status === "none" ? "–" : ""}
+              {d.status === "scored" ? <i className={`wd-dot ${d.grade}`} aria-label={GRADE_LABEL[d.grade!]} /> : d.status === "today" ? "오늘" : d.status === "cheat" ? "치팅" : d.status === "none" ? "–" : ""}
             </span>
             <span className="wd-score">{d.status === "scored" ? d.score : ""}</span>
           </button>

@@ -390,7 +390,8 @@ async function doSync() {
   const from = addDays(today, -(SHARE_DAYS - 1));
   const weekStarts = [weekStartOf(addDays(today, -7)), weekStartOf(today)];
   const allDates = [...new Set([...weekDays(weekStarts[0]), ...weekDays(weekStarts[1]), ...Array.from({ length: SHARE_DAYS }, (_, i) => addDays(from, i))])].sort();
-  const entries = await db.entries.where("date").between(allDates[0], allDates[allDates.length - 1], true, true).toArray();
+  // AI가 사진을 분석 중이거나 실패한 기록(0kcal "사진 분석 중")은 그룹에 올리지 않음. 분석이 끝나면 다음 동기화 때 올라감
+  const entries = (await db.entries.where("date").between(allDates[0], allDates[allDates.length - 1], true, true).toArray()).filter((e) => !e.pending);
   const targets = await targetsFor(allDates);
   const profileNow = await getKV("profile", DEFAULT_PROFILE);
   const history = await getProfileHistory();

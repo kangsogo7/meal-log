@@ -78,7 +78,7 @@ export function CheckTiles({ date, open, onOpen, onClose, tiles = true }: { date
       {tiles && <div className="check-tiles">
         <div className="check-tile water">
           <button className="check-tile-head" onClick={onOpen}>
-            <span><span className="meal-ic" aria-hidden>💧</span>물</span>
+            <span>물</span>
             <span className={filled > cups ? "over-goal" : ""}>{filled} / {cups}잔</span>
           </button>
           {Math.max(cups, filled) <= 12 ? (
@@ -93,7 +93,7 @@ export function CheckTiles({ date, open, onOpen, onClose, tiles = true }: { date
         </div>
         <button className="check-tile supp" onClick={onOpen}>
           <span className="check-tile-head">
-            <span><span className="meal-ic" aria-hidden>💊</span>영양제</span>
+            <span>영양제</span>
             {supps.length > 0 && <span className="supp-count">{taken.length} / {supps.length}</span>}
           </span>
           {supps.length ? (
@@ -129,7 +129,7 @@ function CheckSheet({ date, onClose, onManage }: { date: string; onClose: () => 
     <FullScreen title="물 · 영양제" onClose={onClose}>
       <section className="check-section">
         <div className="row-between">
-          <b><span className="meal-ic" aria-hidden>💧</span>물</b>
+          <b>물</b>
           <span className="muted small">{day.waterMl.toLocaleString()} / {hyd.goalMl.toLocaleString()}ml · 한 잔 {hyd.cupMl}ml</span>
         </div>
         <div className="cup-grid">
@@ -160,7 +160,7 @@ function SuppSection({ date }: { date: string }) {
   return (
       <section className="check-section">
         <div className="row-between">
-          <b><span className="meal-ic" aria-hidden>💊</span>영양제</b>
+          <b>영양제</b>
           {supps.length > 0 && <span className="muted small">{supps.filter((s) => day.supps[s.id]).length} / {supps.length}</span>}
         </div>
         {supps.length === 0 && <p className="muted small">아래 버튼으로 먹는 영양제를 등록하면 여기서 체크할 수 있어요.</p>}
@@ -260,7 +260,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
   return (
     <Screen left={<BackButton onClick={onClose} />} title="물 · 영양제">
       <section className="card form">
-        <h2><span className="meal-ic" aria-hidden>💧</span>물</h2>
+        <h2>물</h2>
         <div className="two">
           <label>하루 목표 (ml)<NumInput value={hyd.goalMl} onChange={(v) => v && saveHydration({ ...hyd, goalMl: v })} step="1" /></label>
           <label>한 잔 (ml)<NumInput value={hyd.cupMl} onChange={(v) => v && saveHydration({ ...hyd, cupMl: v })} step="1" /></label>
@@ -275,7 +275,7 @@ function ManageScreen({ onClose }: { onClose: () => void }) {
 
       <section className="card">
         <div className="row-between">
-          <h2><span className="meal-ic" aria-hidden>💊</span>영양제</h2>
+          <h2>영양제</h2>
           <button className="chip-add" onClick={() => setForm({ id: newId(), name: "", when: "morning", count: 1 })}>+ 추가</button>
         </div>
         {supps.length ? (
