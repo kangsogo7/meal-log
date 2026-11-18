@@ -1,9 +1,9 @@
-// 왼쪽으로 밀어서 삭제: 조금 밀면 삭제 버튼이 보이고, 끝까지 밀면 바로 삭제
+// 왼쪽으로 밀어서 삭제 (앱 공용): 조금 밀면 삭제 버튼이 보이고, 끝까지 밀면 바로 삭제
 import { useRef, useState } from "react";
 
-const BTN = 84; // 삭제 버튼 너비
-
-export default function SwipeRow({ onDelete, label = "삭제", children }: { onDelete: () => void; label?: string; children: React.ReactNode }) {
+/** btn: 삭제 버튼 너비. square: 홈 카드처럼 사진과 같은 100×100 정사각형 버튼 */
+export default function SwipeRow({ onDelete, label = "삭제", btn = 84, square = false, children }: { onDelete: () => void; label?: string; btn?: number; square?: boolean; children: React.ReactNode }) {
+  const BTN = square ? 100 : btn;
   const [x, setX] = useState(0);
   const [drag, setDrag] = useState(false);
   const start = useRef<{ px: number; py: number; x: number; dir: "h" | "v" | null } | null>(null);
@@ -45,7 +45,7 @@ export default function SwipeRow({ onDelete, label = "삭제", children }: { onD
   };
 
   return (
-    <div className="swipe" ref={box}>
+    <div className={`swipe ${square ? "square" : ""}`} ref={box}>
       <button className="swipe-del" onClick={onDelete} tabIndex={x ? 0 : -1} style={{ width: Math.max(BTN, -x) }}>{label}</button>
       <div
         className={`swipe-body ${drag ? "drag" : ""}`}

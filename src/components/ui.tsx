@@ -551,56 +551,6 @@ export function Stepper({ value, onChange }: { value: number; onChange: (k: numb
   );
 }
 
-/** 왼쪽으로 밀면 삭제 버튼이 나오는 줄 */
-export function SwipeRow({ children, onTap, onDelete }: { children: ReactNode; onTap: () => void; onDelete: () => void }) {
-  const OPEN = -84;
-  const [x, setX] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const start = useRef<{ px: number; py: number; x: number; horizontal: boolean | null } | null>(null);
-  const moved = useRef(false);
-
-  return (
-    <div className="swipe-row">
-      <button className="swipe-delete" onClick={onDelete} tabIndex={x === OPEN ? 0 : -1}>삭제</button>
-      <div
-        className="swipe-content"
-        style={{ transform: `translateX(${x}px)`, transition: dragging ? "none" : "transform 0.2s" }}
-        onPointerDown={(e) => {
-          start.current = { px: e.clientX, py: e.clientY, x, horizontal: null };
-          moved.current = false;
-        }}
-        onPointerMove={(e) => {
-          const s = start.current;
-          if (!s) return;
-          const dx = e.clientX - s.px, dy = e.clientY - s.py;
-          if (s.horizontal === null && Math.abs(dx) + Math.abs(dy) > 6) s.horizontal = Math.abs(dx) > Math.abs(dy);
-          if (!s.horizontal) return;
-          moved.current = true;
-          setDragging(true);
-          setX(Math.max(OPEN - 20, Math.min(0, s.x + dx)));
-        }}
-        onPointerUp={() => {
-          if (start.current?.horizontal) setX((v) => (v < OPEN / 2 ? OPEN : 0));
-          start.current = null;
-          setDragging(false);
-        }}
-        onPointerCancel={() => {
-          start.current = null;
-          setDragging(false);
-          setX((v) => (v < OPEN / 2 ? OPEN : 0));
-        }}
-        onClick={() => {
-          if (moved.current) return;
-          if (x !== 0) setX(0);
-          else onTap();
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
 /** 잠깐 보였다 사라지는 안내 (어느 화면에서든 호출) */
 /** 둘 이상 중 하나 고르기 (회색 바탕 안의 흰 칸). 앱의 모든 선택 칸은 이것 하나 */
 export function Seg<T extends string>({ options, value, onChange, label, className }: {

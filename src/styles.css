@@ -328,16 +328,6 @@ label.inline input { width: 110px; margin: 0; }
 
 .pick-list { list-style: none; padding: 0; margin: 8px 0 0; }
 .pick-list li { margin-bottom: 6px; }
-.swipe-row { position: relative; overflow: hidden; border-radius: 12px; }
-.swipe-delete {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 84px;
-  border: none; border-radius: 0; background: var(--over); color: #fff; font-weight: 600;
-}
-.swipe-content {
-  position: relative; background: var(--inset); border: 1px solid var(--border); border-radius: 12px;
-  padding: 9px 14px; cursor: pointer; touch-action: pan-y; user-select: none; -webkit-user-select: none;
-}
-
 .ing-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .ing-controls { display: flex; gap: 8px; }
 .ing-controls select { flex: 1; min-width: 0; margin: 0; }
@@ -1540,5 +1530,7 @@ button.crop-wait { border: none; background: none; width: 100%; font-size: 15px;
 .swipe-body { position: relative; background: var(--home-sheet, var(--bg)); touch-action: pan-y; transition: transform .2s ease; user-select: none; -webkit-user-select: none; }
 .swipe-body.drag { transition: none; }
 .swipe-body img { -webkit-user-drag: none; pointer-events: none; }
-.swipe-del { position: absolute; top: 0; right: 0; bottom: 0; border: none; border-radius: 18px; background: var(--over); color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: flex-end; padding: 0 22px; }
+.swipe-del { position: absolute; top: 0; right: 0; bottom: 0; border: none; border-radius: 18px; background: var(--over); color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; padding: 0; }
 .swipe-body .home-meal { width: 100%; }
+/* 홈 카드: 사진과 같은 100×100 정사각형 */
+.swipe.square .swipe-del { bottom: auto; height: 100px; }

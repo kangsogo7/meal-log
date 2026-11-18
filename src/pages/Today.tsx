@@ -272,7 +272,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
               return list.map((e) => {
                 const src = photoOf(e)?.src;
                 return (
-                  <SwipeRow key={e.id} onDelete={() => deleteEntry(e)}>
+                  <SwipeRow key={e.id} square onDelete={() => deleteEntry(e)}>
                   <button className="home-meal" onClick={() => setOpenId(e.id!)}>
                     {src ? (
                       <img className="hm-photo" src={src} alt={`${m.label} 사진`} />
