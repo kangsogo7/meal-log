@@ -11,12 +11,12 @@ import { initReminders } from "./notify";
 import { DEFAULT_SETTINGS, getKV, setKV } from "./db";
 import "./styles.css";
 
-// 기본 모델을 3.6으로 바꾼 뒤 한 번만: 예전 기본값(3.8)을 쓰던 설정도 3.6으로
+// 기본 모델을 다시 3.8로 바꾼 뒤 한 번만: 3.6을 쓰던 설정도 3.8로 (3.8 한도가 끝나면 3.6으로 이어서 감)
 (async () => {
-  if (await getKV("model36", false)) return;
+  if (await getKV("model38", false)) return;
   const s = await getKV("settings", DEFAULT_SETTINGS);
-  if (s.geminiModel === "gemini-3.8-flash") await setKV("settings", { ...s, geminiModel: "gemini-3.6-flash" });
-  await setKV("model36", true);
+  if (s.geminiModel === "gemini-3.6-flash") await setKV("settings", { ...s, geminiModel: "gemini-3.8-flash" });
+  await setKV("model38", true);
 })().catch(() => {});
 
 // 앱(안드로이드·아이폰) 안에서는 서비스 워커가 필요 없음

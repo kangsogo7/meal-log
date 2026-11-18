@@ -1528,9 +1528,9 @@ button.crop-wait { border: none; background: none; width: 100%; font-size: 15px;
 .album-note { text-align: center; color: #6b6660; font-size: 14px; }
 .recorded-msg { margin: 0 0 14px; line-height: 1.6; }
 /* 치팅데이 토글 캡슐 (홈 위쪽) */
-.cheat-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 6px 0 14px; border: 1px solid var(--btn-line); border-radius: 999px; background: var(--home-sheet); color: var(--home-muted); font-size: 13px; font-weight: 600; }
+.cheat-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 2px; border: none; background: none; color: var(--home-muted); font-size: 13px; font-weight: 600; }
 .cheat-toggle i { position: relative; width: 34px; height: 22px; border-radius: 11px; background: var(--seg-track); transition: background 0.15s; }
 .cheat-toggle i b { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: transform 0.15s; }
-.cheat-toggle.on { color: var(--text); border-color: var(--text); }
+.cheat-toggle.on { color: var(--text); }
 .cheat-toggle.on i { background: var(--text); }
-.cheat-toggle.on i b { transform: translateX(12px); background: var(--home-sheet); }
+.cheat-toggle.on i b { transform: translateX(12px); background: var(--home-bg); }

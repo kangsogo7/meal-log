@@ -99,7 +99,8 @@ export const AI_SERVER = false;
 /** AI 기능을 쓸 수 있는지 (내 키가 있거나 서버가 켜져 있으면) */
 export const aiReady = (s: Settings) => !!s.geminiKey || AI_SERVER;
 
-export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-hydrogen"];
+// 기본은 3.8 Flash, 한도가 끝나면(429) 3.6 Flash로 이어서 (2026-11-18 사용자 요청)
+export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-hydrogen"];
 
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
