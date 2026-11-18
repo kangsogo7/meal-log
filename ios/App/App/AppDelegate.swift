@@ -3,6 +3,7 @@ import Capacitor
 import WidgetKit
 import AVFoundation
 import Photos
+import PhotosUI
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
