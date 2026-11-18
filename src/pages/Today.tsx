@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, EXTRAS, KIND_LABEL, MEALS, photoKey, sumNutrients, todayStr, type Entry, type Meal } from "../db";
 import { useTargets } from "../hooks";
-import { Btn, BtnRow, DateButton, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
+import { Btn, BtnRow, Dialog, MealSeg, DateButton, DateNav, ExtrasList, flash, FoodList, FoodRow, NutrientGrid, FullScreen, Sheet, TextInput, Seg } from "../components/ui";
 import Ring from "../components/Ring";
 import { useDayCheck, useHydration, useSupplements } from "../checks";
 import CameraScreen from "../components/CameraScreen";
@@ -124,6 +124,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const [checksOpen, setChecksOpen] = useState(false);
   // 사진 찍기: new = + 버튼(찍고 기록), 끼니 = 그 끼니 사진 바꾸기
   const [cam, setCam] = useState<"new" | number | null>(null);
+  // 사진으로 기록한 뒤 "기록했어요" 창 (끼니를 바로 바꿀 수 있게)
+  const [recorded, setRecorded] = useState<{ id: number; meal: Meal } | null>(null);
   const [addPhoto, setAddPhoto] = useState<Blob | null>(null);
   const photos = useMealPhotos(date);
   // 끼니 사진(예전 방식) · 기록마다 사진(사진으로 바로 기록)
@@ -347,8 +349,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
           onPhoto={async (blob) => {
             if (cam === "new") {
               const meal = mealNow();
-              await recordPhotoMeal(date, meal, blob);
-              flash(`${MEALS.find((m) => m.key === meal)!.label}에 기록했어요. AI가 칼로리를 찾는 중이에요`, 3000);
+              const id = await recordPhotoMeal(date, meal, blob);
+              setRecorded({ id, meal });
             } else {
               const e = entries.find((x) => x.id === cam);
               if (e) await changePhoto(e, blob);
@@ -356,6 +358,15 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
             setCam(null);
           }}
         />
+      )}
+      {recorded && (
+        <Dialog title="기록했어요" actions={<Btn kind="primary" onClick={() => setRecorded(null)}>확인</Btn>}>
+          <p className="recorded-msg">
+            {MEALS.find((m) => m.key === recorded.meal)!.icon} <b>{MEALS.find((m) => m.key === recorded.meal)!.label}</b>(으)로 기록했어요.
+            <br /><span className="muted small">AI가 칼로리를 찾는 중이에요. 다른 끼니면 바꿔 주세요.</span>
+          </p>
+          <MealSeg value={recorded.meal} onChange={(m) => { setRecorded({ ...recorded, meal: m }); void db.entries.update(recorded.id, { meal: m }); }} />
+        </Dialog>
       )}
       {saveSet && <SaveSetSheet mealLabel={saveSet.label} list={saveSet.list} onClose={() => setSaveSet(null)} />}
       {editing && <EntrySheet entry={editing} onClose={() => setEditing(null)} />}
