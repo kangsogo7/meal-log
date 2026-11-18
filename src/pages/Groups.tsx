@@ -448,7 +448,6 @@ function GroupScreen({ me, gid, onClose }: { me: Me; gid: string; onClose: () =>
               <button className="mm-head" onClick={() => setView({ uid, tab: "day" })} aria-label={`${name}의 하루 보기`}>
                 <Avatar uid={uid} name={name} size={34} />
                 <b className="fc-name">{name}{uid === me.uid && <span className="muted small"> 나</span>}</b>
-                {m.grade && <span className={`grade-chip ${m.grade}`}>{GRADE_LABEL[m.grade as Grade]}</span>}
                 <b className="mm-kcal">{m.kcal.toLocaleString()}<span className="muted"> kcal</span></b>
               </button>
               <FoodList>
@@ -653,8 +652,7 @@ function MemberScreen({ me, gid, group, uid, initialDate, initialTab, onClose }:
           {day && meals.map((m) => (
             <article key={m.meal} className="card meal-post">
               <div className="post-head">
-                <i className={`grade-dot ${m.grade ?? ""}`} aria-hidden />
-                <b>{m.label}{m.grade ? ` · ${GRADE_LABEL[m.grade as Grade]}` : ""}</b>
+                <b>{m.label}</b>
                 <span className="muted small">{m.kcal}kcal</span>
               </div>
               <FoodList>

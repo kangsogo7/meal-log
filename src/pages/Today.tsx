@@ -6,7 +6,7 @@ import { Btn, BtnRow, Dialog, MealSeg, DateButton, DateNav, ExtrasList, flash, F
 import Ring from "../components/Ring";
 import { useDayCheck, useHydration, useSupplements } from "../checks";
 import CameraScreen from "../components/CameraScreen";
-import { evaluateMeal, GRADE_LABEL, SODIUM_LIMIT } from "../nutrition";
+import { SODIUM_LIMIT } from "../nutrition";
 import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
@@ -145,7 +145,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
     setAdding(openAdd.meal);
   }, [openAdd?.n]);
   // 지난 날은 그때 목표로 평가
-  const { target, profile } = useTargets(date);
+  const { target } = useTargets(date);
   // 치팅데이: 그날 끼니는 평가하지 않음 (주간 평가·칼로리 조정 판단에서도 빠짐)
   const cheats = useCheatDays();
   const cheat = cheats.includes(date);
@@ -258,8 +258,6 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
             </div>
             {MEALS.filter((m) => entries.some((e) => e.meal === m.key)).flatMap((m) => {
               const list = entries.filter((e) => e.meal === m.key);
-              const sub = sumNutrients(list.map((e) => e.total));
-              const ev = target && profile && !cheat ? evaluateMeal(m.key, sub, target, profile.goal) : null;
               // 한 끼에 여러 개면 따로따로
               return list.map((e, i) => {
                 const src = photoOf(e)?.src;
@@ -273,7 +271,6 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                     <span className="hm-info">
                       <span className="hm-chips">
                         <span className="hm-chip">{m.label}</span>
-                        {i === 0 && ev && <span className={`grade-chip ${ev.grade}`}>{GRADE_LABEL[ev.grade]}</span>}
                         {i === 0 && cheat && <span className="grade-chip cheat">치팅</span>}
                       </span>
                       <b className="hm-kcal">{Math.round(e.total.kcal).toLocaleString()} kcal</b>
