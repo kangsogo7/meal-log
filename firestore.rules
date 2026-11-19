@@ -77,6 +77,23 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // 기기별 Gemini 키: 본인이 등록·삭제만 하고 아무도 읽을 수 없음 (사진 분석 서버만 관리자 권한으로 읽음)
+    match /aiKeys/{uid} {
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.key is string
+        && request.resource.data.key.size() < 300;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // 사진 분석 작업: 본인만 올리고 보고 지움. 결과는 서버만 적음 (앱은 분석을 다시 맡길 때만 덮어씀)
+    match /photoJobs/{uid}/jobs/{jobId} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.status == 'queued'
+        && request.resource.data.prompt is string
+        && request.resource.data.models is list;
+    }
+
     // 초대 코드 → 그룹. 코드를 아는 사람만 찾을 수 있음 (목록 조회 불가)
     match /codes/{code} {
       allow get: if signedIn();

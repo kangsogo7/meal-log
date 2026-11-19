@@ -1,7 +1,7 @@
 // 사진으로 바로 기록: 찍거나 고르면 끼니에 먼저 기록해 두고, 뒤에서 AI가 사진을 보고 음식·칼로리·영양성분을 채움.
-// 앱을 닫았다 열어도 분석 중이던 기록은 다시 이어서 분석
+// 분석은 서버(photoServer.ts)에 맡겨서 앱을 꺼도 서버에서 끝나 있고, 다시 열면 결과를 받아 채움 (서버에 못 맡기면 폰에서 바로)
 import { db, DEFAULT_SETTINGS, getKV, photoKey, sumNutrients, todayStr, addDays, ZERO, type Item, type Meal } from "./db";
-import { aiReady, analyzeFoodPhoto, GeminiError, imageToBase64 } from "./gemini";
+import { aiReady, analyzeFoodPhoto, GeminiError, imageToBase64, type PhotoResult } from "./gemini";
 import { runInBackground } from "./bgJobs";
 
 export const photoJobKey = (id: number) => `photoEntry:${id}`;
@@ -44,8 +44,22 @@ export function analyzePhotoEntry(id: number) {
         if (!aiReady(settings)) throw new GeminiError("AI 키가 없어서 사진을 분석하지 못했어요. 설정에서 키를 넣어 주세요.");
         const photo = e.photo ? await db.photos.get(e.photo) : undefined;
         if (!photo) throw new GeminiError("사진을 찾지 못했어요");
-        const image = await imageToBase64(new File([photo.blob], "meal.jpg", { type: photo.blob.type || "image/jpeg" }), 1024);
-        const r = await analyzeFoodPhoto(settings, image, "", ctrl.signal);
+        const image = () => imageToBase64(new File([photo.blob], "meal.jpg", { type: photo.blob.type || "image/jpeg" }), 1024);
+        // 서버에 맡겨서 앱을 꺼도 분석이 이어지게. 서버에 맡기지 못하면 폰에서 바로
+        let r: PhotoResult;
+        try {
+          const server = await import("./photoServer");
+          try {
+            r = await server.analyzeOnServer(settings, `${id}-${e.createdAt}`, image, ctrl.signal);
+          } catch (err) {
+            if (!(err instanceof server.ServerUnavailable)) throw err;
+            r = await analyzeFoodPhoto(settings, await image(), "", ctrl.signal);
+          }
+        } catch (err) {
+          // 서버 코드를 불러오지 못함 (인터넷 끊김 등)
+          if (!(err instanceof TypeError) || ctrl.signal.aborted) throw err;
+          r = await analyzeFoodPhoto(settings, await image(), "", ctrl.signal);
+        }
         if (!r.items.length) throw new GeminiError("사진에서 음식을 찾지 못했어요");
         const items: Item[] = r.items.map((f) => ({
           name: f.name,

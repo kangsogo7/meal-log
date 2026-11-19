@@ -51,7 +51,7 @@ export function usageCostKrw(u: AiUsage): { krw: number; known: boolean } {
 export const getUsage = () => getKV<AiUsage[]>(USAGE_KEY, []);
 export const clearUsage = () => setKV(USAGE_KEY, []);
 
-function recordUsage(kind: AiKind, model: string, think: string, data: { usageMetadata?: Record<string, number>; candidates?: { groundingMetadata?: { webSearchQueries?: string[] } }[] }, thinkErr = "") {
+export function recordUsage(kind: AiKind, model: string, think: string, data: { usageMetadata?: Record<string, number>; candidates?: { groundingMetadata?: { webSearchQueries?: string[] } }[] }, thinkErr = "") {
   const m = data?.usageMetadata ?? {};
   const u: AiUsage = {
     at: Date.now(),
@@ -102,6 +102,15 @@ export const aiReady = (s: Settings) => !!s.geminiKey || AI_SERVER;
 // 기본은 3.8 Flash, 한도가 끝나면(429) 3.6 Flash로 이어서 (2026-11-18 사용자 요청)
 export const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-hydrogen"];
 
+
+/** 물어볼 모델 순서. prefer: 간단한 작업은 설정한 모델 대신 가벼운 모델부터 (그 모델이 안 되면 나머지 모델로) */
+export function modelOrder(settings: Settings, prefer: string[] = []): string[] {
+  const order = [...prefer, RENAMED[settings.geminiModel] ?? settings.geminiModel, ...GEMINI_MODELS];
+  const all = order.filter((m, i) => order.indexOf(m) === i);
+  // 오늘 하루 한도를 다 쓴 모델은 건너뜀 (다 막혔으면 전부 다시 시도)
+  const open = all.filter((m) => (dayLimited.get(m) ?? 0) < Date.now());
+  return open.length ? open : all;
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -172,12 +181,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
   const trace: TraceStep[] = [];
   lastTrace = trace;
   const first = RENAMED[settings.geminiModel] ?? settings.geminiModel;
-  // prefer: 간단한 작업은 설정한 모델 대신 가벼운 모델부터 (그 모델이 안 되면 나머지 모델로)
-  const order = [...(opts.prefer ?? []), first, ...GEMINI_MODELS];
-  const all = order.filter((m, i) => order.indexOf(m) === i);
-  // 오늘 하루 한도를 다 쓴 모델은 건너뜀 (다 막혔으면 전부 다시 시도)
-  const open = all.filter((m) => (dayLimited.get(m) ?? 0) < Date.now());
-  const models = open.length ? open : all;
+  const models = modelOrder(settings, opts.prefer);
   let sentThink: string = thinkingLevel;
   let thinkErr = "";
   const call = async (model: string) => {
@@ -423,9 +427,9 @@ export interface PhotoResult {
   sources?: WebSource[];
 }
 
+/** 사진 분석 질문과 답 형식 (폰에서 바로 물을 때와 서버로 맡길 때 같이 씀) */
 /** memo: 사용자가 자유롭게 적은 설명 (가게·메뉴·사이즈·먹은 양). 적었으면 공식 메뉴 정보를 구글 검색으로 참고 */
-/** signal: 기록을 지우면 분석 요청을 끊음 */
-export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: string; data: string }, memo = "", signal?: AbortSignal): Promise<PhotoResult> {
+export function photoQuestion(memo = "") {
   memo = memo.trim();
   const prompt = `이 사진의 영양 정보를 알려줘. ${LATEST}${memo ? `
 사용자 설명: ${memo}
@@ -457,8 +461,11 @@ export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: st
     },
     required: ["type", "items", "note", "place"],
   };
-  const parts = [{ inlineData: image }, { text: prompt }];
-  const { value: res, sources } = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length, "photo", signal);
+  return { prompt, schema };
+}
+
+/** AI 답을 앱에서 쓰는 모양으로 */
+export function toPhotoResult(res: PhotoResult | undefined, sources: WebSource[]): PhotoResult {
   if (!res?.items?.length) throw new GeminiError("사진에서 음식이나 영양성분표를 찾지 못했어요. 다시 찍어 주세요.");
   return {
     type: res.type === "label" ? "label" : "food",
@@ -467,6 +474,14 @@ export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: st
     sources,
     items: res.items.map((i) => ({ name: String(i.name || "음식"), amount: String(i.amount ?? ""), grams: Math.max(0, Number(i.grams) || 0), nutrients: toNutrients(i.nutrients) })),
   };
+}
+
+/** signal: 기록을 지우면 분석 요청을 끊음 */
+export async function analyzeFoodPhoto(settings: Settings, image: { mimeType: string; data: string }, memo = "", signal?: AbortSignal): Promise<PhotoResult> {
+  const { prompt, schema } = photoQuestion(memo);
+  const parts = [{ inlineData: image }, { text: prompt }];
+  const { value: res, sources } = await searchJson<PhotoResult>(settings, parts, schema, (r) => !!r.items?.length, "photo", signal);
+  return toPhotoResult(res, sources);
 }
 
 // ---------- 인바디 결과지 ----------
