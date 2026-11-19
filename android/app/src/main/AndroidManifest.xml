@@ -50,6 +50,18 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_meal_info" />
         </receiver>
 
+        <!-- 빠른 설정 버튼(화면 위를 내리면 나오는 버튼): 물 한 잔. 잠금화면에서도 내려서 누를 수 있음 -->
+        <service
+            android:name=".WaterTile"
+            android:label="@string/tile_water"
+            android:icon="@drawable/ic_tile_water"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

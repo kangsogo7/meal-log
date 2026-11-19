@@ -1,4 +1,4 @@
-// 아이폰 홈 화면 위젯 4가지: 오늘 칼로리 · 물(+1잔) · 오늘 식단 · 챌린지
+// 아이폰 홈 화면 위젯 4가지: 오늘 칼로리 · 물(+1잔) · 오늘 식단 · 챌린지 + 잠금화면 물 위젯(누르면 +1잔)
 // 앱이 App Group 저장소에 넣어 둔 오늘 상태(state)를 그림. 앱을 열 때·기록이 바뀔 때 앱이 새로 넣어 줌.
 // 물 +1잔은 앱을 열지 않고 위젯 안에서 더하고, 앱이 열리면 기록에 반영(pending)됨.
 import AppIntents
@@ -243,6 +243,35 @@ struct ChallengeView: View {
     }
 }
 
+/** 잠금화면 물: 동그라미(마신 잔 수 게이지) · 가로형. 누르면 앱을 열지 않고 한 잔 */
+struct LockWaterView: View {
+    @Environment(.widgetFamily) var family
+    let s: WState?
+    var body: some View {
+        let cup = max(s?.water.cupMl ?? 250, 1)
+        let cups = max(Int(((s?.water.goalMl ?? 2000) / cup).rounded(.up)), 1)
+        let filled = Int((s?.water.ml ?? 0) / cup)
+        Button(intent: AddWaterIntent()) {
+            if family == .accessoryRectangular {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("물").font(.headline)
+                    Text("(filled) / (cups)잔").font(.body)
+                    Text("눌러서 한 잔 추가").font(.caption2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Gauge(value: Double(min(filled, cups)), in: 0...Double(cups)) {
+                    Image(systemName: "drop.fill")
+                } currentValueLabel: {
+                    Text("(filled)")
+                }
+                .gaugeStyle(.accessoryCircular)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // ---------- 위젯 ----------
 
 struct KcalWidget: Widget {
@@ -264,6 +293,17 @@ struct WaterWidget: Widget {
         .configurationDisplayName("물")
         .description("+1잔은 앱을 열지 않고 기록돼요")
         .supportedFamilies([.systemSmall])
+    }
+}
+
+struct LockWaterWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "lockWater", provider: Provider()) { e in
+            LockWaterView(s: e.state).containerBackground(for: .widget) { AccessoryWidgetBackground() }
+        }
+        .configurationDisplayName("물 한 잔")
+        .description("잠금화면에서 누르면 한 잔 기록돼요")
+        .supportedFamilies([.accessoryCircular, .accessoryRectangular])
     }
 }
 
@@ -294,6 +334,7 @@ struct MealWidgets: WidgetBundle {
     var body: some Widget {
         KcalWidget()
         WaterWidget()
+        LockWaterWidget()
         MealsWidget()
         ChallengeWidget()
     }

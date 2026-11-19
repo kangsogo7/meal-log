@@ -28,6 +28,7 @@
         <item name="android:background">@drawable/widget_chip_off</item>
     </style>
     <string name="widget_water">물</string>
+    <string name="tile_water">물 한 잔</string>
     <string name="widget_water_add">+ 한 잔</string>
     <string name="widget_supp">영양제</string>
     <string name="widget_supp_empty">앱에서 영양제를 등록해 주세요</string>

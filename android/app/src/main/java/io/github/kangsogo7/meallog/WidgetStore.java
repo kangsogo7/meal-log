@@ -69,11 +69,42 @@ final class WidgetStore {
         return s;
     }
 
-    /** 위젯 3개 모두 다시 그리기 */
+    /** 물 한 잔: 위젯 숫자를 바로 올리고, 앱이 열릴 때 기록하도록 쌓아 둠 (물 위젯 · 빠른 설정 버튼) */
+    static synchronized void addWater(Context c) {
+        try {
+            JSONObject s = state(c);
+            JSONObject w = s.optJSONObject("water");
+            if (w == null) {
+                w = new JSONObject().put("ml", 0).put("goalMl", 2000).put("cupMl", 250);
+                s.put("water", w);
+            }
+            int cup = Math.max(1, w.optInt("cupMl", 250));
+            w.put("ml", w.optInt("ml", 0) + cup);
+            saveState(c, s);
+            addPending(c, new JSONObject().put("type", "water").put("date", s.optString("date")).put("ml", cup));
+            refreshAll(c);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** 오늘 마신 잔 / 목표 잔 */
+    static int[] waterCups(Context c) {
+        JSONObject w = state(c).optJSONObject("water");
+        int ml = w != null ? w.optInt("ml", 0) : 0;
+        int goal = w != null ? w.optInt("goalMl", 2000) : 2000;
+        int cup = w != null ? Math.max(1, w.optInt("cupMl", 250)) : 250;
+        return new int[] { ml / cup, Math.max(1, (int) Math.ceil(goal / (double) cup)) };
+    }
+
+    /** 위젯 3개와 빠른 설정 버튼 모두 다시 그리기 */
     static void refreshAll(Context c) {
         refresh(c, WaterWidget.class);
         refresh(c, SuppWidget.class);
         refresh(c, MealWidget.class);
+        try {
+            android.service.quicksettings.TileService.requestListeningState(c, new ComponentName(c, WaterTile.class));
+        } catch (Exception ignored) {
+        }
     }
 
     private static void refresh(Context c, Class<?> cls) {

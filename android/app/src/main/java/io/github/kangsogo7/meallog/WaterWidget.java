@@ -38,20 +38,7 @@ public class WaterWidget extends AppWidgetProvider {
     public void onReceive(Context c, Intent i) {
         super.onReceive(c, i);
         if (!ACTION_ADD.equals(i.getAction())) return;
-        try {
-            JSONObject s = WidgetStore.state(c);
-            JSONObject w = s.optJSONObject("water");
-            if (w == null) {
-                w = new JSONObject().put("ml", 0).put("goalMl", 2000).put("cupMl", 250);
-                s.put("water", w);
-            }
-            int cup = Math.max(1, w.optInt("cupMl", 250));
-            w.put("ml", w.optInt("ml", 0) + cup);
-            WidgetStore.saveState(c, s);
-            WidgetStore.addPending(c, new JSONObject().put("type", "water").put("date", s.optString("date")).put("ml", cup));
-            WidgetStore.refreshAll(c);
-        } catch (Exception ignored) {
-        }
+        WidgetStore.addWater(c);
     }
 
     static PendingIntent openApp(Context c) {
