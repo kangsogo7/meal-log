@@ -25,8 +25,8 @@ export default defineConfig(({ command, mode }) => ({
         description: "끼니별 식단과 영양성분을 기록하는 앱",
         lang: "ko",
         display: "standalone",
-        background_color: "#f6f7f9",
-        theme_color: "#16a34a",
+        background_color: "#f5f3ef",
+        theme_color: "#f5f3ef",
         icons: [
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },

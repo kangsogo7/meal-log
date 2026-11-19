@@ -1,11 +1,11 @@
-// 앱 아이콘 PNG 생성 (초록 배경 + 흰 접시 + 숟가락/포크)
+// 앱 아이콘 PNG 생성 (크림 바탕 + 검은 숟가락·젓가락, 2026-11-19 시안 D)
 //   node scripts/make-icons.mjs
 import { deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 
-const GREEN = [22, 163, 74];
-const WHITE = [255, 255, 255];
-const LIGHT = [220, 245, 228];
+// 배경(이름은 예전 그대로 GREEN: 투명 처리 기준 색) = 앱 테마 크림색, 그림 = 검정
+const GREEN = [245, 243, 239];
+const INK = [17, 17, 17];
 
 function crc32(buf) {
   let c, crc = ~0;
@@ -27,7 +27,7 @@ function chunk(type, data) {
 
 /**
  * @param iconScale < 1이면 가운데에 작은 아이콘 (스플래시, 안드로이드 적응형 아이콘 전경)
- * @param transparent true면 초록 배경을 투명으로 (적응형 아이콘 전경 레이어)
+ * @param transparent true면 크림 배경을 투명으로 (적응형 아이콘 전경 레이어)
  */
 function draw(size, iconScale = 1, transparent = false) {
   const ch = transparent ? 4 : 3;
@@ -66,20 +66,21 @@ function draw(size, iconScale = 1, transparent = false) {
   ]);
 }
 
-// 좌표는 중심 기준 -0.5 ~ 0.5
+/** 점 (x,y)에서 선분까지 거리 */
+function seg(x, y, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(x - x1 - t * dx, y - y1 - t * dy);
+}
+
+// 좌표는 중심 기준 -0.5 ~ 0.5 (시안의 100x100 그림을 옮김)
 function colorAt(x, y) {
-  const r = Math.hypot(x, y);
-  if (r < 0.2) return LIGHT; // 접시 안쪽
-  if (r < 0.27) return WHITE; // 접시 테두리
-  // 왼쪽 포크
-  if (Math.abs(x + 0.36) < 0.022 && y > -0.2 && y < 0.24) return WHITE;
-  if (x > -0.4 && x < -0.32 && y > -0.2 && y < -0.08) {
-    const t = (x + 0.4) / 0.08;
-    if (t < 0.25 || (t > 0.42 && t < 0.58) || t > 0.75 || y > -0.11) return WHITE;
-  }
-  // 오른쪽 숟가락
-  if (Math.abs(x - 0.36) < 0.022 && y > -0.05 && y < 0.24) return WHITE;
-  if (((x - 0.36) / 0.05) ** 2 + ((y + 0.12) / 0.09) ** 2 < 1) return WHITE;
+  // 숟가락: 둥근 머리 + 손잡이
+  if (((x + 0.1) / 0.09) ** 2 + ((y + 0.17) / 0.12) ** 2 < 1) return INK;
+  if (seg(x, y, -0.1, -0.08, -0.1, 0.28) < 0.02) return INK;
+  // 젓가락 두 짝
+  if (seg(x, y, 0.07, -0.3, 0.09, 0.3) < 0.02) return INK;
+  if (seg(x, y, 0.16, -0.3, 0.15, 0.3) < 0.02) return INK;
   return GREEN;
 }
 
