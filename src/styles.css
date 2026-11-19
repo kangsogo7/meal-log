@@ -1682,3 +1682,8 @@ body:has(.content > .tp:first-child) { background: var(--home-bg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hc-handle i { background: var(--border); } }
 :root[data-theme="dark"] .hc-handle i { background: var(--border); }
 .home-cal + .home-sheet { margin-top: 6px; }
+
+/* 활동: 그래프 위 주 이동 (‹ 11/10 ~ 16 ›) */
+.act-week { margin: 4px 0 -4px; }
+.act-week button:disabled { opacity: 0.3; }
+.act-loading { text-align: center; margin: 0; }

@@ -1,9 +1,10 @@
 // 활동: 건강 앱에서 가져온 걸음 수·활동 칼로리·운동 기록
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, todayStr, type DayActivity } from "../db";
 import { DateNav, flash, Btn, ThemePage, TpStat } from "../components/ui";
 import { WeekChart } from "../components/charts";
+import { weekDays, weekLabel, weekStartOf } from "../weekly";
 import { HealthError, healthMode, importShortcutText, openHealthSettings, syncFromHealth } from "../health";
 
 export const APK_URL = "https://github.com/kangsogo7/meal-log/releases/download/android/meal-log.apk";
@@ -18,18 +19,24 @@ const agoText = (t: number) => {
 export default function Activity() {
   const [date, setDate] = useState(todayStr());
   const mode = healthMode();
-  // 그래프는 고른 날짜와 상관없이 항상 오늘까지 최근 7일
+  // 그래프는 고른 날짜가 있는 주(월~일). ‹ › 로 저번 주·다음 주
   const today = todayStr();
-  const weekStart = addDays(today, -6);
-  const week = useLiveQuery(() => db.activity.where("date").between(weekStart, today, true, true).toArray(), [weekStart, today], []);
+  const weekStart = weekStartOf(date);
+  const days = weekDays(weekStart);
+  const weekEnd = days[6];
+  const week = useLiveQuery(() => db.activity.where("date").between(weekStart, weekEnd, true, true).toArray(), [weekStart, weekEnd], []);
+  const moveWeek = (n: number) => {
+    const d = addDays(date, 7 * n);
+    setDate(d > today ? today : d);
+  };
+  const loading = useOlderWeek(mode, weekStart, week.length);
   const dayRow = useLiveQuery(() => db.activity.get(date), [date]);
   const last = useLiveQuery(() => db.activity.orderBy("date").last(), []);
   const day: DayActivity | undefined = dayRow;
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const byDate = (d: string) => week.find((w) => w.date === d);
   // 운동 시간: 아이폰 "운동하기 시간"이 있으면 그것, 없으면 운동 기록 합계
   const workoutMin = day?.exerciseMin ?? day?.workouts.reduce((s, w) => s + w.minutes, 0) ?? 0;
-  // 7일 평균 (기록이 있는 날만, 고른 날은 빼고 비교)
+  // 그 주 평균 (기록이 있는 날만, 고른 날은 빼고 비교)
   const avgOf = (key: "steps" | "activeKcal", skip?: string) => {
     const vs = week.filter((w) => w.date !== skip && w[key] != null).map((w) => w[key] as number);
     return vs.length ? Math.round(vs.reduce((a, b) => a + b, 0) / vs.length) : null;
@@ -77,18 +84,42 @@ export default function Activity() {
         )}
       </section>
 
+      <div className="hc-nav act-week">
+        <button onClick={() => moveWeek(-1)} aria-label="저번 주">‹</button>
+        <span>{weekLabel(weekStart)}</span>
+        <button onClick={() => moveWeek(1)} disabled={weekEnd >= today} aria-label="다음 주">›</button>
+      </div>
+      {loading && <p className="muted small act-loading">이 주 건강 데이터를 가져오는 중...</p>}
       <section className="card">
-        <ChartHead title="최근 7일 걸음" avg={avgOf("steps")} />
-        <WeekChart days={days} values={days.map((d) => byDate(d)?.steps ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 걸음 수" unit="보" showAll tone="carb" />
+        <ChartHead title="걸음" avg={avgOf("steps")} />
+        <WeekChart days={days} values={days.map((d) => byDate(d)?.steps ?? 0)} goal={null} selected={date} onSelect={setDate} label={`${weekLabel(weekStart)} 걸음 수`} unit="보" showAll tone="carb" />
       </section>
       <section className="card">
-        <ChartHead title="최근 7일 활동 칼로리" avg={avgOf("activeKcal")} />
-        <WeekChart days={days} values={days.map((d) => byDate(d)?.activeKcal ?? 0)} goal={null} selected={date} onSelect={setDate} label="최근 7일 활동 칼로리" showAll tone="fat" />
+        <ChartHead title="활동 칼로리" avg={avgOf("activeKcal")} />
+        <WeekChart days={days} values={days.map((d) => byDate(d)?.activeKcal ?? 0)} goal={null} selected={date} onSelect={setDate} label={`${weekLabel(weekStart)} 활동 칼로리`} showAll tone="fat" />
       </section>
 
       <SyncCard mode={mode} lastSync={last?.syncedAt} />
     </ThemePage>
   );
+}
+
+/** 앱에서 자동으로 가져오는 건 최근 14일이라, 그보다 앞의 주를 보면 그 주까지 건강 앱에서 가져옴 (주마다 한 번) */
+function useOlderWeek(mode: ReturnType<typeof healthMode>, weekStart: string, rows: number) {
+  const [loading, setLoading] = useState(false);
+  const tried = useRef(new Set<string>());
+  useEffect(() => {
+    if (mode !== "android-app" && mode !== "ios-app") return;
+    if (rows > 0 || weekStart >= addDays(todayStr(), -13) || tried.current.has(weekStart)) return;
+    tried.current.add(weekStart);
+    const [y, m, d] = weekStart.split("-").map(Number);
+    const days = Math.min(400, Math.ceil((Date.now() - new Date(y, m - 1, d).getTime()) / 864e5) + 1);
+    setLoading(true);
+    syncFromHealth(days)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [mode, weekStart, rows]);
+  return loading;
 }
 
 function ChartHead({ title, avg }: { title: string; avg: number | null }) {

@@ -3,21 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, todayStr } from "../db";
+import { weekStartOf } from "../weekly";
 
 const DOWS = ["월", "화", "수", "목", "금", "토", "일"];
 
-/** 그 날짜가 있는 주의 월요일 */
-function mondayOf(date: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  return addDays(date, -((new Date(y, m - 1, d).getDay() + 6) % 7));
-}
 const pad = (n: number) => String(n).padStart(2, "0");
 /** "2026-11" 달의 칸 (앞뒤는 그 주를 채우는 이웃 달 날짜) */
 function monthCells(ym: string): string[] {
   const [y, m] = ym.split("-").map(Number);
   const first = `${y}-${pad(m)}-01`;
   const last = `${y}-${pad(m)}-${pad(new Date(y, m, 0).getDate())}`;
-  const start = mondayOf(first);
+  const start = weekStartOf(first);
   const cells: string[] = [];
   for (let d = start; d <= last || cells.length % 7; d = addDays(d, 1)) cells.push(d);
   return cells;
@@ -30,11 +26,11 @@ const shiftMonth = (ym: string, n: number) => {
 
 export default function HomeCalendar({ date, onSelect }: { date: string; onSelect: (d: string) => void }) {
   const [open, setOpen] = useState(false);
-  const [week, setWeek] = useState(() => mondayOf(date)); // 보고 있는 주의 월요일
+  const [week, setWeek] = useState(() => weekStartOf(date)); // 보고 있는 주의 월요일
   const [month, setMonth] = useState(() => date.slice(0, 7)); // 보고 있는 달
   // 날짜를 다른 곳에서 바꾸면 그 날짜가 있는 주·달로
   useEffect(() => {
-    setWeek(mondayOf(date));
+    setWeek(weekStartOf(date));
     setMonth(date.slice(0, 7));
   }, [date]);
 
@@ -47,7 +43,7 @@ export default function HomeCalendar({ date, onSelect }: { date: string; onSelec
   const move = (n: number) => (open ? setMonth((m) => shiftMonth(m, n)) : setWeek((w) => addDays(w, 7 * n)));
   const toggle = () => {
     // 펼칠 땐 보고 있던 주의 달, 접을 땐 고른 날짜의 주(그 달에 있으면) 또는 그 달 첫 주
-    if (open) setWeek(date.slice(0, 7) === month ? mondayOf(date) : mondayOf(`${month}-01`));
+    if (open) setWeek(date.slice(0, 7) === month ? weekStartOf(date) : weekStartOf(`${month}-01`));
     else setMonth(addDays(week, 3).slice(0, 7));
     setOpen(!open);
   };
