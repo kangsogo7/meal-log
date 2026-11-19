@@ -245,7 +245,7 @@ struct ChallengeView: View {
 
 /** 잠금화면 물: 동그라미(마신 잔 수 게이지) · 가로형. 누르면 앱을 열지 않고 한 잔 */
 struct LockWaterView: View {
-    @Environment(.widgetFamily) var family
+    @Environment(\.widgetFamily) var family
     let s: WState?
     var body: some View {
         let cup = max(s?.water.cupMl ?? 250, 1)
@@ -255,7 +255,7 @@ struct LockWaterView: View {
             if family == .accessoryRectangular {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("물").font(.headline)
-                    Text("(filled) / (cups)잔").font(.body)
+                    Text("\(filled) / \(cups)잔").font(.body)
                     Text("눌러서 한 잔 추가").font(.caption2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -263,7 +263,7 @@ struct LockWaterView: View {
                 Gauge(value: Double(min(filled, cups)), in: 0...Double(cups)) {
                     Image(systemName: "drop.fill")
                 } currentValueLabel: {
-                    Text("(filled)")
+                    Text("\(filled)")
                 }
                 .gaugeStyle(.accessoryCircular)
             }
