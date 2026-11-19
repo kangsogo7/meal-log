@@ -1,7 +1,7 @@
 // 건강 데이터 가져오기
 // - 안드로이드·아이폰 앱: Health Connect / HealthKit 직접 읽기
 // - 아이폰 웹앱(PWA): 단축어가 만든 글을 붙여넣기
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { addDays, db, todayStr, toDateStr, type DayActivity, type Workout } from "./db";
 
 export type HealthMode = "android-app" | "ios-app" | "ios-web" | "android-web" | "web";
@@ -109,6 +109,15 @@ export async function syncFromHealth(days = 14): Promise<{ days: number; workout
 
   const kcal = await tryRead(() => Health.queryAggregated({ ...range, dataType: "calories", bucket: "day", aggregation: "sum" }));
   kcal?.samples.forEach((s) => (day(s.startDate).activeKcal = Math.round(s.value)));
+  // 아이폰: 피트니스 앱 '움직이기'(활동 링) 값으로 (건강 앱 '활동' 카드와 같은 숫자).
+  // 건강 앱의 활동 에너지에는 다른 앱으로 기록한 운동 칼로리가 빠질 수 있음 (2026-11-19 확인: 활동 에너지 294 / 움직이기 574)
+  if (isIos) {
+    const MoveRing = registerPlugin<{ read(o: { days: number }): Promise<{ days: { date: string; kcal: number }[] }> }>("MoveRing");
+    const move = await tryRead(() => MoveRing.read({ days }));
+    move?.days.forEach((m) => {
+      if (m.kcal > 0) day(new Date(`${m.date}T12:00:00`).toISOString()).activeKcal = Math.round(m.kcal);
+    });
+  }
 
   if (isIos) {
     const ex = await tryRead(() => Health.readSamples({ ...range, dataType: "exerciseTime", limit: 5000 }));

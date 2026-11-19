@@ -4,6 +4,7 @@ import WidgetKit
 import AVFoundation
 import Photos
 import PhotosUI
+import HealthKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -103,6 +104,49 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(WidgetBridgePlugin())
         bridge?.registerPluginInstance(BarcodeScanPlugin())
         bridge?.registerPluginInstance(PhotoLibraryPlugin())
+        bridge?.registerPluginInstance(MoveRingPlugin())
+    }
+}
+
+// ---------- 피트니스 앱 '움직이기'(활동 링) 칼로리 ----------
+// 웹 코드의 registerPlugin("MoveRing"). 건강 앱의 '활동 에너지'에는 다른 앱으로 기록한 운동 칼로리가 빠질 수 있어서,
+// 건강 앱 '활동' 카드·피트니스 앱과 같은 숫자인 활동 링 값을 읽음. { days: [{ date: "2026-11-19", kcal }] }
+@objc(MoveRingPlugin)
+public class MoveRingPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "MoveRingPlugin"
+    public let jsName = "MoveRing"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "read", returnType: CAPPluginReturnPromise),
+    ]
+    private let store = HKHealthStore()
+
+    @objc func read(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["days": []])
+            return
+        }
+        let days = max(1, min(call.getInt("days") ?? 14, 90))
+        store.requestAuthorization(toShare: nil, read: [HKObjectType.activitySummaryType()]) { _, _ in
+            let cal = Calendar.current
+            let now = Date()
+            guard let start = cal.date(byAdding: .day, value: -(days - 1), to: cal.startOfDay(for: now)) else {
+                call.resolve(["days": []])
+                return
+            }
+            var from = cal.dateComponents([.era, .year, .month, .day], from: start)
+            from.calendar = cal
+            var to = cal.dateComponents([.era, .year, .month, .day], from: now)
+            to.calendar = cal
+            let query = HKActivitySummaryQuery(predicate: HKQuery.predicate(forActivitySummariesBetweenStart: from, end: to)) { _, summaries, _ in
+                let list: [[String: Any]] = (summaries ?? []).compactMap { sum in
+                    let c = sum.dateComponents(for: cal)
+                    guard let y = c.year, let m = c.month, let d = c.day else { return nil }
+                    return ["date": String(format: "%04d-%02d-%02d", y, m, d), "kcal": sum.activeEnergyBurned.doubleValue(for: .kilocalorie())]
+                }
+                call.resolve(["days": list])
+            }
+            self.store.execute(query)
+        }
     }
 }
 
