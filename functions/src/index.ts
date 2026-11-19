@@ -28,6 +28,9 @@ class AiError extends Error {
   }
 }
 
+/** 구글 응답 한 번을 기다리는 최대 시간 (함수 전체 제한은 5분) */
+const CALL_MS = 90_000;
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** responseSchema는 OpenAPI 형식이라 type을 대문자로 */
@@ -56,7 +59,7 @@ function googleMessage(body: string) {
 interface Answer { value: string; sources: { title: string; uri: string }[]; model: string; think: string; usage: Record<string, number>; searches: number }
 
 /** 한 번 묻기 (모델을 바꿔 가며) */
-async function ask(key: string, job: Job, search: boolean): Promise<Answer> {
+async function ask(key: string, job: Job, search: boolean, deadline: number): Promise<Answer> {
   const parts = [{ inlineData: job.image }, { text: job.prompt }];
   const level = job.thinkingLevel ?? "LOW";
   const thinking = { thinkingConfig: { thinkingLevel: level } };
@@ -80,7 +83,10 @@ async function ask(key: string, job: Job, search: boolean): Promise<Answer> {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: b,
-      });
+        signal: AbortSignal.timeout(CALL_MS),
+      }).catch(() => null);
+      // 응답이 너무 늦으면 붐빌 때(503)처럼 다음 모델로
+      if (!res) return { status: 503, text: "" };
       return { status: res.status, text: await res.text() };
     };
     think = level;
@@ -97,6 +103,8 @@ async function ask(key: string, job: Job, search: boolean): Promise<Answer> {
   let model = "";
   let busy = false;
   outer: for (const [i, m] of job.models.entries()) {
+    // 함수 제한 시간(5분) 안에 끝내도록, 시간이 얼마 안 남았으면 그만
+    if (i > 0 && Date.now() + CALL_MS > deadline) break;
     model = m;
     const tries = i === 0 ? 2 : 1;
     for (let attempt = 0; attempt < tries; attempt++) {
@@ -144,11 +152,13 @@ async function ask(key: string, job: Job, search: boolean): Promise<Answer> {
 
 /** 검색을 붙여 먼저, 안 되면 검색 없이 (폰의 searchJson과 같게) */
 async function analyze(key: string, job: Job): Promise<Answer> {
+  const deadline = Date.now() + 280_000;
   try {
-    return await ask(key, job, true);
+    return await ask(key, job, true, deadline);
   } catch (e) {
     if (e instanceof AiError && e.fatal) throw e;
-    return ask(key, job, false);
+    if (Date.now() + CALL_MS > deadline) throw new AiError("지금 AI 요청이 몰려 있어요. 잠시 후 다시 시도해 주세요.");
+    return ask(key, job, false, deadline);
   }
 }
 

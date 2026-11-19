@@ -35,7 +35,8 @@ export function analyzePhotoEntry(id: number) {
     photoJobKey(id),
     async () => {
       const e = await db.entries.get(id);
-      if (!e) return;
+      // 지운 기록, 또는 이미 분석이 끝난 기록 (앱을 다시 열 때 겹쳐 불려도 결과를 덮어쓰거나 다시 묻지 않게)
+      if (!e || !e.pending) return;
       const ctrl = new AbortController();
       running.set(id, ctrl);
       await db.entries.update(id, { pending: "ai" });

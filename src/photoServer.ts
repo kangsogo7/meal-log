@@ -3,7 +3,7 @@
 // 키는 기기마다 따로: 이 기기 설정의 Gemini 키를 aiKeys/{내 uid}에 등록 (앱에서는 다시 읽을 수 없고 서버만 읽음)
 // photoMeal.ts가 필요할 때만 불러옴 (Firebase 코드가 커서 앱 첫 로딩에 넣지 않음)
 import { signInAnonymously } from "firebase/auth";
-import { deleteDoc, doc, getDoc, getFirestore, onSnapshot, serverTimestamp, setDoc, type DocumentReference } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, getDocFromServer, getFirestore, onSnapshot, serverTimestamp, setDoc, type DocumentData, type DocumentReference } from "firebase/firestore";
 import { app, auth } from "./firebaseApp";
 import { getKV, setKV, type Settings } from "./db";
 import { cleanKey, GeminiError, modelOrder, photoQuestion, recordUsage, toPhotoResult, type PhotoResult } from "./gemini";
@@ -38,7 +38,9 @@ const jobRef = (uid: string, jobId: string) => doc(fs, "photoJobs", uid, "jobs",
 function waitFor(ref: DocumentReference, signal: AbortSignal): Promise<PhotoResult> {
   return new Promise((ok, fail) => {
     let pickup: ReturnType<typeof setTimeout> | undefined;
+    let ended = false;
     const stop = () => {
+      ended = true;
       unsub();
       clearTimeout(pickup);
       signal.removeEventListener("abort", onAbort);
@@ -49,50 +51,82 @@ function waitFor(ref: DocumentReference, signal: AbortSignal): Promise<PhotoResu
       fail(signal.reason);
     };
     signal.addEventListener("abort", onAbort);
+
+    /** 결과(done·failed)를 받아 기록에 넘김. 결과가 아니면 false */
+    const settle = (d: DocumentData | undefined): boolean => {
+      if (d?.status === "done") {
+        stop();
+        try {
+          recordUsage("photo", d.model, d.think, { usageMetadata: d.usage, candidates: [{ groundingMetadata: { webSearchQueries: Array(d.searches ?? 0).fill("") } }] });
+          ok(toPhotoResult(JSON.parse(d.value), d.sources ?? []));
+        } catch (e) {
+          fail(e instanceof GeminiError ? e : new GeminiError("AI 응답을 읽지 못했어요. 다시 시도해 주세요."));
+        }
+        deleteDoc(ref).catch(() => {});
+        return true;
+      }
+      if (d?.status === "failed") {
+        stop();
+        deleteDoc(ref).catch(() => {});
+        // 서버에 키가 없다고 하면 다음에 다시 등록하게
+        if (/키가 서버에 없어요/.test(String(d.error))) setKV("serverKeyMark", "").catch(() => {});
+        fail(new GeminiError(String(d.error || "사진을 분석하지 못했어요")));
+        return true;
+      }
+      return false;
+    };
+
+    /**
+     * 서버를 포기하고 폰에서 분석하기 전에 서버의 최신 상태를 한 번 더 확인.
+     * 앱이 오래 뒤로 가 있다 돌아오면 멈춰 있던 타이머가 바로 울리고 화면에는 예전 상태(분석 중)가 남아 있을 수 있어서,
+     * 그 사이 서버가 끝내 둔 결과를 지우고 다시 분석하던 문제 (2026-11-19: 두 장 중 한 장을 다시 분석함)
+     */
+    const giveUp = async (why: string) => {
+      if (ended) return;
+      try {
+        const fresh = await getDocFromServer(ref);
+        if (ended) return;
+        if (settle(fresh.data())) return;
+        // 아직 분석 중이고 시작한 지 오래되지 않았으면 계속 기다림
+        const d = fresh.data();
+        const started = d?.startedAt?.toMillis?.();
+        if (d?.status === "running" && started && Date.now() - started < STUCK_MS) return watch(d);
+      } catch {
+        // 인터넷이 안 되면 아래로 (폰에서 분석)
+      }
+      if (ended) return;
+      stop();
+      deleteDoc(ref).catch(() => {});
+      fail(new ServerUnavailable(why));
+    };
+
+    /** 아직 결과가 아니면: 받아 가지 않거나 멈춘 걸 알아차릴 타이머 */
+    const watch = (d: DocumentData, pendingWrite = false) => {
+      clearTimeout(pickup);
+      if (d.status === "queued" && !pendingWrite) {
+        // 서버가 받아 가지 않음 (함수가 꺼져 있는 등) → 폰에서
+        pickup = setTimeout(() => void giveUp("서버가 작업을 받지 않았어요"), PICKUP_MS);
+      } else if (d.status === "running") {
+        const started = d.startedAt?.toMillis?.() ?? Date.now();
+        pickup = setTimeout(() => void giveUp("서버 분석이 멈췄어요"), Math.max(0, started + STUCK_MS - Date.now()));
+      }
+    };
+
     const unsub = onSnapshot(
       ref,
       (s) => {
+        if (ended) return;
         if (!s.exists()) {
+          // 화면에 남은 예전 정보로는 없다고 나올 수 있어서 서버에 확인
+          if (s.metadata.fromCache) return void giveUp("작업이 없어졌어요");
           stop();
           return fail(new ServerUnavailable("작업이 없어졌어요"));
         }
         const d = s.data();
-        clearTimeout(pickup);
-        if (d.status === "queued" && !s.metadata.hasPendingWrites) {
-          // 서버가 받아 가지 않음 (함수가 꺼져 있는 등) → 폰에서
-          pickup = setTimeout(() => {
-            stop();
-            deleteDoc(ref).catch(() => {});
-            fail(new ServerUnavailable("서버가 작업을 받지 않았어요"));
-          }, PICKUP_MS);
-        } else if (d.status === "running") {
-          const started = d.startedAt?.toMillis?.() ?? Date.now();
-          pickup = setTimeout(() => {
-            stop();
-            deleteDoc(ref).catch(() => {});
-            fail(new ServerUnavailable("서버 분석이 멈췄어요"));
-          }, Math.max(0, started + STUCK_MS - Date.now()));
-        } else if (d.status === "done") {
-          stop();
-          try {
-            recordUsage("photo", d.model, d.think, { usageMetadata: d.usage, candidates: [{ groundingMetadata: { webSearchQueries: Array(d.searches ?? 0).fill("") } }] });
-            ok(toPhotoResult(JSON.parse(d.value), d.sources ?? []));
-          } catch (e) {
-            fail(e instanceof GeminiError ? e : new GeminiError("AI 응답을 읽지 못했어요. 다시 시도해 주세요."));
-          }
-          deleteDoc(ref).catch(() => {});
-        } else if (d.status === "failed") {
-          stop();
-          deleteDoc(ref).catch(() => {});
-          // 서버에 키가 없다고 하면 다음에 다시 등록하게
-          if (/키가 서버에 없어요/.test(String(d.error))) setKV("serverKeyMark", "").catch(() => {});
-          fail(new GeminiError(String(d.error || "사진을 분석하지 못했어요")));
-        }
+        if (settle(d)) return;
+        watch(d, s.metadata.hasPendingWrites);
       },
-      () => {
-        stop();
-        fail(new ServerUnavailable("서버 연결이 끊겼어요"));
-      },
+      () => void giveUp("서버 연결이 끊겼어요"),
     );
   });
 }
