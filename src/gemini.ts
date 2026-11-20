@@ -77,7 +77,7 @@ export const getLastTrace = () => lastTrace;
 export function formatTrace(t: TraceStep[]) {
   if (!t.length) return "";
   const total = t.reduce((a, s) => a + s.ms, 0);
-  const steps = t.map((s) => `${s.model.replace("gemini-", "")}${s.search ? "(검색)" : ""} ${s.status === 200 ? "" : s.status + " "}${(s.ms / 1000).toFixed(1)}초`).join(" → ");
+  const steps = t.map((s) => `${s.model.replace("gemini-", "")}${s.search ? "(검색)" : ""} ${s.status === 200 ? "" : s.status === 598 ? "시간초과 " : s.status + " "}${(s.ms / 1000).toFixed(1)}초`).join(" → ");
   return `${(total / 1000).toFixed(1)}초 · ${steps}`;
 }
 
@@ -144,11 +144,19 @@ function extractJson(text: string): string {
 /** 구글 검색에서 실제로 참고한 웹페이지 (모델이 쓴 말이 아니라 응답의 검색 근거 정보) */
 export interface WebSource { title: string; uri: string }
 
+/** 구글 응답 한 번을 기다리는 최대 시간. 넘으면 붐빌 때처럼 다음 모델로 (응답이 안 와서 몇 분씩 멈춰 있지 않게) */
+const CALL_MS = 60_000;
+
+/** 답이 없을 때(시간 초과) 쓰는 상태 값 */
+const TIMEOUT = 598;
+
 async function generateJson<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind; signal?: AbortSignal } = {}): Promise<T> {
   return (await generateMeta<T>(settings, parts, schema, opts)).value;
 }
 
-async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind; signal?: AbortSignal } = {}): Promise<{ value: T; sources: WebSource[] }> {
+async function generateMeta<T>(settings: Settings, parts: Part[], schema: object, opts: { search?: boolean; prefer?: string[]; kind?: AiKind; signal?: AbortSignal; deadline?: number } = {}): Promise<{ value: T; sources: WebSource[] }> {
+  /** 이번 질문 전체를 이 시각까지 끝냄 (기본: 모델 두 개를 기다릴 만큼) */
+  const deadline = opts.deadline ?? Date.now() + 2 * CALL_MS;
   const apiKey = cleanKey(settings.geminiKey);
   // 내 키가 있으면 지금처럼 폰에서 바로, 없으면 AI 호출 서버로 (서버가 켜져 있을 때만)
   const viaServer = !apiKey && AI_SERVER;
@@ -192,13 +200,26 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
       if (viaServer) {
         out = await (await import("./aiServer")).callGeminiServer(model, body);
       } else {
-        const res = await fetch(url, {
-          method: "POST",
-          signal: opts.signal,
-          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-          body,
-        });
-        out = { status: res.status, text: await res.text() };
+        // 한 번에 최대 CALL_MS(남은 시간이 그보다 짧으면 그만큼)만 기다림. 사용자가 취소하면 바로 멈춤
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), Math.max(5_000, Math.min(CALL_MS, deadline - Date.now())));
+        const stop = () => ctl.abort();
+        opts.signal?.addEventListener("abort", stop);
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            signal: ctl.signal,
+            headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+            body,
+          });
+          out = { status: res.status, text: await res.text() };
+        } catch (e) {
+          if (opts.signal?.aborted || !ctl.signal.aborted) throw e;
+          out = { status: TIMEOUT, text: "" };
+        } finally {
+          clearTimeout(timer);
+          opts.signal?.removeEventListener("abort", stop);
+        }
       }
       trace.push({ model, status: out.status, ms: Math.round(performance.now() - t0), search: !!opts.search, server: viaServer });
       return out;
@@ -227,10 +248,16 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
   let r = { status: 0, text: "" };
   let busy = false;
   outer: for (const [i, model] of models.entries()) {
+    // 정해 둔 시간이 거의 다 됐으면 다른 모델은 그만 (검색 없이 묻기로 넘어가거나 오류로)
+    if (i > 0 && deadline - Date.now() < 15_000) break;
     const tries = i === 0 ? 2 : 1;
     for (let attempt = 0; attempt < tries; attempt++) {
       r = await call(model);
       if (r.status === 200) break outer;
+      if (r.status === TIMEOUT) {
+        busy = true;
+        continue outer; // 같은 모델을 또 기다리지 않고 다음 모델로
+      }
       if (i > 0 && r.status === 404) continue outer; // 대신 쓰려던 모델이 없음
       if (r.status !== 429 && r.status < 500) break outer; // 키 오류 등은 다른 모델로 바꿔도 같음
       busy = true;
@@ -246,6 +273,7 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
 
   if (r.status !== 200) {
     const detail = googleMessage(r.text);
+    if (r.status === TIMEOUT) throw new GeminiError("AI 답이 너무 늦어요. 잠시 후 다시 시도해 주세요.");
     if (busy && (r.status === 429 || r.status >= 500 || r.status === 404))
       throw new GeminiError("지금 AI 요청이 몰려 있어요. 잠시 후 다시 시도해 주세요.");
     if (r.status === 401 || (r.status === 400 && /API key|API_KEY/i.test(r.text))) throw new GeminiError("Gemini API 키가 올바르지 않아요. 설정에서 확인해 주세요.");
@@ -277,8 +305,9 @@ async function generateMeta<T>(settings: Settings, parts: Part[], schema: object
 
 /** 구글 검색으로 최신 공식 정보를 찾아서 답하게. 검색을 못 쓰거나 형식이 깨지면 검색 없이 */
 async function searchJson<T>(settings: Settings, parts: Part[], schema: object, ok: (r: T) => boolean, kind: AiKind, signal?: AbortSignal): Promise<{ value: T; sources: WebSource[] }> {
+  // 검색해서 묻기는 최대 1분 반, 안 되면 검색 없이 최대 1분 (전체 2분 반 안에 답이나 오류)
   try {
-    const res = await generateMeta<T>(settings, parts, schema, { search: true, kind, signal });
+    const res = await generateMeta<T>(settings, parts, schema, { search: true, kind, signal, deadline: Date.now() + CALL_MS * 1.5 });
     if (!res.value || !ok(res.value)) throw new GeminiError("형식 오류");
     return res;
   } catch (e) {
@@ -286,7 +315,7 @@ async function searchJson<T>(settings: Settings, parts: Part[], schema: object, 
     // 검색으로 묻던 시간도 결과 아래 시간 줄에 같이 보이게
     const first = lastTrace;
     try {
-      return await generateMeta<T>(settings, parts, schema, { kind, signal });
+      return await generateMeta<T>(settings, parts, schema, { kind, signal, deadline: Date.now() + CALL_MS });
     } finally {
       lastTrace = [...first, ...lastTrace];
     }
