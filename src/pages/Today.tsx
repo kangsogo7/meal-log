@@ -12,6 +12,7 @@ import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
 import { cancelPhotoEntry, recordPhotoMeal, submitPhotoEntry, syncPhotoJobs } from "../photoMeal";
+import { autoSyncHealth } from "../health";
 import SwipeRow from "../components/SwipeRow";
 import HomeCalendar from "../components/HomeCalendar";
 import { CheckTiles, ChecksPage } from "./Checks";
@@ -166,7 +167,10 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const filled = Math.floor(dayCheck.waterMl / hyd.cupMl);
   const suppTaken = supps.filter((s) => dayCheck.supps[s.id]).length;
   // 앱을 켤 때: 서버에서 끝난 사진 분석을 받아 와 채움
-  useEffect(() => { void syncPhotoJobs(); }, []);
+  useEffect(() => {
+    void syncPhotoJobs();
+    void autoSyncHealth(); // 활동 칼로리를 목표에 바로 반영
+  }, []);
   const removePhoto = async (e: Entry) => {
     const ph = photoOf(e);
     if (!ph) return;

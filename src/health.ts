@@ -278,3 +278,28 @@ export async function importShortcutText(text: string) {
   const b = await mergeBody(body);
   return { days: n, body: b };
 }
+
+/**
+ * 앱을 켤 때·앱으로 돌아올 때 오늘·어제 활동을 건강 앱에서 조용히 가져옴 (목표 칼로리에 활동 칼로리가 바로 반영되게).
+ * 전에 한 번이라도 가져온 적이 있을 때만 (처음엔 권한 창이 뜨므로 활동 탭에서 직접). 1분에 한 번까지
+ */
+let autoAt = 0;
+export async function autoSyncHealth() {
+  const mode = healthMode();
+  if (mode !== "android-app" && mode !== "ios-app") return;
+  if (Date.now() - autoAt < 60_000) return;
+  autoAt = Date.now();
+  try {
+    const last = await db.activity.orderBy("date").last();
+    if (!last?.syncedAt) return;
+    await syncFromHealth(2);
+  } catch {
+    // 권한이 없거나 실패해도 조용히 (활동 탭에서 직접 가져오면 이유가 보임)
+  }
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) void autoSyncHealth();
+  });
+}
