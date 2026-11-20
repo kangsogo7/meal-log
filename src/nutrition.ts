@@ -269,9 +269,8 @@ export function calcTargets(p: Profile, body: BodyRecord | undefined, actual?: {
   let actualUsed: TargetResult["actual"];
   if (actual) {
     // 건강 앱의 활동 칼로리 = 기초대사량 외에 움직여서 쓴 칼로리. 소화에 쓰는 몫(기초대사량의 약 10%)을 더함
-    // 활동량 계수(1.2~)에 이미 소화 몫 0.1이 들어 있으므로 빼서 맞춤 → 추정치를 쓰면 기존 계산과 같은 값
-    const estimatedActive = bmr * (factor - 1.1) + exerciseKcal;
-    const active = actual.isToday ? Math.max(actual.activeKcal, estimatedActive) : actual.activeKcal;
+        // 오늘도 지금까지의 실제 값 그대로 (움직일수록 목표가 바로 올라감. 2026-11-20 사용자 요청)
+    const active = actual.activeKcal;
     tdee = bmr * 1.1 + active;
     actualUsed = { activeKcal: Math.round(actual.activeKcal), usedEstimate: active !== actual.activeKcal };
   }

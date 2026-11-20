@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, db, formatDate, getKV, setKV, sumNutrients, todayStr, type BodyRecord, type ExerciseKind, type Goal, type Nutrients, type Profile } from "../db";
 import { ACTIVITY, EXERCISES, GOAL_ORDER, GOALS, kcalFromMacros, SODIUM_LIMIT, calcTargets, suggestAdjust, type AdjustSuggestion, type DietDay } from "../nutrition";
@@ -9,9 +9,12 @@ import { useLatestBody, useProfile, useProfileSaved, useSettings, useTargets } f
 import { aiReady, GeminiError, imageToBase64, readInBody } from "../gemini";
 import { DateButton, Dialog, EditButton, flash, NumInput, FullScreen, Seg, Btn, BtnRow, ThemePage, TpStat } from "../components/ui";
 import { WeightChart } from "../components/charts";
+import { autoSyncHealth } from "../health";
 
 export default function Goals() {
   const profile = useProfile();
+  // 화면을 열 때 건강 앱의 오늘 활동 칼로리를 새로 가져와 목표에 반영
+  useEffect(() => { void autoSyncHealth(); }, []);
   const saved = useProfileSaved();
   const latest = useLatestBody();
   const { target, calc } = useTargets();
