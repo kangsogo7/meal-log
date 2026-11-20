@@ -11,7 +11,7 @@ import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
-import { analyzePhotoEntry, cancelPhotoEntry, recordPhotoMeal, resumePhotoMeals } from "../photoMeal";
+import { cancelPhotoEntry, recordPhotoMeal, submitPhotoEntry, syncPhotoJobs } from "../photoMeal";
 import SwipeRow from "../components/SwipeRow";
 import HomeCalendar from "../components/HomeCalendar";
 import { CheckTiles, ChecksPage } from "./Checks";
@@ -165,8 +165,8 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   const cups = Math.max(1, Math.ceil(hyd.goalMl / hyd.cupMl));
   const filled = Math.floor(dayCheck.waterMl / hyd.cupMl);
   const suppTaken = supps.filter((s) => dayCheck.supps[s.id]).length;
-  // 분석 중에 앱이 닫혔던 사진 기록은 다시 분석
-  useEffect(() => { resumePhotoMeals(); }, []);
+  // 앱을 켤 때: 서버에서 끝난 사진 분석을 받아 와 채움
+  useEffect(() => { void syncPhotoJobs(); }, []);
   const removePhoto = async (e: Entry) => {
     const ph = photoOf(e);
     if (!ph) return;
@@ -178,7 +178,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   };
   // 밀어서 삭제: AI 분석 중이면 멈추고, 기록마다 사진도 같이 지움 (되돌리기 가능)
   const deleteEntry = async (e: Entry) => {
-    cancelPhotoEntry(e.id!);
+    cancelPhotoEntry(e);
     const photo = e.photo ? await db.photos.get(e.photo) : undefined;
     await db.entries.delete(e.id!);
     if (photo) await db.photos.delete(photo.key);
@@ -187,7 +187,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
       run: () => void (async () => {
         if (photo) await db.photos.put(photo);
         await db.entries.put(e);
-        if (e.pending) analyzePhotoEntry(e.id!);
+        if (e.pending) void submitPhotoEntry(e.id!);
       })(),
     });
   };
@@ -332,7 +332,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
                 sub={e.pending ? "사진 기록" : KIND_LABEL[e.kind]}
                 n={e.total}
                 kcal={e.total.kcal}
-                onClick={() => (e.pending === "failed" ? analyzePhotoEntry(e.id!) : e.pending === "ai" ? undefined : setEditing(e))}
+                onClick={() => (e.pending === "failed" ? void submitPhotoEntry(e.id!) : e.pending === "ai" ? undefined : setEditing(e))}
                 trailing={<FavStar getDraft={() => entryDraft(e)} />}
               />
             </FoodList>
