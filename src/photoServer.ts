@@ -34,16 +34,28 @@ async function syncKey(uid: string, key: string) {
 
 const jobRef = (uid: string, jobId: string) => doc(fs, "photoJobs", uid, "jobs", jobId);
 
-/** 서버가 결과를 적을 때까지 기다림 */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * 서버가 결과를 적을 때까지 기다림.
+ * - 실시간 알림(onSnapshot)으로 받고, 앱이 앞으로 돌아올 때마다 서버에 직접 한 번 더 물어봄
+ *   (아이폰에서 앱이 오래 뒤로 가 있다 돌아오면 실시간 연결이 다시 붙는 데 오래 걸려서, 결과를 늦게 받던 문제)
+ * - 인터넷이 안 되거나 확인이 안 될 때는 절대 포기하지 않고 계속 기다림. 서버가 직접 "아직 안 받아 감 / 멈춤"이라고 확인해 줄 때만 폰에서 분석
+ *   (앱을 켜자마자 인터넷이 붙기 전에 확인하다 실패해서, 서버가 끝내 둔 결과를 지우고 다시 분석하던 문제, 2026-11-20)
+ */
 function waitFor(ref: DocumentReference, signal: AbortSignal): Promise<PhotoResult> {
   return new Promise((ok, fail) => {
-    let pickup: ReturnType<typeof setTimeout> | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let poll: ReturnType<typeof setTimeout> | undefined;
     let ended = false;
+    let checking = false;
     const stop = () => {
       ended = true;
       unsub();
-      clearTimeout(pickup);
+      clearTimeout(timer);
+      clearTimeout(poll);
       signal.removeEventListener("abort", onAbort);
+      document.removeEventListener("visibilitychange", onVisible);
     };
     const onAbort = () => {
       stop();
@@ -76,49 +88,63 @@ function waitFor(ref: DocumentReference, signal: AbortSignal): Promise<PhotoResu
       return false;
     };
 
-    /**
-     * 서버를 포기하고 폰에서 분석하기 전에 서버의 최신 상태를 한 번 더 확인.
-     * 앱이 오래 뒤로 가 있다 돌아오면 멈춰 있던 타이머가 바로 울리고 화면에는 예전 상태(분석 중)가 남아 있을 수 있어서,
-     * 그 사이 서버가 끝내 둔 결과를 지우고 다시 분석하던 문제 (2026-11-19: 두 장 중 한 장을 다시 분석함)
-     */
-    const giveUp = async (why: string) => {
-      if (ended) return;
+    /** 서버에 직접 물어봄. 확인이 안 되면(인터넷 등) 15초 뒤 다시 */
+    const check = async () => {
+      if (ended || checking) return;
+      checking = true;
+      clearTimeout(poll);
       try {
         const fresh = await getDocFromServer(ref);
         if (ended) return;
-        if (settle(fresh.data())) return;
-        // 아직 분석 중이고 시작한 지 오래되지 않았으면 계속 기다림
+        if (!fresh.exists()) {
+          // 서버에도 없음 (다른 곳에서 지움) → 폰에서
+          stop();
+          return fail(new ServerUnavailable("작업이 없어졌어요"));
+        }
         const d = fresh.data();
-        const started = d?.startedAt?.toMillis?.();
-        if (d?.status === "running" && started && Date.now() - started < STUCK_MS) return watch(d);
+        if (settle(d)) return;
+        const at = d.at?.toMillis?.() ?? Date.now();
+        const started = d.startedAt?.toMillis?.() ?? Date.now();
+        // 서버가 직접 확인해 준 경우만 포기: 1분이 넘도록 안 받아 감 / 시작하고 6분이 넘도록 안 끝남 (서버 제한 5분)
+        if ((d.status === "queued" && Date.now() - at > PICKUP_MS) || (d.status === "running" && Date.now() - started > STUCK_MS)) {
+          stop();
+          deleteDoc(ref).catch(() => {});
+          return fail(new ServerUnavailable(d.status === "queued" ? "서버가 작업을 받지 않았어요" : "서버 분석이 멈췄어요"));
+        }
+        watch(d);
       } catch {
-        // 인터넷이 안 되면 아래로 (폰에서 분석)
+        if (!ended) poll = setTimeout(() => void check(), 15_000);
+      } finally {
+        checking = false;
       }
-      if (ended) return;
-      stop();
-      deleteDoc(ref).catch(() => {});
-      fail(new ServerUnavailable(why));
     };
 
-    /** 아직 결과가 아니면: 받아 가지 않거나 멈춘 걸 알아차릴 타이머 */
+    /** 아직 결과가 아니면: 받아 가지 않거나 멈춘 걸 알아차릴 때 서버에 확인 */
     const watch = (d: DocumentData, pendingWrite = false) => {
-      clearTimeout(pickup);
-      if (d.status === "queued" && !pendingWrite) {
-        // 서버가 받아 가지 않음 (함수가 꺼져 있는 등) → 폰에서
-        pickup = setTimeout(() => void giveUp("서버가 작업을 받지 않았어요"), PICKUP_MS);
-      } else if (d.status === "running") {
+      clearTimeout(timer);
+      if (d.status === "queued" && !pendingWrite) timer = setTimeout(() => void check(), PICKUP_MS);
+      else if (d.status === "running") {
         const started = d.startedAt?.toMillis?.() ?? Date.now();
-        pickup = setTimeout(() => void giveUp("서버 분석이 멈췄어요"), Math.max(0, started + STUCK_MS - Date.now()));
+        timer = setTimeout(() => void check(), Math.max(0, started + STUCK_MS - Date.now()));
       }
     };
+
+    // 앱이 앞으로 돌아오면 바로 서버에 물어봄 (실시간 연결이 다시 붙길 기다리지 않음)
+    const onVisible = () => {
+      if (!document.hidden) setTimeout(() => void check(), 500);
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     const unsub = onSnapshot(
       ref,
       (s) => {
         if (ended) return;
+        // 휴대폰에 남아 있던 예전 정보는 믿지 않고 서버에 확인 (결과면 그대로 씀)
+        if (s.metadata.fromCache) {
+          if (s.exists() && settle(s.data())) return;
+          return void check();
+        }
         if (!s.exists()) {
-          // 화면에 남은 예전 정보로는 없다고 나올 수 있어서 서버에 확인
-          if (s.metadata.fromCache) return void giveUp("작업이 없어졌어요");
           stop();
           return fail(new ServerUnavailable("작업이 없어졌어요"));
         }
@@ -126,7 +152,8 @@ function waitFor(ref: DocumentReference, signal: AbortSignal): Promise<PhotoResu
         if (settle(d)) return;
         watch(d, s.metadata.hasPendingWrites);
       },
-      () => void giveUp("서버 연결이 끊겼어요"),
+      // 실시간 연결이 끊기면 15초마다 직접 물어봄
+      () => void check(),
     );
   });
 }
@@ -145,7 +172,14 @@ export async function analyzeOnServer(
   try {
     const uid = await myUid();
     ref = jobRef(uid, jobId);
-    const old = await getDoc(ref);
+    // 앱을 켜자마자는 인터넷이 아직 안 붙었을 수 있어서 몇 번 다시 (확인 못 하고 새로 올리면 같은 사진을 두 번 분석함)
+    let old: Awaited<ReturnType<typeof getDoc>> | null = null;
+    let why = "";
+    for (let i = 0; i < 4 && !old; i++) {
+      old = await getDoc(ref).catch((e) => ((why = e instanceof Error ? e.message : String(e)), null));
+      if (!old && i < 3) await sleep(2000 * (i + 1));
+    }
+    if (!old) throw new Error(`서버에 연결하지 못했어요 (${why})`);
     // 이미 맡긴 작업이면(앱을 껐다 켬) 결과만 받아 옴. 결과를 받으면 문서를 지우므로, 실패한 기록을 다시 누르면 새로 맡김
     if (!old.exists()) {
       await syncKey(uid, cleanKey(settings.geminiKey));

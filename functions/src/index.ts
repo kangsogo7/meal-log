@@ -19,6 +19,8 @@ interface Job {
   schema: string;
   models: string[];
   thinkingLevel?: string;
+  /** 이번 분석에서 구글에 물은 기록 (모델·검색 여부·상태·걸린 시간). 느릴 때 원인 확인용, 서버 로그에 남김 */
+  trace?: string[];
 }
 
 class AiError extends Error {
@@ -79,6 +81,7 @@ async function ask(key: string, job: Job, search: boolean, deadline: number): Pr
   let think = level;
   const call = async (model: string) => {
     const post = async (b: string) => {
+      const t0 = Date.now();
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
@@ -86,8 +89,9 @@ async function ask(key: string, job: Job, search: boolean, deadline: number): Pr
         signal: AbortSignal.timeout(CALL_MS),
       }).catch(() => null);
       // 응답이 너무 늦으면 붐빌 때(503)처럼 다음 모델로
-      if (!res) return { status: 503, text: "" };
-      return { status: res.status, text: await res.text() };
+      const out = res ? { status: res.status, text: await res.text() } : { status: 503, text: "" };
+      job.trace?.push(`${model}${search ? "(검색)" : ""} ${res ? out.status : "시간초과"} ${((Date.now() - t0) / 1000).toFixed(1)}초`);
+      return out;
     };
     think = level;
     const r = await post(body(true));
@@ -185,6 +189,9 @@ export const photoJob = onDocumentWritten(
       return s.data() as Job;
     });
     if (!job) return;
+    job.trace = [];
+    const t0 = Date.now();
+    const log = (result: string) => console.log(JSON.stringify({ photoJob: ev.params.jobId, result, sec: Math.round((Date.now() - t0) / 1000), trace: job.trace }));
 
     // 앱이 분석 중에 기록을 지우면 문서도 지워짐 → 결과를 적지 않음
     const finish = (data: Record<string, unknown>) =>
@@ -194,9 +201,11 @@ export const photoJob = onDocumentWritten(
       if (!key) throw new AiError("이 기기의 AI 키가 서버에 없어요. 설정에서 키를 다시 저장해 주세요.", true);
       if (!job.image?.data || !Array.isArray(job.models) || !job.models.length) throw new AiError("요청 형식이 올바르지 않아요.", true);
       const a = await analyze(key, job);
-      await finish({ status: "done", ...a });
+      log("done");
+      await finish({ status: "done", ...a, trace: job.trace });
     } catch (e) {
-      await finish({ status: "failed", error: e instanceof AiError ? e.message : "사진을 분석하지 못했어요. 기록을 눌러 다시 해 주세요." });
+      log(`failed: ${e instanceof Error ? e.message : String(e)}`);
+      await finish({ status: "failed", error: e instanceof AiError ? e.message : "사진을 분석하지 못했어요. 기록을 눌러 다시 해 주세요.", trace: job.trace });
     }
   },
 );
