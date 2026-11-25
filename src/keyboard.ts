@@ -15,10 +15,13 @@ function visibleBottom() {
   return vv ? vv.offsetTop + vv.height - 12 : window.innerHeight;
 }
 
+/** 입력칸을 감싸고 스크롤되는 상자: 시트 · 전체 화면 · 앱 본문(목표·설정 같은 탭 화면) */
+const BOXES = ".sheet-body, .screen-body, .app";
+
 function revealFocused() {
   const el = document.activeElement as HTMLElement | null;
   if (!el || !(el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
-  const box = el.closest(".sheet-body, .screen-body");
+  const box = el.closest(BOXES);
   if (!box) return;
   const bottom = Math.min(box.getBoundingClientRect().bottom, visibleBottom());
   const r = el.getBoundingClientRect();
@@ -43,7 +46,7 @@ export function initKeyboard() {
   document.addEventListener("focusin", (e) => {
     const t = e.target as HTMLElement;
     if (!(t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
-    const box = t.closest?.(".sheet-body, .screen-body");
+    const box = t.closest?.(BOXES);
     if (!box) return;
     // 목록이 짧아도 입력칸을 키보드 위로 올릴 수 있게 아래 여백을 줌 (창을 닫을 때까지 유지 — 여백이 사라지며 화면이 튀지 않게)
     if (isIOS) box.classList.add("typing");
@@ -53,7 +56,13 @@ export function initKeyboard() {
   // 키보드가 떠 있는 동안(글자 입력칸에 포커스) 표시. 키보드 높이 값은 아이폰에서 믿을 수 없어서 포커스로 판단
   const typing = (el: Element | null) => !!el && (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|file|range|color|date)$/.test((el as HTMLInputElement).type)));
   document.addEventListener("focusin", (e) => document.documentElement.classList.toggle("kb-open", typing(e.target as Element)));
-  document.addEventListener("focusout", () => setTimeout(() => { document.documentElement.classList.toggle("kb-open", typing(document.activeElement)); update(); }, 50));
+  document.addEventListener("focusout", () => setTimeout(() => {
+    const still = typing(document.activeElement);
+    document.documentElement.classList.toggle("kb-open", still);
+    // 탭 화면(앱 본문)은 닫히지 않으니 입력이 끝나면 아래 여백을 다시 뺌
+    if (!still) document.querySelector(".app.typing")?.classList.remove("typing");
+    update();
+  }, 50));
   // 화면을 돌리면: 돌리기 전 확대·이동 상태를 지우고, 돌아가는 동안 값이 늦게 바뀌니 몇 번 더 맞춤
   const settle = () => {
     if (!document.documentElement.classList.contains("kb-open") && document.body.classList.contains("no-scroll")) window.scrollTo(0, 0);

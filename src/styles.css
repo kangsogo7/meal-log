@@ -546,6 +546,9 @@ input.missing { border-color: var(--over); }
 .sheet-head.scrolled { box-shadow: 0 1px 0 var(--border); position: relative; z-index: 1; }
 /* 아이폰에서 입력 중: 목록이 짧아도 입력칸을 키보드 위로 올릴 수 있게 */
 .sheet-body.typing, .screen-body.typing { padding-bottom: 50vh; }
+/* 홈 테마 창(바로 기록 등)·탭 화면(목표·설정 등)은 흰 시트 아래에 여백 (테마의 padding: 0 에 덮이지 않게) */
+.screen-page.themed .screen-body.typing > .tp-sheet, .app.typing .tp-sheet { padding-bottom: 50vh; }
+.app.typing .content:not(:has(.tp)) { padding-bottom: 50vh; }
 /* 즐겨찾기·세트 목록 배경이 창 맨 아래까지 이어지게 (목록이 짧아도 아래에 다른 색 띠가 남지 않게) */
 .sheet-body:has(> .fav-tab) { display: flex; flex-direction: column; }
 .sheet-body > .fav-tab { flex: 1 0 auto; margin-bottom: -16px; }
