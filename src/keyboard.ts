@@ -1,7 +1,10 @@
+import { Capacitor } from "@capacitor/core";
 // 키보드가 올라와도 창(시트·전체 화면)이 보이는 영역 안에 있게.
 // 아이폰은 키보드가 떠도 화면 크기가 그대로라, 실제로 보이는 영역(visualViewport)의 위치·높이를 CSS 변수로 넘김.
 // 앱이 직접 스크롤을 움직이는 건 딱 한 경우: 입력 중인 칸이 키보드에 가려졌을 때, 그 창 안에서만 가려진 만큼.
 
+// 아이폰 앱은 키보드 플러그인(capacitor.config의 Keyboard.resize = "native")으로 웹 화면 자체가 키보드 위까지 줄어듦
+// → 보이는 영역을 정확히 알 수 있어서 안드로이드와 같은 방법으로. 아래 45% 어림은 아이폰 웹(PWA)에서만
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /**
@@ -10,7 +13,7 @@ const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platfor
  * 화면(기기 세로 길이)의 45%보다 아래는 (한글 자판+막대 기준) 가려진다고 보고 그 위로 올림.
  */
 function visibleBottom() {
-  if (isIOS) return window.screen.height * 0.45;
+  if (isIOS && !Capacitor.isNativePlatform()) return window.screen.height * 0.45;
   const vv = window.visualViewport;
   return vv ? vv.offsetTop + vv.height - 12 : window.innerHeight;
 }
