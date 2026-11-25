@@ -78,7 +78,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
         }
       >
         <label>메모
-          <TextInput value={e.memo ?? ""} onChange={(v) => setE({ ...e, memo: v })} placeholder="예: 배불렀음" />
+          <textarea rows={3} value={e.memo ?? ""} onChange={(ev) => setE({ ...e, memo: ev.target.value })} placeholder="예: 배불렀음" />
         </label>
       </FoodView>
       {/* 자주 먹는 것과 같은 음식 수정 화면. 완료하면 이 기록에만 반영되고, 아래 저장을 눌러야 저장됨 */}
