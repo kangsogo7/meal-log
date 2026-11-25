@@ -2,6 +2,8 @@ package io.github.kangsogo7.meallog;
 
 import android.content.ContentResolver;
 import android.content.ContentUris;
+import android.content.ContentValues;
+import android.os.Environment;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -26,6 +28,7 @@ import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
  * 앱 안 사진앨범: 최근 사진 목록(작은 미리보기)과 고른 사진 원본.
@@ -37,6 +40,7 @@ import java.io.InputStream;
         @Permission(alias = "images", strings = { "android.permission.READ_MEDIA_IMAGES" }),
         @Permission(alias = "selected", strings = { "android.permission.READ_MEDIA_VISUAL_USER_SELECTED" }),
         @Permission(alias = "storage", strings = { "android.permission.READ_EXTERNAL_STORAGE" }),
+        @Permission(alias = "write", strings = { "android.permission.WRITE_EXTERNAL_STORAGE" }),
     }
 )
 public class PhotoLibrary extends Plugin {
@@ -169,6 +173,60 @@ public class PhotoLibrary extends Plugin {
                 call.resolve(r);
             } catch (Exception e) {
                 call.reject("사진을 열지 못했어요");
+            }
+        }).start();
+    }
+
+    /** base64 JPEG를 사진 앨범(Pictures/식단기록)에 그대로 저장 */
+    @PluginMethod
+    public void save(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 29 && !has("android.permission.WRITE_EXTERNAL_STORAGE")) {
+            requestPermissionForAlias("write", call, "saveDone");
+            return;
+        }
+        doSave(call);
+    }
+
+    @PermissionCallback
+    private void saveDone(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 29 && !has("android.permission.WRITE_EXTERNAL_STORAGE")) {
+            call.reject("사진 저장 권한이 없어요");
+            return;
+        }
+        doSave(call);
+    }
+
+    private void doSave(PluginCall call) {
+        String b64 = call.getString("data");
+        if (b64 == null || b64.isEmpty()) {
+            call.reject("사진이 비어 있어요");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
+                ContentResolver cr = getContext().getContentResolver();
+                ContentValues v = new ContentValues();
+                v.put(MediaStore.Images.Media.DISPLAY_NAME, "meal_" + System.currentTimeMillis() + ".jpg");
+                v.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                if (Build.VERSION.SDK_INT >= 29) {
+                    v.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/식단기록");
+                    v.put(MediaStore.Images.Media.IS_PENDING, 1);
+                }
+                Uri uri = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
+                if (uri == null) throw new Exception("insert");
+                try (OutputStream out = cr.openOutputStream(uri)) {
+                    if (out == null) throw new Exception("open");
+                    out.write(bytes);
+                }
+                if (Build.VERSION.SDK_INT >= 29) {
+                    ContentValues done = new ContentValues();
+                    done.put(MediaStore.Images.Media.IS_PENDING, 0);
+                    cr.update(uri, done, null, null);
+                }
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("저장하지 못했어요");
             }
         }).start();
     }

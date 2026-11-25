@@ -11,6 +11,7 @@ import AddSheet, { loadAddDraft, type AddDraft } from "./AddSheet";
 import { entryDraft, FavStar } from "../favorites";
 import EntrySheet from "./EntrySheet";
 import WeeklyCard from "./WeeklyCard";
+import SavablePhoto from "../components/SavablePhoto";
 import { cancelPhotoEntry, recordPhotoMeal, submitPhotoEntry, syncPhotoJobs } from "../photoMeal";
 import { autoSyncHealth } from "../health";
 import SwipeRow from "../components/SwipeRow";
@@ -321,7 +322,7 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
             }
           >
             <div className="meal-photo">
-              {ph ? <img src={ph.src} alt={`${m.label} 사진`} /> : null}
+              {ph ? <SavablePhoto src={ph.src} alt={`${m.label} 사진`} name={`${date} ${m.label}.jpg`} /> : null}
               <div className="meal-photo-btns">
                 <Btn onClick={() => setCam(e.id!)}>{ph ? "사진 바꾸기" : "사진 추가"}</Btn>
                 {ph && <Btn onClick={() => removePhoto(e)}>사진 지우기</Btn>}

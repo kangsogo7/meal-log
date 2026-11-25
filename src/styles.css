@@ -1692,3 +1692,8 @@ body:has(.content > .tp:first-child) { background: var(--home-bg); }
 .act-week { margin: 4px 0 -4px; }
 .act-week button:disabled { opacity: 0.3; }
 .act-loading { text-align: center; margin: 0; }
+
+/* 길게 누르면 사진 저장 */
+.photo-save { position: relative; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.photo-save img { display: block; pointer-events: none; }
+.photo-save-btn { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); min-height: 44px; padding: 0 22px; border: none; border-radius: 999px; background: rgba(17, 17, 17, 0.85); color: #fff; font-size: var(--fs-main); }

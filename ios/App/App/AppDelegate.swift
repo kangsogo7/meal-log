@@ -276,6 +276,7 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "more", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "list", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "full", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "save", returnType: CAPPluginReturnPromise),
     ]
     private var assets: PHFetchResult<PHAsset>?
 
@@ -339,6 +340,25 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             }
             call.resolve(["items": items, "total": r.count])
+        }
+    }
+
+    /** base64 JPEG를 앨범에 그대로 저장 (추가 전용 권한) */
+    @objc func save(_ call: CAPPluginCall) {
+        guard let b64 = call.getString("data"), let data = Data(base64Encoded: b64) else {
+            call.reject("사진이 비어 있어요")
+            return
+        }
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { s in
+            guard s == .authorized || s == .limited else {
+                call.reject("사진 저장 권한이 없어요. 설정 → 식단 기록 → 사진에서 허용해 주세요.")
+                return
+            }
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
+            }) { ok, err in
+                if ok { call.resolve() } else { call.reject(err?.localizedDescription ?? "저장하지 못했어요") }
+            }
         }
     }
 

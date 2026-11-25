@@ -87,6 +87,8 @@
 	<string>음식, 인바디 결과지, 그룹 사진, 제품 바코드를 찍어 기록할 때 카메라를 사용해요.</string>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>기록한 음식 사진을 앨범에 저장할 때 사용해요.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>앨범에 있는 음식, 인바디 결과지 사진을 골라 기록할 때 사용해요.</string>
 </dict>
