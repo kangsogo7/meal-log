@@ -1697,3 +1697,4 @@ body:has(.content > .tp:first-child) { background: var(--home-bg); }
 .photo-save { position: relative; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 .photo-save img { display: block; pointer-events: none; }
 .photo-save-btn { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); min-height: 44px; padding: 0 22px; border: none; border-radius: 999px; background: rgba(17, 17, 17, 0.85); color: #fff; font-size: var(--fs-main); }
+.home-date .day-share { color: var(--home-muted); margin-left: -6px; }

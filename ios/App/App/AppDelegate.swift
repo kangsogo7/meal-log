@@ -277,6 +277,7 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "list", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "full", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "save", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "share", returnType: CAPPluginReturnPromise),
     ]
     private var assets: PHFetchResult<PHAsset>?
 
@@ -340,6 +341,25 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             }
             call.resolve(["items": items, "total": r.count])
+        }
+    }
+
+    /** base64 이미지를 공유 창(카톡 등)으로 */
+    @objc func share(_ call: CAPPluginCall) {
+        guard let b64 = call.getString("data"), let data = Data(base64Encoded: b64), let img = UIImage(data: data) else {
+            call.reject("이미지가 비어 있어요")
+            return
+        }
+        DispatchQueue.main.async {
+            guard let vc = self.bridge?.viewController else { call.reject("공유 창을 열지 못했어요"); return }
+            let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
+            if let pop = av.popoverPresentationController {
+                pop.sourceView = vc.view
+                pop.sourceRect = CGRect(x: vc.view.bounds.midX, y: vc.view.bounds.midY, width: 0, height: 0)
+                pop.permittedArrowDirections = []
+            }
+            av.completionWithItemsHandler = { _, _, _, _ in call.resolve() }
+            vc.present(av, animated: true)
         }
     }
 

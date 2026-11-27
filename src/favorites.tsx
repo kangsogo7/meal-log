@@ -10,6 +10,8 @@ export interface FavDraft {
   place?: string;
   items: Item[];
   k?: number;
+  /** 조리: 만드는 방법 */
+  memo?: string;
 }
 
 /** 이미 기록한 식단 → 즐겨찾기 내용. 합계를 직접 고쳤으면 그 값이 그대로 저장되게 */
@@ -17,7 +19,7 @@ export function entryDraft(e: Entry): FavDraft | null {
   const title = e.title.trim();
   if (!title) return null;
   const items = e.items.length === 1 ? [{ ...e.items[0], nutrients: e.total }] : e.items;
-  return { kind: e.kind, title, place: e.place || undefined, items, k: e.k };
+  return { kind: e.kind, title, place: e.place || undefined, items, k: e.k, memo: e.kind === "home" ? e.memo : undefined };
 }
 
 export async function addToGroup(d: FavDraft, groupId: number) {
@@ -28,6 +30,7 @@ export async function addToGroup(d: FavDraft, groupId: number) {
     key, kind: d.kind, title: d.title, place: d.place, items,
     total: sumNutrients(items.map((i) => i.nutrients)),
     uses: prev?.uses ?? 0, updatedAt: prev?.updatedAt ?? Date.now(), groupId,
+    memo: d.memo?.trim() || prev?.memo,
   });
 }
 

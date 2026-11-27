@@ -72,6 +72,7 @@ export interface Entry {
   total: Nutrients;
   /** 양 조절 배수 (items·total은 이 배수로 먹은 양, 기준 1회 제공량 = 먹은 양 ÷ k). 없으면 1 */
   k?: number;
+  /** 조리 기록의 만드는 방법 (다른 종류는 예전에 적은 메모만 보관, 화면엔 안 보임) */
   memo?: string;
   createdAt: number;
   /** 사진으로 바로 기록한 경우: ai = AI가 분석 중, failed = 분석 실패 */
@@ -112,6 +113,8 @@ export interface SavedFood {
   /** @deprecated v3부터 groupId 사용 */
   fav?: boolean;
   groupId?: number; // 즐겨찾기 그룹. 없으면 "최근"에만 보임
+  /** 조리: 만드는 방법 */
+  memo?: string;
 }
 
 /** 즐겨찾기 그룹 */

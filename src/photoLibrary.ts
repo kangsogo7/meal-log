@@ -12,6 +12,8 @@ const Lib = registerPlugin<{
   full(o: { id: string; max: number }): Promise<{ data: string }>;
   /** base64 JPEG를 앨범에 그대로 저장 */
   save(o: { data: string }): Promise<void>;
+  /** base64 이미지를 휴대폰 공유 창으로 */
+  share(o: { data: string; name: string; mimeType: string }): Promise<void>;
 }>("PhotoLibrary");
 
 export const hasLibrary = () => Capacitor.isNativePlatform();
@@ -37,15 +39,38 @@ export async function libraryFull(id: string, max = 2048): Promise<Blob> {
   return new Blob([bytes], { type: "image/jpeg" });
 }
 
+const toBase64 = (blob: Blob) =>
+  new Promise<string>((ok, fail) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(",")[1] ?? "");
+    r.onerror = () => fail(r.error);
+    r.readAsDataURL(blob);
+  });
+
+/** 이미지를 공유 창으로 (앱은 휴대폰 공유 창, 웹은 공유 창이나 내려받기) */
+export async function shareImage(blob: Blob, name: string): Promise<"shared" | "downloaded"> {
+  if (Capacitor.isNativePlatform()) {
+    await Lib.share({ data: await toBase64(blob), name, mimeType: blob.type || "image/png" });
+    return "shared";
+  }
+  const file = new File([blob], name, { type: blob.type || "image/png" });
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file] });
+    return "shared";
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return "downloaded";
+}
+
 /** 사진을 휴대폰 앨범에 그대로 저장. 웹은 공유 창(아이폰 "이미지 저장") 또는 내려받기 */
 export async function savePhoto(blob: Blob, name = "식단기록.jpg"): Promise<"saved" | "shared" | "downloaded"> {
   if (Capacitor.isNativePlatform()) {
-    const data = await new Promise<string>((ok, fail) => {
-      const r = new FileReader();
-      r.onload = () => ok(String(r.result).split(",")[1] ?? "");
-      r.onerror = () => fail(r.error);
-      r.readAsDataURL(blob);
-    });
+    const data = await toBase64(blob);
     await Lib.save({ data });
     return "saved";
   }

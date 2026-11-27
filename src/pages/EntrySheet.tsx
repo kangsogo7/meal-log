@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { db, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
+import { RecipeField } from "../components/RecipeField";
+import { db, savedKey, sourceLabel, sumNutrients, type Entry, type Item } from "../db";
 import { itemParts, MealTitle, Screen, SrcTag, TextInput, BackButton, Btn } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
 import FoodView, { FoodActions } from "../components/FoodView";
@@ -29,6 +30,11 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
   const save = async () => {
     try {
       await db.entries.put(current);
+      // 만드는 방법은 자주 먹는 것에도 같이
+      if (e.kind === "home" && (e.memo ?? "") !== (entry.memo ?? "")) {
+        const key = savedKey(e.kind, e.place, e.title);
+        await db.saved.update(key, { memo: e.memo?.trim() || undefined });
+      }
       onClose();
     } catch (err) {
       alert(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`);
@@ -77,9 +83,7 @@ export default function EntrySheet({ entry, onClose }: { entry: Entry; onClose: 
           </>
         }
       >
-        <label>메모
-          <textarea rows={3} value={e.memo ?? ""} onChange={(ev) => setE({ ...e, memo: ev.target.value })} placeholder="예: 배불렀음" />
-        </label>
+        {e.kind === "home" && <RecipeField value={e.memo ?? ""} onChange={(memo) => setE({ ...e, memo })} />}
       </FoodView>
       {/* 자주 먹는 것과 같은 음식 수정 화면. 완료하면 이 기록에만 반영되고, 아래 저장을 눌러야 저장됨 */}
       {editFood && (

@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, r1, savedKey, sumNutrients, ZERO, type Item, type MealSet, type Nutrients, type SavedFood } from "../db";
+import { RecipeField } from "../components/RecipeField";
 import { Btn, flash, Tabs, FoodList, FoodRow, itemParts, macroLine, NutrientLine, PartsList, Screen, Sheet, FullScreen, TextInput, BackButton } from "../components/ui";
 import ItemEditScreen from "../components/ItemEditScreen";
 import { FoodFields } from "../components/FoodFields";
@@ -10,10 +11,11 @@ import { AmountEditor, portionItems, portionNutrients, portionText, storedPortio
 // ---------------------------------------------------------------------------
 // 음식 수정 화면 (자주 먹는 것·기록 수정 공통): 이름·상호·1회 제공량·영양성분, 재료가 여럿이면 재료 목록
 // ---------------------------------------------------------------------------
-export type FoodEdit = { title: string; place?: string; items: Item[] };
+export type FoodEdit = { title: string; place?: string; items: Item[]; memo?: string };
 
 export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회 제공량", onSave, onClose }: {
-  food: { kind: SavedFood["kind"]; title: string; place?: string; items: Item[]; total: Nutrients };
+  /** memo가 있으면(조리) 만드는 방법 칸을 보여 줌 */
+  food: { kind: SavedFood["kind"]; title: string; place?: string; items: Item[]; total: Nutrients; memo?: string };
   saveLabel?: string;
   /** 숫자가 어떤 양 기준인지 (기록은 먹은 양) */
   amountLabel?: string;
@@ -29,6 +31,7 @@ export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회
   const [base, setBase] = useState(base0);
   // 재료 여러 개짜리: 재료마다 이름·양·영양성분 수정, 빼기, 추가
   const [ings, setIngs] = useState<Item[]>(food.items);
+  const [memo, setMemo] = useState(food.memo ?? "");
 
   const save = () => {
     const t = title.trim();
@@ -46,7 +49,7 @@ export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회
         }]
       : ings.filter((i) => i.name.trim()).map((i) => ({ ...i, name: i.name.trim() }));
     if (!items.length) return alert("재료가 하나 이상 있어야 해요.");
-    onSave({ title: t, place: p, items });
+    onSave({ title: t, place: p, items, memo: food.memo != null ? memo.trim() : undefined });
   };
 
   return (
@@ -83,6 +86,7 @@ export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회
             <IngredientEditor items={ings} onChange={setIngs} />
           </>
         )}
+        {food.memo != null && <RecipeField value={memo} onChange={setMemo} />}
       </div>
     </FullScreen>
   );
@@ -90,12 +94,12 @@ export function FoodEditScreen({ food, saveLabel = "저장", amountLabel = "1회
 
 /** 저장된 음식(즐겨찾기·자주 먹는 것) 고치기: 저장을 누르면 바로 반영 */
 export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose: () => void }) {
-  const save = async ({ title, place, items }: FoodEdit) => {
+  const save = async ({ title, place, items, memo }: FoodEdit) => {
     const key = savedKey(food.kind, place, title);
     try {
       await db.transaction("rw", db.saved, async () => {
         if (key !== food.key) await db.saved.delete(food.key);
-        await db.saved.put({ ...food, key, title, place, items, total: sumNutrients(items.map((i) => i.nutrients)) });
+        await db.saved.put({ ...food, key, title, place, items, total: sumNutrients(items.map((i) => i.nutrients)), memo: memo || undefined });
       });
       flash("수정했어요");
       onClose();
@@ -103,7 +107,7 @@ export function SavedFoodEditSheet({ food, onClose }: { food: SavedFood; onClose
       alert(`저장하지 못했어요: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
-  return <FoodEditScreen food={food} onSave={save} onClose={onClose} />;
+  return <FoodEditScreen food={food.kind === "home" ? { ...food, memo: food.memo ?? "" } : { ...food, memo: undefined }} onSave={save} onClose={onClose} />;
 }
 
 // ---------------------------------------------------------------------------

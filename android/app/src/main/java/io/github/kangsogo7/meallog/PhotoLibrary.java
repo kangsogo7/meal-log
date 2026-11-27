@@ -3,6 +3,10 @@ package io.github.kangsogo7.meallog;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.Intent;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileOutputStream;
 import android.os.Environment;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -175,6 +179,37 @@ public class PhotoLibrary extends Plugin {
                 call.reject("사진을 열지 못했어요");
             }
         }).start();
+    }
+
+    /** base64 이미지를 공유 창(카톡 등)으로: 앱 캐시에 파일로 두고 FileProvider로 넘김 */
+    @PluginMethod
+    public void share(PluginCall call) {
+        String b64 = call.getString("data");
+        String name = call.getString("name", "share.png");
+        String mime = call.getString("mimeType", "image/png");
+        if (b64 == null || b64.isEmpty()) {
+            call.reject("이미지가 비어 있어요");
+            return;
+        }
+        try {
+            File dir = new File(getContext().getCacheDir(), "share");
+            dir.mkdirs();
+            File f = new File(dir, name.replaceAll("[^0-9A-Za-z._-]", "_"));
+            try (FileOutputStream out = new FileOutputStream(f)) { out.write(Base64.decode(b64, Base64.DEFAULT)); }
+            Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType(mime);
+            send.putExtra(Intent.EXTRA_STREAM, uri);
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent chooser = Intent.createChooser(send, null);
+            chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            getActivity().runOnUiThread(() -> {
+                getActivity().startActivity(chooser);
+                call.resolve();
+            });
+        } catch (Exception e) {
+            call.reject("공유 창을 열지 못했어요");
+        }
     }
 
     /** base64 JPEG를 사진 앨범(Pictures/식단기록)에 그대로 저장 */

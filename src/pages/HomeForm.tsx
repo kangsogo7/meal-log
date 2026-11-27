@@ -12,6 +12,7 @@ import FoodDetail from "../components/FoodDetail";
 import { makePortion, portionGrams, portionNutrients, type Portion } from "../portion";
 import type { Draft } from "./AddSheet";
 import { FavStar } from "../favorites";
+import { RecipeField } from "../components/RecipeField";
 import { norm, rankUserFoods, type UserFoodCand } from "../userFoods";
 
 const AI = -1;
@@ -107,6 +108,7 @@ const MANY_EXAMPLES = ["예: 닭가슴살 150g", "예: 현미밥 200g", "예: �
 export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (d: Draft) => void; actionLabel?: string }) {
   const settings = useSettings();
   const [dish, setDish] = useState("");
+  const [memo, setMemo] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [add, setAdd] = useState("");
   const [sugg, setSugg] = useState<{ line: ParsedLine; candidates: Food[]; prev: Prev[] } | null>(null);
@@ -247,7 +249,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
   const total = sumNutrients(items.map((i) => i.nutrients));
   const missing = rows.some(needsGrams);
   const title = () => dish.trim() || items.map((i) => i.name).join(", ");
-  const save = () => onSave({ kind: "home", title: title(), items });
+  const save = () => onSave({ kind: "home", title: title(), items, memo: memo.trim() || undefined });
   const openRow = rows.find((r) => r.id === open);
 
   return (
@@ -255,7 +257,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
       <label>요리 이름
         <div className="input-with-star">
           <TextInput value={dish} onChange={setDish} placeholder="선택 · 예: 닭가슴살 볶음밥" />
-          <FavStar getDraft={() => (rows.length && !missing ? { kind: "home", title: title(), items } : null)} />
+          <FavStar getDraft={() => (rows.length && !missing ? { kind: "home", title: title(), items, memo: memo.trim() || undefined } : null)} />
         </div>
       </label>
 
@@ -351,6 +353,7 @@ export default function HomeForm({ onSave, actionLabel = "저장" }: { onSave: (
           <DataNote />
         </>
       )}
+      {rows.length > 0 && <RecipeField value={memo} onChange={setMemo} />}
       {(() => {
         const foot = rows.length > 0 && (
           <div className="ing-foot">

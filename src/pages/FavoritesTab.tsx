@@ -19,7 +19,7 @@ const basePortion = (s: SavedFood) => storedPortion(s);
 
 /** 즐겨찾기 음식을 고른 양만큼의 기록 내용으로 */
 export function savedDraft(s: SavedFood, p: Portion): Draft {
-  return { kind: s.kind, title: s.title, place: s.place, items: portionItems(s, p), k: p.k };
+  return { kind: s.kind, title: s.title, place: s.place, items: portionItems(s, p), k: p.k, memo: s.memo };
 }
 
 /** "교촌치킨 · 150g" 같은 한 줄 설명 */

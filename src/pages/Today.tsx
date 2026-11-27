@@ -207,6 +207,21 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
   };
 
 
+  // 보고 있는 날을 이미지 한 장으로 공유
+  const [sharing, setSharing] = useState(false);
+  const shareThisDay = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const { shareDay } = await import("../dayShare");
+      await shareDay(date, longDate(date), entries);
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === "AbortError")) flash(err instanceof Error ? err.message : "공유하지 못했어요", 3000);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <>
       <div className="view-tabs-row">
@@ -218,6 +233,9 @@ export default function Today({ onGoToGoals, openChecks = 0, openAdd }: {
             <div className="home-date">
               <DateButton className="home-date-btn" value={date} onChange={setDate}>{longDate(date)}</DateButton>
               {date !== todayStr() && <button className="chip" onClick={() => setDate(todayStr())}>오늘</button>}
+              <button className="icon-btn day-share" onClick={shareThisDay} disabled={sharing} aria-label="이 날 기록 이미지로 공유">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" /></svg>
+              </button>
               <span className="spacer" />
               <button className={`cheat-toggle ${cheat ? "on" : ""}`} role="switch" aria-checked={cheat} onClick={toggleCheat}>
                 치팅데이<i aria-hidden><b /></i>

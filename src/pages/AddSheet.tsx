@@ -17,17 +17,19 @@ export interface Draft {
   place?: string;
   items: Item[];
   k?: number; // 양 조절 배수
+  /** 조리: 만드는 방법 */
+  memo?: string;
 }
 
 /** 기록 저장 + 다음에 다시 쓰도록 메뉴 저장. 저장한 기록의 id */
-export async function saveEntry(date: string, meal: Meal, d: Draft, memo?: string) {
+export async function saveEntry(date: string, meal: Meal, d: Draft, memo = d.kind === "home" ? d.memo?.trim() || undefined : undefined) {
   const total = sumNutrients(d.items.map((i) => i.nutrients));
   const id = await db.entries.add({ date, meal, kind: d.kind, title: d.title, place: d.place, items: d.items, total, k: d.k, memo, createdAt: Date.now() });
   const key = savedKey(d.kind, d.place, d.title);
   const prev = await db.saved.get(key);
   // 즐겨찾기·최근 메뉴에는 양 조절 전 1회 제공량으로
   const base = baseServing(d.items, d.k);
-  await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: base, total: sumNutrients(base.map((i) => i.nutrients)), uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId });
+  await db.saved.put({ key, kind: d.kind, title: d.title, place: d.place, items: base, total: sumNutrients(base.map((i) => i.nutrients)), uses: (prev?.uses ?? 0) + 1, updatedAt: Date.now(), groupId: prev?.groupId, memo: memo ?? prev?.memo });
   // 숫자를 직접 넣어 만든 음식은 모두가 검색에서 쓰도록 올림 (실패해도 기록에는 영향 없음)
   if (d.items.length && d.items.every((i) => i.source === "manual")) import("../publicFoods").then((m) => m.publishFood(d)).catch(() => {});
   return id as number;
